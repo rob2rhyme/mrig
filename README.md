@@ -29,7 +29,7 @@ Requires [Bun](https://bun.sh) ≥ 1.3. [ripgrep](https://github.com/BurntSushi/
 optional (faster `grep`; a pure-JS fallback is built in).
 
 ```sh
-git clone <your repo> mrig && cd mrig
+git clone https://github.com/rob2rhyme/mrig.git && cd mrig
 bun install
 bun run build            # → dist/mrig (single binary for this machine)
 cp dist/mrig ~/.local/bin/  # or anywhere on your PATH
