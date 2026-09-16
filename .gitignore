@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.mrig/sessions/
+*.log
+.env
+.env.*
+.DS_Store
