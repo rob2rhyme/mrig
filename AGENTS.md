@@ -20,6 +20,13 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
 - `src/session.ts` — JSONL under `~/.mrig/sessions`; `sync()` appends, rewrites on shrink.
 - `src/ui/repl.ts` — readline REPL and slash commands. `src/index.ts` — CLI + headless `-p`.
 
+## Language and script
+
+Language rules (Devanagari is canonical, the display encoding is Unicode Brahmi, and
+transliteration is hub-and-spoke) live in `docs/LANGUAGE.md`. The decision behind them is
+`docs/decisions/2026-09-23-akkha-encoding.md`. Read both before touching language or
+transliteration code.
+
 ## Rules
 
 - Never guess an SDK API: read `node_modules/ai/dist/index.d.ts` (and
