@@ -1,7 +1,7 @@
 {
   "name": "mrig",
   "version": "0.1.0",
-  "description": "mrig — a personal, local, model-agnostic coding and general-purpose agent for the terminal",
+  "description": "mrig \u2014 a personal, local, model-agnostic coding and general-purpose agent for the terminal",
   "type": "module",
   "private": true,
   "bin": {
@@ -19,7 +19,8 @@
     "build:mac-intel": "bun build ./src/index.ts --compile --target=bun-darwin-x64 --outfile dist/mrig-darwin-x64",
     "build:win": "bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile dist/mrig-windows-x64.exe",
     "build:all": "bun run build:linux && bun run build:mac && bun run build:mac-intel && bun run build:win",
-    "check": "bun run lint && bun run typecheck && bun test && bun run build"
+    "check": "bun run lint && bun run typecheck && bun test && bun run build",
+    "eval": "bun run scripts/eval.ts"
   },
   "engines": {
     "bun": ">=1.3.0"

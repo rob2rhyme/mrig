@@ -152,6 +152,7 @@ Ctrl+C aborts a running turn; press it twice at the prompt to quit.
 bun run check          # lint (Biome, zero warnings) + typecheck + tests + build
 bun test               # tests only — no network; the agent loop is tested with a mock model
 bun run build:all      # dist/mrig-{linux-x64,darwin-arm64,darwin-x64,windows-x64.exe}
+bun run eval --list    # the model eval suite; see "Evaluating models"
 bun run scripts/fake-openai-server.ts   # fake model on :8089 for end-to-end smoke tests
 ```
 
@@ -192,10 +193,59 @@ Hardening for weak local models (L2):
 
 The trial procedure and results for candidate models live in `docs/LOCAL_MODELS.md`.
 
+## Evaluating models
+
+`bun run eval` runs a fixed suite of ten small repo tasks against your provider profiles and
+reports how well each model works as an agent. It is how you pick a local model with evidence
+instead of vibes.
+
+```sh
+bun run eval --list                          # the ten tasks
+bun run eval -P ollama                       # one profile
+bun run eval -P ollama,claude --matrix docs/COMPATIBILITY.md
+bun run eval --report --matrix docs/COMPATIBILITY.md   # re-render from saved results, run nothing
+```
+
+Without `-P` it tries every profile in your config. A profile is skipped, with the reason, when
+it has no API key, the server is unreachable, or the model id is not served (the same check as
+`mrig doctor`; `--no-check` skips it). Useful flags: `-t id,id` for a subset, `--max-steps`
+(default 20), `--timeout` seconds per task (default 300), `--out` for the results directory
+(default `evals/results`).
+
+**The tasks:** two read, two edit, one write, one grep, one glob, one bash and two multi-step
+fixes. Each runs in a fresh temp directory with a fresh in-memory session, using the same agent
+loop as `mrig -p --yolo`. Verifiers look at the result afterwards (exact file contents, the
+final answer, `bun test`) and never call a model. The fix tasks fail if the model edits the
+tests.
+
+**What is reported per profile:**
+
+| Column | Meaning |
+|---|---|
+| Pass | tasks whose verifier passed |
+| Valid calls | share of tool calls valid on the first try (known tool, valid arguments, not empty) |
+| Repaired | tool calls whose malformed JSON mrig salvaged |
+| tok/s | output tokens per second after the first token, when the provider reports it |
+| Cost | estimated from the pricing table; `free` for local models |
+
+Raw results are saved per run as JSON under `--out`; the matrix is always rebuilt from the
+newest run of each profile and model, so you can evaluate profiles on different days or machines
+and merge by copying the files. The matrix also names the best local profile (full task set,
+at least 70% passed, ranked by pass rate, then valid calls, then speed). Results from an older
+task set are ignored; bump `TASK_SET_VERSION` in `scripts/eval/tasks.ts` whenever a task or
+verifier changes.
+
+**Safety:** tasks run with permissions off in a temp directory, and the model can still run any
+shell command. Run models you do not trust in a container or VM. Your global
+`~/.mrig/AGENTS.md` memory is part of every run, equally for all profiles.
+
+The matrix lives in `docs/COMPATIBILITY.md` and stays empty until the suite has been run on real
+models.
+
 ## Status
 
 v0.1 — Phase 0 + 1: loop, six tools, providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L1 hygiene: `mrig doctor`, in-place session meta, leaner CI.
 L2 local-model hardening: Ollama context warning, bash-only `toolMode`, empty-argument retry.
-Next (see `docs/ROADMAP.md`): prompt caching, model trials, eval harness, compaction, offline
-guarantee. Licensing is yours to choose before publishing (add a `LICENSE` file).
+L3 eval harness: `bun run eval`. Next (see `docs/ROADMAP.md`): prompt caching, model trials and
+the first real matrix, compaction, offline guarantee. Licensing is yours to choose before publishing (add a `LICENSE` file).

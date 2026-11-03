@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ModelMessage } from 'ai';
 import { META_WIDTH, Session, sessionsDir } from '../src/session.ts';
@@ -95,6 +95,21 @@ describe('Session', () => {
     expect(loaded.meta.updatedAt > meta.updatedAt).toBe(true);
     s.sync([...loaded.messages, { role: 'assistant', content: 'new 7' }]); // now in place again
     expect(Session.load('legacy-1').messages.length).toBe(8);
+  });
+
+  test('an ephemeral session never touches the disk', () => {
+    const s = Session.create({ cwd: '/proj', provider: 'p', model: 'm', ephemeral: true });
+    s.sync([{ role: 'user', content: 'hello' }]);
+    s.sync([
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', content: 'hi' },
+    ]);
+    s.setModel('q', 'n');
+    expect(s.messages.length).toBe(2);
+    expect(s.meta.title).toBe('hello');
+    expect(s.meta.model).toBe('n');
+    expect(existsSync(join(home.dir, 'sessions'))).toBe(false); // checked first: list() creates it
+    expect(Session.list()).toEqual([]);
   });
 
   test('list is newest first and latest() filters by cwd', async () => {

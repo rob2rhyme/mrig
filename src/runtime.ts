@@ -25,6 +25,12 @@ export interface RuntimeOptions {
   maxSteps?: number;
   /** Session id to resume, or "latest" for the most recent session in cwd. */
   resume?: string;
+  /** Keep the session in memory only (eval harness): no file under ~/.mrig/sessions. */
+  ephemeral?: boolean;
+  /** Use this model instead of building one from the profile (tests, the eval harness). */
+  languageModel?: LanguageModel;
+  /** Use this config instead of loading it from cwd (the eval harness runs in temp dirs). */
+  config?: MrigConfig;
   ask: AskFn;
   events: AgentEvents;
 }
@@ -41,11 +47,11 @@ export class Runtime {
 
   constructor(opts: RuntimeOptions) {
     this.cwd = opts.cwd;
-    this.config = loadConfig({ cwd: opts.cwd });
+    this.config = opts.config ?? loadConfig({ cwd: opts.cwd });
     const resolved = resolveProfile(this.config, opts.provider, opts.model);
     this.providerName = resolved.name;
     this.profile = resolved.profile;
-    this.model = createModel(this.profile);
+    this.model = opts.languageModel ?? createModel(this.profile);
 
     this.permissions = new PermissionManager({
       yolo: opts.yolo ?? this.config.permissions.yolo,
@@ -63,6 +69,7 @@ export class Runtime {
         cwd: opts.cwd,
         provider: this.providerName,
         model: this.profile.model,
+        ephemeral: opts.ephemeral,
       });
     }
 
