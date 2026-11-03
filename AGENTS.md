@@ -22,8 +22,8 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
 
 ## Language and script
 
-Language rules (Devanagari is canonical, the display encoding is Unicode Brahmi, and
-transliteration is hub-and-spoke) live in `docs/LANGUAGE.md`. The decision behind them is
+Language rules live in `docs/LANGUAGE.md`: Devanagari is canonical, the display encoding
+is Unicode Brahmi, and transliteration is hub-and-spoke. The decision behind them is
 `docs/decisions/2026-09-23-akkha-encoding.md`. Read both before touching language or
 transliteration code.
 
@@ -42,6 +42,13 @@ transliteration code.
 
 ## Roadmap
 
-Phase 2: auto-compaction at a token threshold, MCP client (`@modelcontextprotocol/sdk`),
-web fetch/search tools, `/verbose` reasoning display, per-model edit formats for weak local
-models. Phase 3: richer TUI (Ink/OpenTUI), subagents, evals harness, auto-update.
+Priorities and backlog live in `docs/ROADMAP.md`. It has two tracks:
+
+- **Track 1, local AI first.** Prompt caching, hygiene, local runtime bring-up and
+  hardening, an agent eval harness, two-tier compaction, an offline guarantee, then MCP,
+  fetch and TUI. "Local AI v1.0" is L0–L5.
+- **Track 2, Akkha** (font, transliteration, language memory, corpus search), built on
+  mrig after v1.0.
+
+`docs/JUMPSTART.md` carries the acceptance criteria. Later ideas, unranked: per-model edit
+formats for weak local models, subagents, auto-update.

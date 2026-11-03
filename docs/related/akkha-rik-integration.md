@@ -1,8 +1,81 @@
 # Akkha-Rik web app × crowdsourcing × AI: integration analysis
 
-Date: October 14, 2026. Based on the README of `akkha-Rik-BookAndWebApp`, which RT pasted. I couldn't access the repo itself.
+Date: October 14, 2026 (updated November 2 with Robin's answers, §0). Based on the README of `akkha-Rik-BookAndWebApp`, which RT pasted. I couldn't access the repo itself.
 
 Labels: **[V]** verified against a primary source · **[S]** secondary · **[I]** inference or recommendation · **[R]** stated in the README.
+
+## 0. Robin's answers (Nov 2) and what they change
+
+This section overrides the open questions in sections 3, 5.3, 5.5 and 5.6 below.
+
+| Question | Answer | Consequence |
+|---|---|---|
+| Vocabulary language | **Both Nepali and Magar** | See 0.1 |
+| Rights holder | **Robin Thapa** (developer) owns the book content and the GurbachhanAkkhaRik font | See 0.2 |
+| Hosting | **Vercel** | See 0.3 |
+| Learner account minimum age | **8** | **Biggest change.** See 0.4 |
+| Kham extra letters | **Not needed** | Repertoire stable. See 0.5 |
+
+### 0.1 Mixed vocabulary [I]
+
+- Add a `lang` field to every item in `data-vocab.ts`: `npi` for Nepali, or the Magar variety code (`mgp`/`mrd`, etc.). Make `check-data` fail on any item without it.
+- **Magar items** become seed dictionary entries with the status *candidate (author)*. They still need ≥3 same-variety speakers to agree before they count as verified.
+- **Nepali items** become crowdsourcing prompts: "What is this called in your language?"
+- If an item holds *both* a Nepali and a Magar form, split it into two linked fields rather than guessing which is which.
+
+### 0.2 Rights [I]
+
+- Change "Content © Akkha-Rik Project" to name the actual rights holder, e.g. "© 2026 Robin Thapa".
+- **The Bhutanese American Magar Association (BAMA) website has a members-only "Akkha-Rik Project" page** [V]. Write down the relationship now, before the partnership grows. For example: Robin owns the content and font, and BAMA has a licence to use them. Unwritten ownership is the most common source of later disputes.
+- **Choose a licence for the font.**
+  - SIL Open Font License 1.1 is the norm for community and minority-script fonts. It helps adoption, and it helps any future Unicode case [I].
+  - A closed licence is also possible. The Unicode Script Encoding Working Group (SEWG) requires an available font, not an open one [V, earlier].
+- Robin's Magar vocabulary joins the dataset under the same CC BY 4.0 contributor licence as everyone else's.
+
+### 0.3 Vercel [V for the terms, I for the advice]
+
+- If the app is on **Hobby**, its terms are "non-commercial, personal use only". A public community app with paid certificates doesn't fit.
+- Move to **Pro** (Developer seats are $20 per user per month) **before billing ships**, or before public launch if you want to be strict.
+
+### 0.4 Accounts from age 8: what it requires
+
+This was my earlier recommendation of 13+ for accounts, now changed by Robin's choice.
+
+**What applies:**
+
+- **COPPA.** A US operator collecting personal information from under-13s, including children outside the US, needs **verifiable parental consent** (VPC) and direct notice to parents. Parents get review and deletion rights. The amended rule (compliance date 22 Apr 2026) adds a written information-security programme and a written retention policy, and it treats voice as personal information [V, earlier research].
+- **UK Children's Code (AADC):** applies to UK users of a service likely to be accessed by under-18s, educational sites included [V].
+  - It requires high-privacy defaults, no nudges, profiling and geolocation off, and a DPIA [I — confirm the standards list].
+- **EU GDPR Art. 8:** parental consent is needed below the member state's age, which ranges from 13 to 16 [S].
+
+**Recommended design: family accounts [I]**
+
+1. **Only adults create logins.** The magic-link email is the parent's. Children get no email and no password.
+2. **The parent adds child profiles:** nickname, age band and avatar only.
+3. **Verifiable consent happens once,** when the first child profile is added.
+   - COPPA allows methods such as a payment-card transaction, an ID check or a video call. That makes it natural to do at the certificate purchase [I — confirm the method list with the FTC FAQ before building; my fetch of it timed out].
+4. **What child profiles hold:**
+   - progress only;
+   - no voice upload, no photos, no free text;
+   - any pronunciation practice stays **on the device**.
+5. **Certificates for children:**
+   - the name on the certificate is set by the parent;
+   - the `/verify/[cert_id]` page is **off by default** for children, or shows the certificate ID and an initial only.
+6. **Email** goes only to the parent. **Payment** is by the parent only.
+7. **Contribute mode is never reachable from a child profile** (18+ only). This also creates the family loop: elders contribute, children learn.
+8. **Write a DPIA, a security programme and a retention policy.** Short documents are fine, but they must exist.
+
+**Simpler alternative:**
+
+- Every lesson stays free **without an account** from age 8.
+- Accounts (progress, certificates) start at 13.
+- This removes most of the COPPA work.
+- Robin's call; both are workable.
+
+### 0.5 Kham
+
+- No extra Akkha letters are needed. The repertoire is stable, which is one of SEWG's criteria [V].
+- The glottal stop and breathy vowels won't show in spelling, so record **audio and IPA** for Kham entries. Otherwise that pronunciation is lost [I].
 
 ## 1. What the README tells us
 
@@ -144,3 +217,7 @@ Sharing code (Akkha rendering, bilingual strings) is fine. Share data only throu
 - EU/UK VAT for digital services: https://avask.com/blog/vat-for-digital-services/
 - Supabase free tier: https://mykavo.app/blog/supabase-free-tier-limits
 - Vercel Hobby: https://vercel.com/docs/plans/hobby
+- BAMA website: https://bhutanesemagar.org/home
+- BAMA nonprofit record: https://projects.propublica.org/nonprofits/organizations/871933591
+- FTC COPPA FAQ: https://www.ftc.gov/business-guidance/resources/complying-coppa-frequently-asked-questions
+- Amended COPPA rule: https://www.federalregister.gov/documents/2025/04/22/2025-05904/childrens-online-privacy-protection-rule
