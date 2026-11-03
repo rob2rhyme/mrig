@@ -18,6 +18,9 @@ export type ProviderKind = 'anthropic' | 'openai' | 'openai-compatible';
  */
 export type ToolMode = 'full' | 'minimal';
 
+/** Prompt-cache lifetime for Anthropic profiles. Writes cost 1.25× input at 5m, 2× at 1h. */
+export type CacheTtl = '5m' | '1h';
+
 export interface Pricing {
   /** USD per million input tokens */
   input: number;
@@ -25,6 +28,8 @@ export interface Pricing {
   output: number;
   /** USD per million cache-read tokens (defaults to 10% of input) */
   cacheRead?: number;
+  /** USD per million cache-write tokens (defaults to input × 1.25 for 5m, × 2 for 1h) */
+  cacheWrite?: number;
 }
 
 export interface ProviderProfile {
@@ -66,6 +71,8 @@ export interface MrigConfig {
   maxSteps: number;
   /** Tool output cap in characters before truncation. */
   maxToolOutputChars: number;
+  /** Prompt-cache TTL for Anthropic profiles: "5m" (default) or "1h". Ignored elsewhere. */
+  cacheTtl: CacheTtl;
 }
 
 export const DEFAULT_PROVIDERS: Record<string, ProviderProfile> = {
@@ -133,6 +140,7 @@ export const DEFAULT_CONFIG: MrigConfig = {
   permissions: { yolo: false, allow: [] },
   maxSteps: 40,
   maxToolOutputChars: 30_000,
+  cacheTtl: '5m',
 };
 
 export function mrigHome(): string {
@@ -158,6 +166,14 @@ function readJson(path: string): PartialConfig | undefined {
   }
 }
 
+const CACHE_TTLS: readonly string[] = ['5m', '1h'];
+
+function parseCacheTtl(value: unknown): CacheTtl | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'string' && CACHE_TTLS.includes(value)) return value as CacheTtl;
+  throw new Error(`Invalid "cacheTtl": ${JSON.stringify(value)}. Use "5m" or "1h".`);
+}
+
 function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
   if (!layer) return base;
   return {
@@ -169,6 +185,7 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     },
     maxSteps: layer.maxSteps ?? base.maxSteps,
     maxToolOutputChars: layer.maxToolOutputChars ?? base.maxToolOutputChars,
+    cacheTtl: parseCacheTtl(layer.cacheTtl) ?? base.cacheTtl,
   };
 }
 

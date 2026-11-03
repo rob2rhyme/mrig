@@ -83,6 +83,7 @@ export class Runtime {
       systemPrompt: this.systemPrompt(),
       maxSteps: opts.maxSteps ?? this.config.maxSteps,
       maxToolOutputChars: this.config.maxToolOutputChars,
+      cacheTtl: this.config.cacheTtl,
       events: opts.events,
       messages: this.session.messages,
     });

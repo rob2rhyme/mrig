@@ -6,7 +6,7 @@ import { createInterface, type Interface } from 'node:readline/promises';
 import type { AgentEvents, ToolCallInfo, ToolCallOutcome } from '../agent.ts';
 import type { Answer, AskRequest } from '../permissions.ts';
 import { findMemoryFiles } from '../prompt.ts';
-import { formatModelError } from '../providers.ts';
+import { CACHE_WRITE_MULTIPLIER, explainCacheMiss, formatModelError } from '../providers.ts';
 import { Runtime, type RuntimeOptions } from '../runtime.ts';
 import { Session } from '../session.ts';
 import { VERSION } from '../version.ts';
@@ -265,9 +265,18 @@ export class Repl {
       case 'cost': {
         const u = rt.agent.usage;
         const cost = rt.agent.cost();
-        return this.info(
-          `${u.requests} requests · ${u.inputTokens.toLocaleString()} input (${u.cacheReadTokens.toLocaleString()} cached) · ${u.outputTokens.toLocaleString()} output · ${cost !== undefined ? `~$${cost.toFixed(4)}` : 'pricing unknown'}`,
-        );
+        const lines = [
+          `${u.requests} requests · ${u.inputTokens.toLocaleString()} input (${u.cacheReadTokens.toLocaleString()} cache read, ${u.cacheWriteTokens.toLocaleString()} cache write) · ${u.outputTokens.toLocaleString()} output · ${cost !== undefined ? `~$${cost.toFixed(4)}` : 'pricing unknown'}`,
+        ];
+        if (rt.profile.kind === 'anthropic') {
+          const ttl = rt.agent.cacheTtl();
+          lines.push(
+            `prompt cache: ${ttl} TTL · writes billed at ${CACHE_WRITE_MULTIPLIER[ttl]}× input (cacheTtl in config)`,
+          );
+        }
+        const miss = explainCacheMiss(u, rt.profile);
+        if (miss) lines.push(miss);
+        return this.info(lines.join('\n'));
       }
       case 'compact': {
         this.running = new AbortController();
