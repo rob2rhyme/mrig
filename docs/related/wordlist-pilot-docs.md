@@ -1,6 +1,6 @@
 # Wordlist pilot — document set (drafts)
 
-> **⚠️ Do not use yet (Oct 14).** The licence model is reopened, because a paid API and collective cultural knowledge are now in scope. The CC BY 4.0 and "never sold" wording below must be rewritten once RT and a Magar community partner choose a licence model (`docs/related/magar-knowledge-platform.md` §8).
+> **Status Nov 2:** the licence is decided (**open, CC BY 4.0, for now**), and the "never sold" wording is rewritten to match. The operator is filled in. **Before use:** the community partner, the Bhutanese American Magar Association (BAMA), reviews and approves the text, and fills in its line in Part 3.
 
 Date: September 24, 2026 (updated October 14: the purpose now includes AI training; see `docs/AI_FEASIBILITY.md`). Status: **draft for review**.
 
@@ -10,7 +10,8 @@ These are the checklist's "Kobo pilot minimum set", ready to paste into the pilo
 - Contributors must be 18+.
 - Data is licensed CC BY 4.0.
 - No targeted outreach to the UK or EU at launch.
-- No ads, and the data is never sold.
+- No ads. The data stays free under CC BY 4.0. Any future paid API is a service, not a sale of the data.
+- Community partner: the Bhutanese American Magar Association (BAMA), pending a written agreement.
 
 > **Before use:**
 > 1. Fill in the `[placeholders]`.
@@ -22,7 +23,8 @@ These are the checklist's "Kobo pilot minimum set", ready to paste into the pilo
 Placeholders:
 
 - `[PROJECT]`: the project name.
-- `[OPERATOR]`: RT's full name.
+- `Robin Thapa`: filled in: Robin Thapa.
+- `[PARTNER LINE]`: added only after BAMA approves (see Part 3).
 - `[EMAIL]`: a dedicated project address, not a personal Gmail (see Part 6).
 - `[TOOL]`: the pilot form tool and the company that runs it.
 - `[DATE]`: the version date.
@@ -39,7 +41,7 @@ Placeholders:
 
 > Hello! We're collecting the names of everyday things in Magar Dhut, Kham and Kaike, to build a free, open dictionary. There are 20 picture questions, and it takes about 10 minutes. Speakers aged 18+ are welcome. Link: [LINK]
 
-*Recruit through Nepal-based groups for the pilot. Hold off on UK or EU diaspora associations until the GDPR representative question is settled (see the checklist, section H).*
+*Recruit through BAMA (US) and Nepal-based groups for the pilot. Hold off on UK or EU diaspora associations until the GDPR representative question is settled (see the checklist, section H).*
 
 ---
 
@@ -71,7 +73,7 @@ Placeholders:
 **[PROJECT] — सहमति फारम (संस्करण [DATE])**
 
 **यो के हो?**
-[PROJECT] मगर ढुट, खाम र काइके भाषामा दैनिक वस्तुहरूका नाम सङ्कलन गर्ने स्वयंसेवी परियोजना हो। यसको सञ्चालन [OPERATOR] ले व्यक्तिगत रूपमा गर्नुभएको छ। सम्पर्क: [EMAIL]। यो परीक्षण (पाइलट) हो।
+[PROJECT] मगर ढुट, खाम र काइके भाषामा दैनिक वस्तुहरूका नाम सङ्कलन गर्ने स्वयंसेवी परियोजना हो। यसको सञ्चालन Robin Thapa ले व्यक्तिगत रूपमा गर्नुभएको छ। [PARTNER LINE — BAMA ले स्वीकृत गरेपछि मात्र: "भुटानी अमेरिकी मगर संघ (BAMA) को सहयोगमा।"] सम्पर्क: [EMAIL]। यो परीक्षण (पाइलट) हो।
 
 **हामी के सोध्छौं?**
 तपाईंको भाषा/भाषिका, जिल्ला, गाउँ (ऐच्छिक), उमेर समूह, र चित्रका वस्तुहरूलाई तपाईंको भाषामा के भनिन्छ। हामी तपाईंको नाम, फोन नम्बर वा इमेल माग्दैनौं।
@@ -82,7 +84,7 @@ Placeholders:
 - शब्दहरू CC BY 4.0 इजाजतपत्रअन्तर्गत सार्वजनिक गरिन सक्छन्। सार्वजनिक गर्दा ठाउँ जिल्लासम्म मात्र देखाइन्छ — गाउँ वा व्यक्तिगत विवरण देखाइँदैन।
 - यो पाइलटका उत्तरहरू पहिलो सार्वजनिक शब्दसूचीमा समावेश हुन सक्छन्।
 - प्रमाणित शब्दहरू (र पछि रेकर्डिङहरू) अक्खा-रिक सिकाइ एपमा पनि देखिन सक्छन्। त्यो एपमा सिक्न निःशुल्क छ; पूरा गरेको प्रमाणपत्र भने ऐच्छिक रूपमा सशुल्क हुन सक्छ।
-- यो डेटा कहिल्यै बेचिँदैन र यसमा विज्ञापन राखिँदैन।
+- तपाईंका शब्दहरू CC BY 4.0 अन्तर्गत सधैं सबैका लागि निःशुल्क रहनेछन्। हामी विज्ञापन राख्दैनौं। पछि API जस्ता सुविधाजनक सेवाका लागि शुल्क लिन सकिन्छ, तर डेटाका लागि होइन — डेटा निःशुल्क नै रहन्छ।
 
 **तपाईंका अधिकार**
 - सहभागिता स्वैच्छिक हो। कुनै पनि प्रश्न छोड्न वा जुनसुकै बेला रोक्न सक्नुहुन्छ।
@@ -90,7 +92,7 @@ Placeholders:
 - सार्वजनिक भइसकेपछि हटाउन भन्नुभयो भने तपाईंका उत्तर आगामी सबै संस्करणहरूबाट हटाइन्छन्, तर पहिले नै बाँडिएका प्रतिहरू फिर्ता ल्याउन सकिँदैन।
 
 **संस्थालाई हस्तान्तरण**
-भविष्यमा कुनै सामुदायिक संस्था वा शैक्षिक संस्थाले यो परियोजनाको जिम्मेवारी लिएमा, उनीहरूले यिनै प्रतिबद्धताहरू (निःशुल्क, विज्ञापनरहित, नबेच्ने, उही इजाजतपत्र, यिनै अधिकारहरू) पालना गर्ने सर्तमा मात्र डेटा हस्तान्तरण गरिनेछ, र त्यसको सार्वजनिक सूचना दिइनेछ।
+भविष्यमा कुनै सामुदायिक संस्था वा शैक्षिक संस्थाले यो परियोजनाको जिम्मेवारी लिएमा, उनीहरूले यिनै प्रतिबद्धताहरू (डेटा निःशुल्क र उही इजाजतपत्रमा, विज्ञापनरहित, यिनै अधिकारहरू) पालना गर्ने सर्तमा मात्र डेटा हस्तान्तरण गरिनेछ, र त्यसको सार्वजनिक सूचना दिइनेछ।
 
 **कृपया पुष्टि गर्नुहोस्:**
 - ☐ म १८ वर्ष वा सोभन्दा माथिको/माथिकी हुँ।
@@ -103,7 +105,7 @@ Placeholders:
 **[PROJECT] — Consent (version [DATE])**
 
 **What is this?**
-[PROJECT] is a volunteer project collecting the names of everyday things in Magar Dhut, Kham and Kaike. It is run personally by [OPERATOR]. Contact: [EMAIL]. This is a pilot (test).
+[PROJECT] is a volunteer project collecting the names of everyday things in Magar Dhut, Kham and Kaike. It is run personally by Robin Thapa. [PARTNER LINE — only once BAMA approves: "With the support of the Bhutanese American Magar Association (BAMA), a US nonprofit."] Contact: [EMAIL]. This is a pilot (test).
 
 **What we ask:**
 
@@ -122,7 +124,7 @@ We do not ask for your name, phone number or email.
 - Words may be published under the CC BY 4.0 licence. Published data shows location at district level only, never your village or personal details.
 - Pilot answers may be included in the first public wordlist.
 - Validated words (and later, recordings) may also appear in the Akkha-Rik learning app. Learning there is free; an optional completion certificate may be paid.
-- The data will never be sold, and there will be no ads.
+- Your words will always be free for everyone under CC BY 4.0, and there are no ads. We may later charge for convenience services, such as an API, but never for the data itself.
 
 **Your rights:**
 
@@ -131,7 +133,7 @@ We do not ask for your name, phone number or email.
 - If you ask for deletion after publication, your answers are removed from all future releases. Copies already shared can't be recalled.
 
 **If an organization takes over:**
-If a community organization or educational institution later takes responsibility for the project, the data will be transferred only if they commit to the same promises: free, no ads, never sold, the same licence, and the same rights. The transfer will be announced publicly.
+If a community organization or educational institution later takes responsibility for the project, the data will be transferred only if they commit to the same promises: the data stays free under the same licence, no ads, and the same rights. The transfer will be announced publicly.
 
 **Please confirm:**
 
@@ -152,7 +154,7 @@ Link this from the form's first screen. For the public launch it must be hosted 
 
 **[PROJECT] Privacy Notice — version [DATE]**
 
-1. **Who is responsible.** [OPERATOR], an individual volunteer, based in the United States. Contact: [EMAIL].
+1. **Who is responsible.** Robin Thapa, an individual volunteer, based in the United States. Contact: [EMAIL].
 2. **What we collect.**
    - Your language/variety, district, village (optional) and age band.
    - Your answers.
@@ -162,16 +164,16 @@ Link this from the form's first screen. For the public launch it must be hosted 
 3. **What we don't collect.** Your name, phone number, email or precise location.
 4. **Why.** To build a free, open dictionary and learning materials, to understand how words differ between areas, and to train AI tools that help people learn and use these languages. Because the dataset is CC BY 4.0, others, including companies, may also use it for AI. **Legal basis:** your consent.
 5. **Who can see it.**
-   - [OPERATOR] and named volunteer reviewers can see the raw answers.
+   - Robin Thapa and named volunteer reviewers can see the raw answers.
    - Published data contains only the words, the language/variety, the district and the age band, under CC BY 4.0.
    - Groups smaller than 5 people are not shown separately.
-6. **Where it is stored.** With [TOOL], on servers in [COUNTRY], and in encrypted backups kept by [OPERATOR].
+6. **Where it is stored.** With [TOOL], on servers in [COUNTRY], and in encrypted backups kept by Robin Thapa.
 7. **How long.**
    - Raw pilot data is kept for up to 12 months after the pilot ends, then deleted, apart from answers moved into the dataset.
    - Dataset entries are kept until you ask for deletion.
 8. **Your rights.** You can ask to see, correct or delete your answers, or withdraw consent, by emailing [EMAIL] with your code word. Published copies can't be recalled, but your answers will be removed from all future releases.
 9. **Age.** Only for people aged 18 and over. If we learn that someone under 18 took part, we delete their answers.
-10. **No ads, no sale.** We never sell the data or use it for advertising.
+10. **No ads, no sale of data.** The data stays free under CC BY 4.0. We may later charge for services such as an API, but never for the data itself, and we never use it for advertising.
 11. **Transfer.** If a community organization or educational institution takes over the project, the data will move to them only if they keep these same promises, and we will announce it first.
 12. **Changes.** A new version will be posted with its date. Major changes will ask for your consent again.
 
@@ -179,7 +181,7 @@ Link this from the form's first screen. For the public launch it must be hosted 
 
 **[PROJECT] गोपनीयता सूचना — संस्करण [DATE]**
 
-1. **जिम्मेवार व्यक्ति:** [OPERATOR], संयुक्त राज्य अमेरिकामा बस्ने एक स्वयंसेवी। सम्पर्क: [EMAIL]।
+1. **जिम्मेवार व्यक्ति:** Robin Thapa, संयुक्त राज्य अमेरिकामा बस्ने एक स्वयंसेवी। सम्पर्क: [EMAIL]।
 2. **हामी के सङ्कलन गर्छौं:**
    - तपाईंको भाषा/भाषिका, जिल्ला, गाउँ (ऐच्छिक), उमेर समूह
    - तपाईंका उत्तरहरू
@@ -189,16 +191,16 @@ Link this from the form's first screen. For the public launch it must be hosted 
 3. **हामी के सङ्कलन गर्दैनौं:** नाम, फोन नम्बर, इमेल वा ठ्याक्कै ठेगाना।
 4. **किन:** निःशुल्क खुला शब्दकोश र सिकाइ सामग्री बनाउन, ठाउँअनुसार शब्द कसरी फरक पर्छन् बुझ्न, र यी भाषा सिक्न र प्रयोग गर्न सघाउने एआई उपकरणहरूलाई तालिम दिन। डेटा CC BY 4.0 मा हुने भएकाले अरूले, कम्पनीहरूले समेत, एआईका लागि प्रयोग गर्न सक्छन्। **आधार:** तपाईंको सहमति।
 5. **कसले देख्छ:**
-   - कच्चा उत्तर [OPERATOR] र तोकिएका स्वयंसेवी समीक्षकहरूले मात्र देख्छन्।
+   - कच्चा उत्तर Robin Thapa र तोकिएका स्वयंसेवी समीक्षकहरूले मात्र देख्छन्।
    - सार्वजनिक डेटामा शब्द, भाषा/भाषिका, जिल्ला र उमेर समूह मात्र हुन्छ (CC BY 4.0)।
    - ५ जनाभन्दा साना समूह छुट्टै देखाइँदैनन्।
-6. **कहाँ राखिन्छ:** [TOOL] को [COUNTRY] स्थित सर्भरमा, र [OPERATOR] ले राख्ने इन्क्रिप्टेड ब्याकअपमा।
+6. **कहाँ राखिन्छ:** [TOOL] को [COUNTRY] स्थित सर्भरमा, र Robin Thapa ले राख्ने इन्क्रिप्टेड ब्याकअपमा।
 7. **कति समय:**
    - पाइलटको कच्चा डेटा पाइलट सकिएको १२ महिनासम्म राखिन्छ, त्यसपछि मेटाइन्छ; शब्दसूचीमा सारिएका उत्तरहरू बाहेक।
    - शब्दसूचीका प्रविष्टिहरू तपाईंले हटाउन नभनेसम्म राखिन्छन्।
 8. **तपाईंका अधिकार:** कोड शब्दसहित [EMAIL] मा इमेल गरेर आफ्ना उत्तर हेर्न, सच्याउन, हटाउन वा सहमति फिर्ता लिन सक्नुहुन्छ। सार्वजनिक भइसकेका प्रतिहरू फिर्ता ल्याउन सकिँदैन, तर आगामी संस्करणहरूबाट हटाइन्छ।
 9. **उमेर:** १८ वर्ष वा माथिकाका लागि मात्र। १८ वर्षमुनिको सहभागिता थाहा भएमा उत्तर मेटाइन्छ।
-10. **विज्ञापन र बिक्री छैन:** डेटा कहिल्यै बेचिँदैन वा विज्ञापनका लागि प्रयोग गरिँदैन।
+10. **विज्ञापन छैन, डेटा बिक्री छैन:** डेटा CC BY 4.0 अन्तर्गत निःशुल्क रहन्छ। पछि API जस्ता सेवाका लागि शुल्क लिन सकिन्छ, डेटाका लागि कहिल्यै होइन। डेटा विज्ञापनका लागि प्रयोग गरिँदैन।
 11. **हस्तान्तरण:** कुनै सामुदायिक वा शैक्षिक संस्थाले जिम्मेवारी लिएमा, उनीहरूले यिनै प्रतिबद्धता पालना गर्ने सर्तमा मात्र डेटा हस्तान्तरण गरिन्छ, र पहिले नै सूचना दिइन्छ।
 12. **परिवर्तन:** नयाँ संस्करण मितिसहित राखिन्छ। ठूलो परिवर्तन भएमा फेरि सहमति मागिन्छ।
 
@@ -228,7 +230,7 @@ This is the "proper documentation" for a future handover. **Set up the transfera
 - **A project email address** (e.g. a new Gmail or Proton account, or an address on the project domain). Use it for every service. Don't use RT's personal address.
 - **The domain** registered with the project email.
 - **A GitHub organization**, not a personal account, holding the app and data repos. Transferring an organization is a one-step handover.
-- **Hosting (Cloudflare)** and the pilot tool account registered with the project email.
+- **Hosting** and the pilot tool account registered with the project email. If BAMA runs the pilot on its free KoboToolbox Community plan (it's a 501(c)(3)), BAMA owns that account; add the project email as an admin.
 - **A shared password-manager vault** for all credentials, plus 2FA recovery codes stored in it.
 - **A second trusted admin** with access to the vault, to protect against losing everything if RT becomes unavailable.
 
@@ -248,6 +250,7 @@ This is the "proper documentation" for a future handover. **Set up the transfera
 - Keep the same commitments: no sale of data, no advertising using contributor data, CC BY 4.0 for the dataset, and the same contributor rights.
 - Honour all outstanding deletion requests, and the withdrawal policy.
 - Keep the community advisory arrangement, or replace it with a more representative one.
+- **Most likely recipient:** BAMA, the community partner (a US 501(c)(3)). The handover is simplest if the partner agreement already names it as successor steward.
 - Announce the transfer publicly, with at least 30 days' notice [I] before the data moves, and update the privacy notice to name the new operator.
 - If they can't keep these commitments, the data is not transferred. The public dataset still lives on through its existing CC BY releases.
 

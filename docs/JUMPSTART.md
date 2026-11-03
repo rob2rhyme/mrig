@@ -4,7 +4,7 @@ Paste everything below this line into a fresh Claude Code / Cowork / mrig sessio
 
 ---
 
-You are continuing development of **mrig**, my personal, local, model-agnostic terminal agent — my own Claude-Code-style tool. Read `AGENTS.md` first; it holds the architecture rules and is loaded automatically by Claude Code via `CLAUDE.md`. This message gives you the state of the project, the working agreement, and what to build next.
+You are continuing development of **mrig**, my personal, local, model-agnostic terminal agent — my own Claude-Code-style tool. Read `AGENTS.md` first; it holds the architecture rules and is loaded automatically by Claude Code via `CLAUDE.md`. Priorities live in `docs/ROADMAP.md`; language rules live in `docs/LANGUAGE.md`. This message gives you the state of the project, the working agreement, and what to build next.
 
 ## What mrig is
 
@@ -25,8 +25,10 @@ A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands
 
 ## Known gaps and caveats (do not "fix" silently — mention them when relevant)
 
+- No prompt caching yet (L0); every step re-sends the full prefix.
 - No automatic context compaction yet; only manual `/compact`. Long sessions on 64k-context local models will eventually overflow.
 - No MCP client, no web tools, no reasoning display, no subagents, plain readline UI.
+- No offline guarantee yet (L5): nothing stops a remote profile from being used in a sensitive directory.
 - `openai` profile default model id `gpt-5` is unverified; `lmstudio` model id is a placeholder.
 - Windows support is compiled and CI-tested but not hand-tested; bash timeout kills the shell process, not the whole tree.
 - Session `sync()` rewrites meta only when the transcript is ≤4 messages; `updatedAt`/`title` can lag on long sessions.
@@ -45,24 +47,97 @@ A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands
 
 ## Backlog — in priority order, with acceptance criteria
 
-This follows the "Backlog after revision 4" table in `docs/HANDOFF.md`, with the two mrig items added in revision 7. Item numbers match HANDOFF. Language rules for items 2 and 4 are in `docs/LANGUAGE.md`.
+The source of truth for order is `docs/ROADMAP.md`. It has two tracks: **local AI first, Akkha second.** Item IDs match it. Do **one item per commit**, with `bun run check` green.
 
-0. **Prompt caching + cache-write pricing (S).** For Anthropic profiles, set request-level automatic caching (`providerOptions.anthropic.cacheControl`) on every `streamText` call. Add one explicit breakpoint on the last tool definition or the system block. Price `cacheWriteTokens` at 1.25× for 5-minute writes and 2× for 1-hour writes. Add a per-model minimum-prefix table so `/cost` can explain a miss, and a `cacheTtl` config option (`5m` default, `1h` optional). Skip local providers. Acceptance (manual, live API): in a 2-step run, step 2 reports `cacheReadTokens > 0` and `/cost` shows the write premium. Unit tests for the pricing math with the mock model.
-0.5. **Hygiene (S).** A `mrig doctor` / startup model-id check against the provider's `/v1/models`, which fixes the unverified `gpt-5` default and the LM Studio placeholder. Fix session `sync()` so meta is rewritten on long transcripts too. CI trim: Linux on every push; the macOS + Windows matrix only on PRs to `main`, tags and `workflow_dispatch`.
-1. **Font spike (S, font repo, not mrig).** Brahmi re-encode, `brah` script tag, `hb-shape` → Safari/Word/Chrome. Blocks item 2.
-2. **Transliteration (S/M, after 1).** Devanagari (NFC) hub ↔ Akkha-Brahmi and ISO 15919-style romanization, as a table-driven character map of pure functions. Tests: round-trip property tests on the Akkha-representable subset, plus an explicit lossy-set report (श, ष, visarga, chandrabindu, nukta) that never maps silently.
-3. **Font commands (S).** Document fontTools, fontmake, `hb-shape` and fontspector in `AGENTS.md`, with bash allow-rules for them. The `hb-shape` golden tests live in the font repo.
-4. **Language memory layer (S).** `lang/*.md` conventions, variety tags, and `/lang`, which reports what's loaded, its token count and the zone it came from. Keep loaded content stable across turns so it stays inside the cached prefix. No lexicon yet; that's parked.
-5. **Two-tier compaction (M, before heavy corpus sessions).** Tier (a) is cheap pruning of old tool results and reasoning (AI SDK 7 `pruneMessages`). Tier (b) is an LLM summary when the estimated transcript tokens exceed a threshold (default 70% of `profile.contextWindow`, or of 128k if unset; configurable as `compaction.threshold`). It uses a configurable `compactModel` via the existing `Agent.compact()`, keeps the last 4 messages verbatim after the summary, and emits `onNotice`. Trigger rarely, because every compaction invalidates the cache. Tests: the threshold triggers with the mock model; below the threshold it doesn't; the transcript after compaction still round-trips through `Session`.
-6. **Corpus search over the CLDF export (S→L, after 5).** Ripgrep first: a corpus-aware wrapper over `grep` that searches both the NFC Devanagari and the romanized forms and returns the source file and line. Embeddings only if plain search fails, and only local embeddings in the closed zone.
-6.5. **Evaluation harness (chrF + human-review sheet).** Score model output per variety with chrF, and export a human-review sheet. Never pool varieties.
-7. **Closed-zone guard (M, before the first restricted material arrives).** A `.mrig-zone` marker found by the same upward search as `AGENTS.md`. Inside a closed zone, mrig refuses non-loopback profiles, `--yolo` and bash allow-rules; disables web and MCP; keeps transcripts inside the zone; and refuses cross-zone resume. Pure config logic with unit tests.
-8. **MCP → fetch → TUI (S–M each).** MCP via `@ai-sdk/mcp` `createMCPClient`, with config `mcpServers: { name: { command, args, env } | { url } }`. Tools are exposed as `mcp__<server>__<tool>` (readOnly false by default; allow rules work unchanged), and `/mcp` lists them. A server that fails to start produces a notice, not a crash. Tests use an in-process stdio echo server. `fetch` converts a URL to readable text with a 100 KB cap and a 20 s timeout, blocks private/loopback ranges, asks unless a `fetch:<domain-glob>` rule allows it, and is disabled in the closed zone. TUI (Ink or OpenTUI) comes last.
+### Track 1 — Local AI (mrig)
 
-Not in the revision 4 table and unranked, so do them only when asked: local-model hardening (Ollama context-length warning, `toolMode: "minimal"`, retry on empty tool arguments) and quality-of-life items (`/verbose`, `--json`, `--output-last`, `mrig --init`).
+**Local AI v1.0 = L0–L5.**
 
-Target (set before the reorder): compaction, MCP and web tools merged before **January 14, 2027**. After that date the plan is to simplify and harden, not expand.
+- **L0. Prompt caching + cache-write pricing (S).**
+  - For Anthropic profiles, set request-level automatic caching (`providerOptions.anthropic.cacheControl`) on every `streamText` call.
+  - Add one explicit breakpoint, on the last tool definition or the system block.
+  - Price `cacheWriteTokens` at 1.25× for 5-minute writes and 2× for 1-hour writes.
+  - Add a per-model minimum-prefix table, so `/cost` can explain a miss.
+  - Add a `cacheTtl` config option: `5m` default, `1h` optional.
+  - Skip local providers.
+  - **Acceptance:** manual, against the live API: in a 2-step run, step 2 reports `cacheReadTokens > 0`, and `/cost` shows the write premium. Unit tests cover the pricing math with the mock model.
+- **L1. Hygiene (S).**
+  - A `mrig doctor` / startup model-id check against the provider's `/v1/models`. It replaces guesswork for the unverified `gpt-5` default and the LM Studio placeholder.
+  - Fix session `sync()` so meta is rewritten on long transcripts too.
+  - CI trim: Linux on every push; the macOS + Windows matrix only on PRs to `main`, tags and `workflow_dispatch`.
+- **L2. Local runtime bring-up and hardening (S–M).**
+  - Runtime: Ollama or LM Studio (both support tool calling). **Not `mlx_lm.server`:** it documents no tool calling and is "not recommended for production". MLX is for fine-tuning only.
+  - Models to trial on the M4 Pro (24 GB): Qwen3.5-9B (Q4/Q6), Gemma 4 12B (Q4/Q6), Gemma 4 26B-A4B (Q4, tight).
+  - Set the context length to fit the GPU memory budget, and record tokens/s.
+  - Hardening:
+    - with an Ollama profile, query `GET /api/show` at startup and warn when the context is under 32k;
+    - add `toolMode: "minimal"` (bash-only) for models that can't do multi-tool calling;
+    - retry once on empty tool arguments.
+  - **Acceptance:** each candidate model completes a read → edit → bash task, and the hardening behaviours have tests.
+- **L3. Agent eval harness (M).**
+  - A mini-SWE-agent-style script that runs about 10 repo tasks headless (`-p`) against every profile: read, edit, write, grep/glob, bash, and a multi-step fix.
+  - Report per profile: pass rate, tool-call validity, how often `repairJson` was used, tokens/s, and cost.
+  - **Acceptance:** a compatibility matrix is committed, and the default `local` profile is chosen from it. Track 2 later adds chrF + human review for language tasks.
+- **L4. Two-tier compaction (M).**
+  - **Tier (a):** cheap pruning of old tool results and reasoning (AI SDK 7 `pruneMessages`).
+  - **Tier (b):** an LLM summary when the estimated transcript tokens exceed a threshold.
+    - Estimate tokens as chars/4, or use provider usage when available.
+    - The threshold defaults to 70% of `profile.contextWindow`, or of 128k if unset, and is configurable as `compaction.threshold`.
+    - It runs before the next step, through the existing `Agent.compact()`, with a configurable `compactModel` (the local model when offline).
+    - It keeps the last 4 messages verbatim after the summary, and emits `onNotice`.
+  - Trigger rarely, because every compaction invalidates the prompt cache.
+  - **Tests:** the threshold triggers with the mock model; below it nothing happens; the transcript after compaction still round-trips through `Session`. A 100-step local session never overflows.
+- **L5. Offline guarantee (M).**
+  - Triggered by `--offline` or a `.mrig-zone` marker, found by the same upward search as `AGENTS.md`.
+  - Behaviour:
+    - refuse any profile that isn't on loopback;
+    - disable web and remote MCP tools;
+    - refuse `--yolo` and bash allow-rules;
+    - keep transcripts inside the zone;
+    - refuse cross-zone resume.
+  - Pure config logic with unit tests.
+  - **Acceptance:** the L3 harness passes with networking disabled.
+- **L6. MCP → fetch → TUI (S / S / M).**
+  - **MCP:**
+    - Library: `@modelcontextprotocol/sdk` or `@ai-sdk/mcp` (`createMCPClient`). Choose by reading both `.d.ts` files.
+    - Config key: `mcpServers: { name: { command, args, env } | { url } }`.
+    - Tools are exposed as `mcp__<server>__<tool>` through the same `MrigTool` interface. They're readOnly false by default, and allow rules work unchanged.
+    - `/mcp` lists servers and tools. A server that fails to start produces a notice, not a crash.
+    - Tests use an in-process stdio echo server.
+  - **Fetch:**
+    - Converts a URL to readable text/markdown, with a 100 KB cap and a 20 s timeout.
+    - Blocks private and loopback ranges.
+    - Asks unless a `fetch:<domain-glob>` rule allows it.
+    - Disabled under L5.
+    - Web `search` is optional (provider-configurable, one free option).
+  - **TUI:** Ink or OpenTUI, with a scrolling transcript and a status line.
+- **L7. Quality of life (unranked; only when asked).** `/verbose` toggles reasoning display; `--json` for headless (final text + usage + session id); `--output-last`; `mrig --init` writes a starter `~/.mrig/config.json`.
+
+**Target:** the earlier goal was compaction, MCP and web tools merged before **January 14, 2027**, then simplify and harden rather than expand. Under the new order, MCP and web are L6, after v1.0. **Robin to confirm** whether the date now applies to Local AI v1.0. Until then, treat it as the v1.0 target.
+
+### Track 2 — Akkha, built on mrig (after v1.0)
+
+Language rules: `docs/LANGUAGE.md`. Details: `docs/ROADMAP.md` and `docs/related/`.
+
+- **A1. Font spike (S, font repo, not mrig).** Brahmi re-encode, `brah` script tag, `hb-shape` → Safari / Word / Chrome. It may run earlier, because it touches no mrig code.
+- **A2. Transliteration (S/M, after A1).**
+  - A Devanagari (NFC) hub ↔ Akkha-Brahmi and ISO 15919-style romanization.
+  - A table-driven character map, as pure functions.
+  - **Tests:** round-trip property tests on the Akkha-representable subset, plus an explicit lossy-set report (श, ष, visarga, chandrabindu, nukta) that never maps silently.
+- **A3. Language memory + font commands (S).**
+  - `lang/*.md` conventions, variety tags, and `/lang`, which reports what's loaded and its token count. Keep loaded content stable across turns, so it stays inside the cached prefix.
+  - Document fontTools, fontmake, `hb-shape` and fontspector in `AGENTS.md`, with bash allow-rules.
+  - The `hb-shape` golden tests live in the font repo.
+- **A4. Corpus search over the CLDF export (S→M, after L4).**
+  - Ripgrep first: a corpus-aware wrapper over `grep` that searches both the NFC Devanagari and the romanized forms, and returns the source file and line.
+  - Embeddings only if plain search fails, and only local embeddings under L5.
+- **A5–A8 live outside or alongside mrig:**
+  - A5: Akkha-Rik app data fixes.
+  - A6: the wordlist pilot.
+  - A7: Contribute mode.
+  - A8: language evaluation (chrF + human review), then NLLB / speech recognition.
+  - See `docs/ROADMAP.md`.
 
 ## Start now
 
-Run the checks, confirm green, then implement backlog item 0 (prompt caching + cache-write pricing) end to end — code, tests, README section, `bun run check` — and stop for review before starting item 0.5.
+Run the checks, confirm green, then implement **L0 (prompt caching + cache-write pricing)** end to end: code, tests, README section, `bun run check`. Stop for review before starting L1.

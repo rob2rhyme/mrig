@@ -36,11 +36,11 @@ Gate column (when the item must exist):
 | A1 | **Legal home / data controller** | ✅ **Decided Sept 24** | RT personally, with a handover path to an organization. Protocol and dossier: `docs/related/wordlist-pilot-docs.md`, Part 6. Set up the transferable accounts now: project email, GitHub organization, domain, shared vault, second admin. | Pilot |
 | A2 | **Privacy policy** (Nepali + English) | ◐ pilot version drafted (`docs/related/wordlist-pilot-docs.md`, Part 4) | Expand into the full launch policy. See below this table. | Launch |
 | A3 | **Terms of use** | ✗ | See below this table. | Launch |
-| A4 | **Contributor licence grant** | ⚠️ **Reopened Oct 14**: the licence model is pending ⚑ (`docs/related/magar-knowledge-platform.md` §8) | See below this table. | Pilot |
+| A4 | **Contributor licence grant** | ✅ **Nov 2: CC BY 4.0 (open for now)**; consent wording updated | See below this table. Audio grant still needed before P3. | Pilot |
 | A5 | **Informed consent** | ✅ drafted, needs Nepali review (`docs/related/wordlist-pilot-docs.md`, Part 3) | Add the audio consent before P3. See below this table. | Pilot |
 | A6 | **Community guidelines / content policy** | ✗ | See below this table. | Launch |
 | A7 | **Complaints and takedown procedure** | ✗ | A named contact, a response time, and a process for disputes about ownership or community objections. Nepal's 2023 social-media Directive expects a grievance contact and 24-hour removal of flagged content [S]. | Launch |
-| A8 | **Community agreement (MoU)** with the advisory group(s) | ◐ | Who can speak for each language; how collective rights over traditional knowledge relate to individual contributor licences; CARE principles [S]; Local Contexts labels [V]. | Launch |
+| A8 | **Community agreement (MoU)** with the advisory group(s) | ◐ Partner chosen: BAMA (Nov 2); agreement not yet signed | Who can speak for each language; how collective rights over traditional knowledge relate to individual contributor licences; CARE principles [S]; Local Contexts labels [V]. | Launch |
 | A9 | **Dataset documentation** | ◐ | A data statement or datasheet (who contributed, varieties, collection method, known biases), a citation file, and versioned releases with a DOI (e.g. Zenodo) [I]. | First release |
 | A10 | **Image credits page** | ◐ (fields exist) | A public page generated from the image licence and attribution fields. | Launch |
 | A11 | **Code licence** | ✅ AGPL-3.0 (proposed) | Chosen by default; switch to MIT if preferred. | Launch |

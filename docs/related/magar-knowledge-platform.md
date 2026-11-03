@@ -1,6 +1,52 @@
 # Magar language and culture platform: feasibility and plan
 
-Date: October 14, 2026. Status: **proposed; it needs the ⚑ decisions before any collection starts.**
+Date: October 14, 2026 (updated November 2). Status: **licence and partner decided; a signed partner agreement is the remaining gate.**
+
+## Update, Nov 2: decisions
+
+**Licence: open (CC BY 4.0) for now**, which is model A in §8.
+
+- **Every release is open for good.** CC BY can't be withdrawn [V].
+- A paid API stays possible, but only as a **service** (hosting, convenience, custom models). The data itself stays free, and others may also serve it.
+- The consent drafts now say exactly this (`docs/related/wordlist-pilot-docs.md`, updated).
+- **Keeping options open:**
+  - Consent allows publication but doesn't require it.
+  - Hold back anything sensitive: sacred or restricted cultural items stay **unpublished**, under community use only.
+  - A future restricted tier (model B or C) would apply only to **new** material collected under a new consent version.
+
+**Community partner: Bhutanese American Magar Association (BAMA)**, bhutanesemagar.org [V]:
+
+- a **501(c)(3)**, Harrisburg, PA;
+- tax exemption issued Sept 2024;
+- files the 990-N (gross receipts under $50k) [V, ProPublica];
+- its site hosts a members-only "Akkha-Rik Project" page [V].
+
+What this unlocks [I unless marked]:
+
+- **KoboToolbox's free Community plan** is open to nonprofits [V]. The pilot can run free under BAMA's account.
+- **Handover recipient:** a US nonprofit in the same jurisdiction as Robin. The cleanest path is to name it as successor steward in the agreement.
+- **A Local Contexts community account** for applying TK Labels. Only communities can hold one [V].
+- **Grants and donations** through a 501(c)(3).
+
+**Representation gap [I].**
+
+- BAMA represents the **Bhutanese-American** Magar diaspora.
+- **Kham and Kaike speakers live in Nepal.** Cultural knowledge from Nepal should be governed with Nepal-based voices too.
+- **Recommendation:** BAMA as lead partner, plus advisory seats for Kham and Kaike speakers from Nepal. Possible sources:
+  - a Nepal Magar organisation, e.g. Nepal Magar Association or Magar Studies Center;
+  - the KU language lab (`docs/AI_FEASIBILITY.md`).
+
+**The partner agreement should cover [I]:**
+
+- roles: steward, reviewers, the Local Contexts account;
+- decision rights over sensitive items and labels;
+- use of names and logos;
+- **Robin's font and content licence to BAMA** (see `docs/related/akkha-rik-integration.md` §0.2);
+- successor-steward and handover terms;
+- what happens if the partnership ends.
+
+**Kham:** no extra Akkha letters are needed, so the repertoire is stable. Capture pronunciation with audio and IPA instead [I].
+
 
 Labels: **[V]** verified against a primary source · **[S]** secondary · **[I]** inference or recommendation.
 
@@ -229,8 +275,8 @@ Off-site tier            a second cloud bucket or a rotated offline drive
 
 | Earlier | Now |
 |---|---|
-| Dataset licence: CC BY 4.0 (Sept 24) | **Reopened ⚑.** Recommendation D/B |
-| Consent: "never sold" | **Rewrite before use.** `docs/related/wordlist-pilot-docs.md` is marked do-not-use until ⚑ is settled |
+| Dataset licence: CC BY 4.0 (Sept 24) | Reopened Oct 14. **Decided Nov 2: open (CC BY 4.0) for now.** Any API is a service, not a sale of data |
+| Consent: "never sold" | **Rewritten Nov 2:** the data stays free, and only services may be charged for |
 | Community governance: an advisory contact | **A precondition** for the cultural module and the restricted tier |
 | Separate crowdsourcing app | **One PWA, two modes, two data stores** |
 | Handover conditions | Add: the licence tiers, revenue sharing, and the community veto carry over |
@@ -239,7 +285,7 @@ Off-site tier            a second cloud bucket or a rotated offline drive
 
 | Phase | Work | Gate |
 |---|---|---|
-| 0 | ⚑ Licence model; community partner body; revenue-share rule; rewrite consent | Signed community agreement |
+| 0 | ~~Licence model~~ (open) ✅; ~~partner~~ (BAMA) ✅; consent rewritten ✅; **signed BAMA agreement + Nepal advisory seats** | Signed community agreement |
 | 1 | Words-only pilot (Kobo or MVP) | Pilot assumptions confirmed |
 | 2 | Contribute mode in the PWA: daily questions, per-variety voting, reviewers, voice | ≥3 agreements on core items per variety |
 | 3 | Cultural objects module: photos, notes, TK labels via the community account | Community review process running |

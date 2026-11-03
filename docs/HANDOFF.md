@@ -1,4 +1,4 @@
-# mrig — handoff summary, revision 4 (with feasibility analysis)
+# mrig — handoff summary, revision 11 (with feasibility analysis)
 
 Paste everything below the line into a fresh Cowork/Claude session. It assumes no memory of any previous conversation. It is for strategy, research and decisions, not implementation. Implementation happens in Claude Code inside the repo, driven by `docs/JUMPSTART.md`.
 
@@ -9,7 +9,35 @@ Last updated: September 23, 2026 (revision 4 — see the Revision 4 section firs
 - It also records that the current font is an **ASCII-slot font, not PUA**.
 - As a result, canonical text moves to **Devanagari**, and display encoding options are re-opened. See `docs/decisions/2026-09-23-akkha-encoding.md`, which travels with this document.
 
-## Revision 4 — RT's answers (latest; overrides anything below that conflicts)
+## Priority (rev 11, Nov 3): local AI first, Akkha second
+
+**The current backlog is `docs/ROADMAP.md`. It supersedes both backlog tables in this file.**
+
+- **Track 1 — Local AI (mrig).** Done when it runs fully offline on the M4 Pro, with Claude as an optional profile.
+  - L0 prompt caching
+  - L1 hygiene
+  - L2 local runtime bring-up (Ollama or LM Studio; Qwen3.5-9B / Gemma 4 12B)
+  - L3 agent eval harness
+  - L4 compaction
+  - L5 offline guarantee
+  - L6 MCP / fetch / TUI
+  - **Local AI v1.0 = L0–L5.**
+- **Track 2 — Akkha, built on mrig.** Starts after v1.0. The font spike is the one exception: it may run earlier in the font repo.
+  - A1 font spike
+  - A2 transliteration
+  - A3 language memory
+  - A4 CLDF corpus search
+  - A5 app data fixes
+  - A6 pilot
+  - A7 Contribute mode
+  - A8 language evaluation, then NLLB / speech recognition
+- **Not blocked by either track:**
+  - the BAMA agreement
+  - the font licence
+  - children's accounts in the live app (current obligation if under-13 accounts already exist)
+  - Vercel Pro before billing
+
+## Revision 4 — RT's answers (overrides anything below that conflicts)
 
 - **Varieties:** all three use the Akkha script.
   - "Akkha" = Magar Dhut ("dhut" = language), which covers Eastern Magar `mgp` and Western Magar `mrd` [V].
@@ -28,7 +56,7 @@ Last updated: September 23, 2026 (revision 4 — see the Revision 4 section firs
   - All present language work can use API models, which are much stronger at Nepali than a 9B local model [I]. Local fine-tuning becomes less urgent. Compare the options on the eval set first.
 - **Full detail:** `docs/decisions/2026-09-23-akkha-encoding.md`.
 
-### Backlog after revision 4 (supersedes the table further down)
+### Backlog after revision 4 (superseded by `docs/ROADMAP.md`, Nov 3)
 
 | # | Item | Effort | Gate |
 |---|---|---|---|
@@ -54,6 +82,15 @@ Outside mrig, in parallel:
   - No UK/EU outreach at launch, no ads, hosting on Cloudflare, 200 items.
   - Kobo's free plan is nonprofit-only; as an individual, RT would need Starter (~$25/month).
   - Pilot documents are drafted in `docs/related/wordlist-pilot-docs.md`.
+- **Rev 10 (Nov 2): Robin's decisions**:
+  - Licence open (CC BY 4.0) for now; any API is a service only.
+  - Partner: the Bhutanese American Magar Association (BAMA), a 501(c)(3) in Harrisburg, PA. Add Nepal advisory seats for Kham and Kaike.
+  - Vocabulary is mixed Nepali and Magar, so tag each item's language.
+  - Robin Thapa owns the content and the GurbachhanAkkhaRik font.
+  - Hosting on Vercel (Hobby → Pro before billing).
+  - Learner accounts from age 8: a family-account design is needed for COPPA and the UK Children's Code.
+  - Kham needs no extra letters.
+  - Details: `docs/related/akkha-rik-integration.md` §0, `docs/related/magar-knowledge-platform.md` (Nov 2 update), `docs/PROJECT_OVERVIEW.md`.
 - **Rev 9 (Oct 14): Magar language and culture platform** (`docs/related/magar-knowledge-platform.md`):
   - One PWA with two modes and two data stores.
   - Daily questions with per-variety voting and reviewers; voice answers; a cultural objects module that needs a community partner.
@@ -439,7 +476,7 @@ Effort is S = under a day, M = a few days, L = a week or more of evenings [I].
 - Session `sync()` meta lag on long sessions (item 0.5).
 - The closed-zone boundary is procedural until item 1 ships.
 
-## Re-ordered backlog
+## Re-ordered backlog (superseded by `docs/ROADMAP.md`, Nov 3)
 
 | # | Item | Effort | Gate |
 |---|---|---|---|
