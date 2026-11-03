@@ -4,6 +4,7 @@
 import type { LanguageModel } from 'ai';
 import { Agent, type AgentEvents } from './agent.ts';
 import { loadConfig, type MrigConfig, type ProviderProfile, resolveProfile } from './config.ts';
+import { checkProfile, type DoctorOptions, type ModelCheck } from './doctor.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
 import { buildSystemPrompt } from './prompt.ts';
 import { createModel } from './providers.ts';
@@ -76,6 +77,11 @@ export class Runtime {
 
   modelLabel(): string {
     return `${this.providerName}/${this.profile.model}`;
+  }
+
+  /** Ask the active provider whether it serves the configured model id (never throws). */
+  checkModel(opts: DoctorOptions = {}): Promise<ModelCheck> {
+    return checkProfile(this.providerName, this.profile, opts);
   }
 
   /** Switch provider and/or model mid-session, keeping the transcript. */

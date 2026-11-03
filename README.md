@@ -72,6 +72,18 @@ echo "explain this error: $(cat err.log)" | xargs -0 mrig -p
 
 Exit codes: `0` done, `1` error, `2` stopped at max steps, `130` aborted.
 
+**Check your setup:**
+
+```sh
+mrig doctor                  # every profile: is its model id served by the provider?
+mrig doctor -P ollama        # one profile; -m <id> to try another model id
+```
+
+`doctor` asks each provider's `/v1/models` and prints ✓ (listed), ✗ (not listed, wrong key, or
+unreachable; exit code 1) or · (skipped: no key, or the server does not list models). The
+interactive REPL runs the same check for the active profile in the background at startup and
+prints a one-line warning when the model id is not served; headless mode does not.
+
 ## Configuration
 
 `~/.mrig/config.json` (global) and `./.mrig/config.json` (per project) are merged over the
@@ -121,6 +133,8 @@ you like into `permissions.allow` to make them permanent. `--yolo` or `/yolo` sk
 
 Every conversation is saved to `~/.mrig/sessions/<id>.jsonl`. `mrig -c` resumes the latest
 session in the current directory; `mrig -r <id>` a specific one; `mrig --list-sessions` lists.
+New messages are appended; the meta line (title, `updatedAt`) is rewritten in place, so long
+sessions stay cheap to save and always list with the right timestamp.
 
 mrig reads `AGENTS.md` (or `MRIG.md`) from the current directory up to the git root, plus
 `~/.mrig/AGENTS.md`, into the system prompt — the same idea as Claude Code's `CLAUDE.md`.
@@ -149,6 +163,10 @@ Layout: `src/agent.ts` (loop) · `src/tools/` · `src/permissions.ts` · `src/pr
 `src/config.ts` · `src/session.ts` · `src/prompt.ts` · `src/ui/repl.ts` · `src/index.ts`.
 See `AGENTS.md` for the architecture rules that keep it this simple.
 
+CI runs the full check on Linux for every push and pull request. The macOS and Windows matrix
+runs only on pull requests to `main`, `v*` tags and manual runs, which is where it earns its
+minutes; binaries for all targets are built on `main` and tags.
+
 ## Notes on local models
 
 The harness is the same for every backend; the model is what differs. Frontier Claude models
@@ -161,5 +179,6 @@ hard task to Claude mid-session — the conversation carries over.
 ## Status
 
 v0.1 — Phase 0 + 1: loop, six tools, providers, permissions, sessions, memory, REPL, headless
-mode, cross-platform builds, tests. Next: automatic context compaction, MCP client, web tools,
-richer TUI. Licensing is yours to choose before publishing (add a `LICENSE` file).
+mode, cross-platform builds, tests. L1 hygiene: `mrig doctor`, in-place session meta, leaner CI.
+Next (see `docs/ROADMAP.md`): prompt caching, local runtime hardening, eval harness, compaction,
+offline guarantee. Licensing is yours to choose before publishing (add a `LICENSE` file).

@@ -20,7 +20,7 @@ A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands
 - `src/prompt.ts` — system prompt under ~1k tokens (identity, environment, how-to-work rules) plus memory from `AGENTS.md`/`MRIG.md` found from cwd up to the git root, nearest last, plus `~/.mrig/AGENTS.md`.
 - `src/ui/repl.ts` — readline REPL: streaming text, `⚙ tool` lines with ✓/✗ and timing, permission prompts (y/n/a), Ctrl+C aborts a run (twice at the prompt exits), slash commands `/model /provider /providers /cost /compact /clear /yolo /sessions /resume /tools /memory /help /exit`. `src/index.ts` — CLI (`src/cli/args.ts`) and headless `-p "prompt"` mode (auto-denies non-read-only tools when there is no TTY; `--yolo` allows). Exit codes 0 done / 1 error / 2 max-steps / 130 aborted.
 - Tests: 47 in `tests/` with `bun test`, no network — the loop is tested against `MockLanguageModelV4` via `tests/helpers.ts` (`mockModel`, `textTurn`, `toolTurn`). `scripts/fake-openai-server.ts` is a fake OpenAI-compatible model on :8089 for end-to-end runs (`mrig -P fake -p "what is in README.md"`, or `run <cmd>` to exercise the bash permission path).
-- CI: `.github/workflows/ci.yml` runs lint/typecheck/test/build on ubuntu, macos, windows and uploads all four binaries on `main`.
+- CI: `.github/workflows/ci.yml` runs lint/typecheck/test/build on ubuntu for every push and PR; macos and windows only on PRs to `main`, `v*` tags and manual runs; all four binaries are uploaded on `main` and tags.
 - Quality gate: `bun run check` = Biome lint (zero warnings) + `tsc --noEmit` + `bun test` + `bun run build`. It is green at v0.1.
 
 ## Known gaps and caveats (do not "fix" silently — mention them when relevant)
@@ -29,9 +29,8 @@ A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands
 - No automatic context compaction yet; only manual `/compact`. Long sessions on 64k-context local models will eventually overflow.
 - No MCP client, no web tools, no reasoning display, no subagents, plain readline UI.
 - No offline guarantee yet (L5): nothing stops a remote profile from being used in a sensitive directory.
-- `openai` profile default model id `gpt-5` is unverified; `lmstudio` model id is a placeholder.
+- `openai` profile default model id `gpt-5` is unverified; `lmstudio` model id is a placeholder. `mrig doctor` (L1) checks both against the server's model list instead of guessing.
 - Windows support is compiled and CI-tested but not hand-tested; bash timeout kills the shell process, not the whole tree.
-- Session `sync()` rewrites meta only when the transcript is ≤4 messages; `updatedAt`/`title` can lag on long sessions.
 
 ## Working agreement
 

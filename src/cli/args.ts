@@ -9,6 +9,8 @@ export interface CliArgs {
   maxSteps?: number;
   cwd?: string;
   listSessions: boolean;
+  /** `mrig doctor`: check configured model ids against each provider's /v1/models. */
+  doctor: boolean;
   version: boolean;
   help: boolean;
 }
@@ -18,6 +20,7 @@ export const HELP = `mrig — a personal, local, model-agnostic agent for the te
 Usage:
   mrig [options] [initial prompt]        interactive session
   mrig -p "prompt" [options]             headless: run once, print, exit
+  mrig doctor [-P <name>] [-m <id>]      check model ids against each provider's model list
 
 Options:
   -p, --print <prompt>     Run a single prompt non-interactively and exit
@@ -29,6 +32,7 @@ Options:
       --max-steps <n>      Max model turns per message (default 40)
       --cwd <dir>          Working directory
       --list-sessions      List saved sessions
+      --doctor             Same as "mrig doctor"
   -v, --version            Print version
   -h, --help               Show this help
 
@@ -41,6 +45,7 @@ export function parseArgs(argv: string[]): CliArgs {
     yolo: false,
     continue: false,
     listSessions: false,
+    doctor: false,
     version: false,
     help: false,
   };
@@ -90,6 +95,9 @@ export function parseArgs(argv: string[]): CliArgs {
       case '--list-sessions':
         args.listSessions = true;
         break;
+      case '--doctor':
+        args.doctor = true;
+        break;
       case '-v':
       case '--version':
         args.version = true;
@@ -100,6 +108,10 @@ export function parseArgs(argv: string[]): CliArgs {
         break;
       default:
         if (a.startsWith('-') && a.length > 1) throw new Error(`Unknown option: ${a}`);
+        if (a === 'doctor' && positional.length === 0 && args.print === undefined) {
+          args.doctor = true;
+          break;
+        }
         positional.push(a);
     }
   }
