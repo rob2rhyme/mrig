@@ -15,15 +15,32 @@ export function ctx(cwd: string, extra: Partial<ToolContext> = {}): ToolContext 
   return { cwd, maxOutputChars: 30_000, ...extra };
 }
 
-const usage = (input: number, output: number) => ({
-  inputTokens: { total: input, noCache: input, cacheRead: 0, cacheWrite: 0 },
-  outputTokens: { total: output, text: output, reasoning: 0 },
-});
+/** Token counts for a mock turn. `input` is the provider total, including cache reads/writes. */
+export interface MockTokens {
+  input: number;
+  output: number;
+  cacheRead?: number;
+  cacheWrite?: number;
+}
+
+const usage = (t: MockTokens) => {
+  const cacheRead = t.cacheRead ?? 0;
+  const cacheWrite = t.cacheWrite ?? 0;
+  return {
+    inputTokens: {
+      total: t.input,
+      noCache: t.input - cacheRead - cacheWrite,
+      cacheRead,
+      cacheWrite,
+    },
+    outputTokens: { total: t.output, text: t.output, reasoning: 0 },
+  };
+};
 
 /** A mock model turn that emits text and finishes. */
 export function textTurn(
   text: string,
-  tokens = { input: 10, output: 5 },
+  tokens: MockTokens = { input: 10, output: 5 },
 ): LanguageModelV4StreamPart[] {
   return [
     { type: 'stream-start', warnings: [] },
@@ -34,7 +51,7 @@ export function textTurn(
     {
       type: 'finish',
       finishReason: { unified: 'stop', raw: 'stop' },
-      usage: usage(tokens.input, tokens.output),
+      usage: usage(tokens),
     },
   ];
 }
@@ -44,7 +61,7 @@ export function toolTurn(
   toolName: string,
   input: string,
   id = 'call-1',
-  tokens = { input: 10, output: 5 },
+  tokens: MockTokens = { input: 10, output: 5 },
 ): LanguageModelV4StreamPart[] {
   return [
     { type: 'stream-start', warnings: [] },
@@ -56,7 +73,7 @@ export function toolTurn(
     {
       type: 'finish',
       finishReason: { unified: 'tool-calls', raw: 'tool_use' },
-      usage: usage(tokens.input, tokens.output),
+      usage: usage(tokens),
     },
   ];
 }

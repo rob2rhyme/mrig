@@ -95,12 +95,29 @@ defaults; env vars (`MRIG_PROVIDER`, `MRIG_YOLO=1`, `MRIG_HOME`) apply last; CLI
     "allow": ["bash:git status", "bash:git diff", "bash:bun test", "edit:src/**"]
   },
   "maxSteps": 40,
-  "maxToolOutputChars": 30000
+  "maxToolOutputChars": 30000,
+  "cacheTtl": "5m"
 }
 ```
 
 Built-in profiles: `claude`, `opus`, `fable`, `haiku` (Anthropic), `openai`, `ollama`,
 `lmstudio`, `llamacpp`. Any OpenAI-compatible server works with `kind: "openai-compatible"`.
+
+## Prompt caching (Claude)
+
+Anthropic profiles send every request with automatic prompt caching on, plus one explicit
+cache breakpoint on the system block. Tools and the system prompt stay cached for the whole
+session, and the growing conversation is re-read from cache instead of re-billed. OpenAI and
+local profiles are untouched: nothing is sent, nothing is priced.
+
+- `cacheTtl`: `"5m"` (default) or `"1h"`. Writes cost 1.25× the input price at 5 minutes and 2×
+  at 1 hour; reads cost 10% (2.5% on Fable 5.1). A read refreshes the timer, so `1h` only pays
+  off when you regularly pause more than five minutes between turns.
+- `/cost` shows cache reads and writes, prices writes at the TTL premium, and explains a miss:
+  each model only caches prefixes above a minimum (512 tokens on Claude 5 models, up to 4,096
+  on Haiku 4.5), so a short first turn can show no cache activity at all.
+- Per-profile `pricing` accepts `cacheRead` and `cacheWrite` (USD per million) to override the
+  defaults for models mrig does not know.
 
 ## Tools and permissions
 
@@ -161,5 +178,5 @@ hard task to Claude mid-session — the conversation carries over.
 ## Status
 
 v0.1 — Phase 0 + 1: loop, six tools, providers, permissions, sessions, memory, REPL, headless
-mode, cross-platform builds, tests. Next: automatic context compaction, MCP client, web tools,
-richer TUI. Licensing is yours to choose before publishing (add a `LICENSE` file).
+mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. Next (see
+`docs/ROADMAP.md`): hygiene, local runtime hardening, eval harness, compaction, offline guarantee. Licensing is yours to choose before publishing (add a `LICENSE` file).

@@ -25,7 +25,7 @@ A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands
 
 ## Known gaps and caveats (do not "fix" silently — mention them when relevant)
 
-- No prompt caching yet (L0); every step re-sends the full prefix.
+- Prompt caching (L0) is implemented for Anthropic profiles but the live acceptance check (step 2 of a 2-step run reports `cacheReadTokens > 0`) still has to be run against the API by hand.
 - No automatic context compaction yet; only manual `/compact`. Long sessions on 64k-context local models will eventually overflow.
 - No MCP client, no web tools, no reasoning display, no subagents, plain readline UI.
 - No offline guarantee yet (L5): nothing stops a remote profile from being used in a sensitive directory.

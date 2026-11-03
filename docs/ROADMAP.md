@@ -10,7 +10,7 @@ Goal: a dependable agent that runs **fully offline** on the M4 Pro (24 GB), with
 
 | # | Item | Effort | Done when |
 |---|---|---|---|
-| L0 | **Prompt caching** for Claude profiles: automatic caching + one system/tools breakpoint; price cache writes | S | A live 2-step run shows `cacheReadTokens > 0` |
+| L0 | ✅ **Prompt caching** for Claude profiles: automatic caching + one system/tools breakpoint; price cache writes. Done 2026-11-03 (`feat/L0-prompt-caching`) | S | A live 2-step run shows `cacheReadTokens > 0` |
 | L1 | **Hygiene**: model-id check via `/v1/models`; session meta sync fix; CI on Linux for every push, macOS/Windows on PRs to `main` only | S | `mrig doctor` flags an unknown model; CI minutes drop |
 | L2 | **Local runtime bring-up and hardening** (see notes below) | S–M | Each candidate model completes a read → edit → bash task in mrig. The hardening items below are merged |
 | L3 | **Agent eval harness**: a scripted task suite run headless (`-p`) against every profile | M | A compatibility matrix exists, and the default `local` profile is chosen from it |

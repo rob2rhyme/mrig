@@ -15,9 +15,16 @@ import {
   streamText,
   type ToolResultPart,
 } from 'ai';
-import type { ProviderProfile } from './config.ts';
+import type { CacheTtl, ProviderProfile } from './config.ts';
 import type { PermissionManager } from './permissions.ts';
-import { addUsage, emptyUsage, estimateCost, pricingFor, type UsageTotals } from './providers.ts';
+import {
+  addUsage,
+  cacheProviderOptions,
+  emptyUsage,
+  estimateCost,
+  pricingFor,
+  type UsageTotals,
+} from './providers.ts';
 import { type AnyTool, type ToolContext, toAiTools, toolRegistry } from './tools/index.ts';
 import { firstLines } from './util/text.ts';
 
@@ -55,6 +62,8 @@ export interface AgentOptions {
   events: AgentEvents;
   /** Resume with an existing transcript. */
   messages?: ModelMessage[];
+  /** Prompt-cache TTL for Anthropic profiles (default 5m). Ignored for other providers. */
+  cacheTtl?: CacheTtl;
 }
 
 export type StopReason = 'done' | 'max-steps' | 'aborted';
@@ -124,7 +133,11 @@ export class Agent {
 
   /** Estimated USD spent this session, or undefined when pricing is unknown. */
   cost(): number | undefined {
-    return estimateCost(this.usage, pricingFor(this.opts.profile));
+    return estimateCost(this.usage, pricingFor(this.opts.profile), this.cacheTtl());
+  }
+
+  cacheTtl(): CacheTtl {
+    return this.opts.cacheTtl ?? '5m';
   }
 
   clear(): void {
@@ -159,11 +172,18 @@ export class Agent {
     // appends an error tool-result to responseMessages so the model can self-correct.
     let sdkToolErrors = 0;
 
+    // L0: for Anthropic, request-level automatic caching plus one explicit breakpoint on the
+    // system block. Tools render before system, so that breakpoint keeps tools + system cached
+    // for the whole session; the automatic one follows the growing conversation.
+    const cache = cacheProviderOptions(this.opts.profile, this.cacheTtl());
     const result = streamText({
       model: this.opts.model,
-      system: this.opts.systemPrompt,
+      system: cache
+        ? { role: 'system', content: this.opts.systemPrompt, providerOptions: cache }
+        : this.opts.systemPrompt,
       messages: this.messages,
       tools: this.aiTools,
+      ...(cache ? { providerOptions: cache } : {}),
       abortSignal: signal,
       maxRetries: 2,
       // Errors surface as an 'error' stream part below; suppress the SDK's default console.error.
@@ -298,8 +318,10 @@ export class Agent {
   /** Replace the transcript with a model-written summary to free context. */
   async compact(signal?: AbortSignal): Promise<string> {
     if (this.messages.length === 0) return 'Nothing to compact.';
+    const cache = cacheProviderOptions(this.opts.profile, this.cacheTtl());
     const { text, usage } = await generateText({
       model: this.opts.model,
+      ...(cache ? { providerOptions: cache } : {}),
       system:
         "Summarize the conversation for your own future reference. Preserve: the user's goals, decisions made, files changed (with paths), commands run and their outcomes, open problems, and exact identifiers (names, paths, error strings). Omit pleasantries. Use compact prose and short lists. Under 1500 words.",
       messages: [...this.messages, { role: 'user', content: '[mrig] Write the summary now.' }],

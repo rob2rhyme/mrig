@@ -69,6 +69,7 @@ export class Runtime {
       systemPrompt: buildSystemPrompt({ cwd: opts.cwd, modelLabel: this.modelLabel() }),
       maxSteps: opts.maxSteps ?? this.config.maxSteps,
       maxToolOutputChars: this.config.maxToolOutputChars,
+      cacheTtl: this.config.cacheTtl,
       events: opts.events,
       messages: this.session.messages,
     });

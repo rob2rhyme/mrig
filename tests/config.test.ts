@@ -2,7 +2,15 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig, resolveApiKey, resolveProfile } from '../src/config.ts';
-import { estimateCost, pricingFor } from '../src/providers.ts';
+import {
+  addUsage,
+  cacheMinPrefix,
+  cacheProviderOptions,
+  emptyUsage,
+  estimateCost,
+  explainCacheMiss,
+  pricingFor,
+} from '../src/providers.ts';
 import { tempDir } from './helpers.ts';
 
 describe('config', () => {
@@ -26,6 +34,14 @@ describe('config', () => {
     expect(cfg.defaultProvider).toBe('claude');
     expect(cfg.providers.ollama?.baseURL).toBe('http://localhost:11434/v1');
     expect(cfg.maxSteps).toBe(40);
+    expect(cfg.cacheTtl).toBe('5m');
+  });
+
+  test('cacheTtl loads from config and rejects anything but 5m/1h', async () => {
+    await Bun.write(join(home.dir, 'config.json'), JSON.stringify({ cacheTtl: '1h' }));
+    expect(loadConfig({ cwd: project.dir, env: {} }).cacheTtl).toBe('1h');
+    await Bun.write(join(home.dir, 'config.json'), JSON.stringify({ cacheTtl: '2h' }));
+    expect(() => loadConfig({ cwd: project.dir, env: {} })).toThrow(/Invalid "cacheTtl"/);
   });
 
   test('global then project config layer on top, env last', async () => {
@@ -91,6 +107,7 @@ describe('config', () => {
       inputTokens: 1_000_000,
       outputTokens: 100_000,
       cacheReadTokens: 500_000,
+      cacheWriteTokens: 0,
       requests: 3,
     };
     const sonnet = pricingFor({ kind: 'anthropic', model: 'claude-sonnet-5' });
@@ -102,5 +119,88 @@ describe('config', () => {
     expect(
       estimateCost(usage, pricingFor({ kind: 'openai', model: 'gpt-unknown' })),
     ).toBeUndefined();
+  });
+
+  test('cache writes: 1.25× input at 5m, 2× at 1h, explicit cacheWrite/cacheRead win', () => {
+    const usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      cacheReadTokens: 300_000,
+      cacheWriteTokens: 200_000,
+      requests: 2,
+    };
+    const sonnet = pricingFor({ kind: 'anthropic', model: 'claude-sonnet-5' });
+    // 500k uncached × $2 + 300k read × $0.2 + 200k write × $2.5 = 1 + 0.06 + 0.5
+    expect(estimateCost(usage, sonnet)).toBeCloseTo(1.56, 6);
+    expect(estimateCost(usage, sonnet, '5m')).toBeCloseTo(1.56, 6);
+    // 1h: 200k write × $4 = 0.8
+    expect(estimateCost(usage, sonnet, '1h')).toBeCloseTo(1.86, 6);
+    // Explicit prices override both multipliers.
+    expect(
+      estimateCost(usage, { input: 2, output: 10, cacheRead: 1, cacheWrite: 1 }, '1h'),
+    ).toBeCloseTo(1 + 0.3 + 0.2, 6);
+    // Fable 5.1 reads at $0.25/M, not 10% of input.
+    const fable = pricingFor({ kind: 'anthropic', model: 'claude-fable-5-1' });
+    expect(
+      estimateCost(
+        {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 1_000_000,
+          cacheWriteTokens: 0,
+          requests: 1,
+        },
+        fable,
+      ),
+    ).toBeCloseTo(0.25, 6);
+  });
+
+  test('addUsage accumulates cache reads and writes from the SDK usage shape', () => {
+    const totals = addUsage(emptyUsage(), {
+      inputTokens: 1000,
+      inputTokenDetails: { noCacheTokens: 100, cacheReadTokens: 600, cacheWriteTokens: 300 },
+      outputTokens: 50,
+      outputTokenDetails: { textTokens: 50, reasoningTokens: 0 },
+      totalTokens: 1050,
+    });
+    expect(totals).toEqual({
+      inputTokens: 1000,
+      outputTokens: 50,
+      cacheReadTokens: 600,
+      cacheWriteTokens: 300,
+      requests: 1,
+    });
+  });
+
+  test('cache minimum-prefix table knows the per-model floors', () => {
+    expect(cacheMinPrefix('claude-sonnet-5')).toBe(1024);
+    expect(cacheMinPrefix('claude-sonnet-5-5')).toBe(512);
+    expect(cacheMinPrefix('claude-opus-5')).toBe(512);
+    expect(cacheMinPrefix('claude-fable-5-1')).toBe(512);
+    expect(cacheMinPrefix('claude-haiku-4-5-20251001')).toBe(4096);
+    expect(cacheMinPrefix('claude-opus-4-7')).toBe(2048);
+    expect(cacheMinPrefix('claude-opus-4-6')).toBe(4096);
+    expect(cacheMinPrefix('claude-sonnet-4-5')).toBe(1024);
+    expect(cacheMinPrefix('gpt-5')).toBeUndefined();
+  });
+
+  test('cacheProviderOptions is Anthropic-only; explainCacheMiss names the floor', () => {
+    const claude = { kind: 'anthropic', model: 'claude-haiku-4-5-20251001' } as const;
+    expect(cacheProviderOptions(claude, '1h')).toEqual({
+      anthropic: { cacheControl: { type: 'ephemeral', ttl: '1h' } },
+    });
+    expect(
+      cacheProviderOptions({ kind: 'openai-compatible', model: 'x', baseURL: 'u' }, '5m'),
+    ).toBeUndefined();
+    expect(cacheProviderOptions({ kind: 'openai', model: 'gpt-5' }, '5m')).toBeUndefined();
+
+    const none = { ...emptyUsage(), requests: 2, inputTokens: 900 };
+    expect(explainCacheMiss(none, claude)).toMatch(/4,096 tokens/);
+    expect(explainCacheMiss(none, { kind: 'openai', model: 'gpt-5' })).toBeUndefined();
+    expect(explainCacheMiss(emptyUsage(), claude)).toBeUndefined(); // nothing sent yet
+    const writtenNeverRead = { ...none, cacheWriteTokens: 800 };
+    expect(explainCacheMiss(writtenNeverRead, claude)).toMatch(/never read/);
+    const healthy = { ...none, cacheWriteTokens: 800, cacheReadTokens: 800 };
+    expect(explainCacheMiss(healthy, claude)).toBeUndefined();
   });
 });
