@@ -82,5 +82,5 @@ This takes about one day and happens in the font repo, not mrig [I].
 
 - Kaike and Kham sounds outside the Nepali inventory: are extra letters needed?
 - ~~Does "Akkha" as a variety name mean Magar Dhut?~~ Yes: Magar Dhut = Eastern (`mgp`) + Western (`mrd`) Magar.
-- ~~How are the Kham glottal stop and breathy vowels written today, in Devanagari and in Akkha?~~ **Resolved Nov 2:** Robin says Kham needs no extra Akkha letters, so the repertoire is stable. Record pronunciation with audio and IPA, because the spelling won't show these sounds.
+- How are the Kham glottal stop and breathy vowels written today, in Devanagari and in Akkha?
 - The community's sign-off on Brahmi encoding before public release.

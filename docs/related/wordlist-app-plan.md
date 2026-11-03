@@ -6,9 +6,9 @@ Date: September 24, 2026. Status: **decisions recorded (Sept 24)**. Items marked
 
 | Topic | Decision |
 |---|---|
-| Legal home / data controller | **Robin Thapa personally for now**, with BAMA (a 501(c)(3)) as community partner and likely successor steward. If an organization takes responsibility, hand over under the documented protocol (`docs/related/wordlist-pilot-docs.md`, Part 6). Contributors agree to this at consent. |
+| Legal home / data controller | **RT personally for now.** If an organization takes responsibility, hand over under the documented protocol (`docs/related/wordlist-pilot-docs.md`, Part 6). Contributors agree to this at consent. |
 | Minimum age | **18+.** Minors later only via facilitator mode with guardian consent. |
-| Dataset licence | **Nov 2: open, CC BY 4.0, for now** (was reopened on Oct 14). ~~Reopened Oct 14 ⚑.~~ The paid API and cultural knowledge are now in scope. Recommendation: hybrid, with an open basic dictionary and a tiered benefit-sharing licence for sentences, audio and cultural data (`docs/related/magar-knowledge-platform.md` §8). |
+| Dataset licence | ~~CC BY 4.0~~ **Reopened Oct 14 ⚑.** The paid API and cultural knowledge are now in scope. Recommendation: hybrid, with an open basic dictionary and a tiered benefit-sharing licence for sentences, audio and cultural data (`docs/related/magar-knowledge-platform.md` §8). |
 | Code licence | **AGPL-3.0.** My pick, since none was specified: forks that run the app publicly must share their changes. Switch to MIT if maximum reuse matters more. |
 | EU/UK | **No targeted outreach at launch.** Revisit with an Art. 27 representative once the app is established. |
 | Monetization | **No ads in the collection app, and the data is never sold.** |
