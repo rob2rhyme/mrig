@@ -145,7 +145,10 @@ export class Repl {
     this.rl.close();
   }
 
-  /** Startup model-id check (L1): a short background GET; only a mismatch is reported. */
+  /**
+   * Startup checks (L1, L2): short background requests; only problems are reported.
+   * Model id not served by the provider, or an Ollama model running with under 32k context.
+   */
   private checkModelInBackground(): void {
     const rt = this.runtime;
     void rt
@@ -153,6 +156,13 @@ export class Repl {
       .then((c) => {
         if (c.status !== 'unknown-model' || this.runtime !== rt) return;
         this.write(`${yellow('!')} ${c.message} ${dim('· mrig doctor')}\n`);
+      })
+      .catch(() => {});
+    void rt
+      .checkContext({ timeoutMs: 3000 })
+      .then((c) => {
+        if ((c.status !== 'low' && c.status !== 'unknown') || this.runtime !== rt) return;
+        this.write(`${yellow('!')} ${c.message}\n`);
       })
       .catch(() => {});
   }

@@ -4,12 +4,18 @@
 import type { LanguageModel } from 'ai';
 import { Agent, type AgentEvents } from './agent.ts';
 import { loadConfig, type MrigConfig, type ProviderProfile, resolveProfile } from './config.ts';
-import { checkProfile, type DoctorOptions, type ModelCheck } from './doctor.ts';
+import {
+  type ContextCheck,
+  checkOllamaContext,
+  checkProfile,
+  type DoctorOptions,
+  type ModelCheck,
+} from './doctor.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
 import { buildSystemPrompt } from './prompt.ts';
 import { createModel } from './providers.ts';
 import { Session } from './session.ts';
-import { DEFAULT_TOOLS } from './tools/index.ts';
+import { toolsForMode } from './tools/index.ts';
 
 export interface RuntimeOptions {
   cwd: string;
@@ -64,10 +70,10 @@ export class Runtime {
       model: this.model,
       modelLabel: this.modelLabel(),
       profile: this.profile,
-      tools: DEFAULT_TOOLS,
+      tools: toolsForMode(this.profile.toolMode),
       permissions: this.permissions,
       cwd: opts.cwd,
-      systemPrompt: buildSystemPrompt({ cwd: opts.cwd, modelLabel: this.modelLabel() }),
+      systemPrompt: this.systemPrompt(),
       maxSteps: opts.maxSteps ?? this.config.maxSteps,
       maxToolOutputChars: this.config.maxToolOutputChars,
       events: opts.events,
@@ -79,9 +85,22 @@ export class Runtime {
     return `${this.providerName}/${this.profile.model}`;
   }
 
+  private systemPrompt(): string {
+    return buildSystemPrompt({
+      cwd: this.cwd,
+      modelLabel: this.modelLabel(),
+      toolMode: this.profile.toolMode,
+    });
+  }
+
   /** Ask the active provider whether it serves the configured model id (never throws). */
   checkModel(opts: DoctorOptions = {}): Promise<ModelCheck> {
     return checkProfile(this.providerName, this.profile, opts);
+  }
+
+  /** For Ollama profiles: warn when the model runs with under 32k context (never throws). */
+  checkContext(opts: DoctorOptions = {}): Promise<ContextCheck> {
+    return checkOllamaContext(this.profile, opts);
   }
 
   /** Switch provider and/or model mid-session, keeping the transcript. */
@@ -94,10 +113,8 @@ export class Runtime {
     this.agent.opts.model = nextModel;
     this.agent.opts.profile = resolved.profile;
     this.agent.opts.modelLabel = this.modelLabel();
-    this.agent.opts.systemPrompt = buildSystemPrompt({
-      cwd: this.cwd,
-      modelLabel: this.modelLabel(),
-    });
+    this.agent.setTools(toolsForMode(this.profile.toolMode));
+    this.agent.opts.systemPrompt = this.systemPrompt();
     this.session.setModel(this.providerName, this.profile.model);
   }
 

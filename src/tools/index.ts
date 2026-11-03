@@ -1,4 +1,5 @@
 import { type Tool, tool } from 'ai';
+import type { ToolMode } from '../config.ts';
 import { bashTool } from './bash.ts';
 import { editTool } from './edit.ts';
 import { globTool } from './glob.ts';
@@ -8,7 +9,7 @@ import type { MrigTool } from './types.ts';
 import { writeTool } from './write.ts';
 
 export type { MrigTool, ToolContext } from './types.ts';
-export { ToolError } from './types.ts';
+export { describeInputs, ToolError } from './types.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: heterogeneous tool inputs are validated per-tool
 export type AnyTool = MrigTool<any>;
@@ -22,6 +23,11 @@ export const DEFAULT_TOOLS: AnyTool[] = [
   globTool,
   grepTool,
 ];
+
+/** The tool set for a profile's `toolMode`: everything, or bash alone for weak local models. */
+export function toolsForMode(mode: ToolMode = 'full'): AnyTool[] {
+  return mode === 'minimal' ? [bashTool] : DEFAULT_TOOLS;
+}
 
 export function toolRegistry(tools: AnyTool[] = DEFAULT_TOOLS): Map<string, AnyTool> {
   return new Map(tools.map((t) => [t.name, t]));

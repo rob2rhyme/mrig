@@ -12,6 +12,12 @@ import { join, resolve } from 'node:path';
 
 export type ProviderKind = 'anthropic' | 'openai' | 'openai-compatible';
 
+/**
+ * Which tools the model sees. `minimal` is bash only, for local models that cannot handle
+ * multi-tool calling; they read and edit files through shell commands instead.
+ */
+export type ToolMode = 'full' | 'minimal';
+
 export interface Pricing {
   /** USD per million input tokens */
   input: number;
@@ -36,6 +42,8 @@ export interface ProviderProfile {
   pricing?: Pricing;
   /** Approximate context window in tokens (informational) */
   contextWindow?: number;
+  /** Tool set for this model: "full" (default) or "minimal" (bash only). */
+  toolMode?: ToolMode;
 }
 
 export interface PermissionsConfig {

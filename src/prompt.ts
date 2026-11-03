@@ -5,7 +5,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { platform, release } from 'node:os';
 import { dirname, join } from 'node:path';
-import { mrigHome } from './config.ts';
+import { mrigHome, type ToolMode } from './config.ts';
 import { detectShell } from './util/shell.ts';
 
 const MEMORY_FILES = ['AGENTS.md', 'MRIG.md'];
@@ -65,6 +65,8 @@ export interface PromptOptions {
   cwd: string;
   modelLabel: string;
   now?: Date;
+  /** `minimal` describes the bash-only workflow instead of the file tools. */
+  toolMode?: ToolMode;
 }
 
 export function buildSystemPrompt(opts: PromptOptions): string {
@@ -82,10 +84,17 @@ export function buildSystemPrompt(opts: PromptOptions): string {
     `- Date: ${date} · model: ${opts.modelLabel}`,
     '',
     '## How to work',
-    '- Understand before changing: use glob and grep to locate code, read files before editing them.',
-    '- Prefer edit (exact string replacement) over write for existing files. Keep old_string unique.',
-    '- After changing code, verify: run the tests, linter, or build with bash when the project has them.',
-    '- Use bash for git, package managers, tests, and anything the other tools do not cover. Never run interactive commands. Never run destructive git commands (reset --hard, push --force, clean -f) unless the user explicitly asks.',
+    ...(opts.toolMode === 'minimal'
+      ? [
+          "- Only the bash tool is available. Locate code with grep -rn (or rg) and find; read files with cat -n or sed -n; create files with a quoted heredoc (cat > path <<'EOF'); change files with small, exact edits (sed, or a short python/node one-liner). Read a file before changing it.",
+          '- Verify after changing code: run the tests, linter, or build when the project has them. Never run interactive commands. Never run destructive git commands (reset --hard, push --force, clean -f) unless the user explicitly asks.',
+        ]
+      : [
+          '- Understand before changing: use glob and grep to locate code, read files before editing them.',
+          '- Prefer edit (exact string replacement) over write for existing files. Keep old_string unique.',
+          '- After changing code, verify: run the tests, linter, or build with bash when the project has them.',
+          '- Use bash for git, package managers, tests, and anything the other tools do not cover. Never run interactive commands. Never run destructive git commands (reset --hard, push --force, clean -f) unless the user explicitly asks.',
+        ]),
     '- Do not invent file contents or command output. If a tool fails, say so and adapt.',
     '- Be concise. Lead with the answer or the change; skip preamble. Use plain prose; use code blocks for code.',
     '- For ordinary questions with no file work needed, just answer.',

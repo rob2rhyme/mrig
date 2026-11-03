@@ -1,6 +1,17 @@
 import { describe, expect, test } from 'bun:test';
 import { DEFAULT_CONFIG, type ProviderProfile } from '../src/config.ts';
-import { checkProfile, doctor, hasProblems, modelMatches, modelsUrl } from '../src/doctor.ts';
+import {
+  checkOllamaContext,
+  checkProfile,
+  doctor,
+  hasProblems,
+  isOllama,
+  modelMatches,
+  modelMaxContext,
+  modelsUrl,
+  ollamaApiRoot,
+  parseNumCtx,
+} from '../src/doctor.ts';
 
 type Call = { url: string; headers: Record<string, string> };
 
@@ -140,5 +151,84 @@ describe('doctor: model-id check against /v1/models', () => {
     expect(doctor(DEFAULT_CONFIG, { fetch, env: {}, only: 'nope' })).rejects.toThrow(
       /Unknown provider "nope"/,
     );
+  });
+});
+
+describe('doctor: Ollama context length (L2)', () => {
+  const ollama = DEFAULT_CONFIG.providers.ollama as ProviderProfile;
+  const show = (body: unknown) =>
+    new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+
+  test('detects Ollama by name, port or host, and derives the native API root', () => {
+    expect(isOllama(ollama)).toBe(true);
+    expect(
+      isOllama({ kind: 'openai-compatible', model: 'm', baseURL: 'http://gpu:11434/v1' }),
+    ).toBe(true);
+    expect(
+      isOllama({ kind: 'openai-compatible', model: 'm', baseURL: 'https://ollama.lan/v1/' }),
+    ).toBe(true);
+    expect(isOllama(DEFAULT_CONFIG.providers.lmstudio as ProviderProfile)).toBe(false);
+    expect(isOllama(claude)).toBe(false);
+    expect(ollamaApiRoot('http://localhost:11434/v1')).toBe('http://localhost:11434');
+    expect(ollamaApiRoot('http://localhost:11434/v1/')).toBe('http://localhost:11434');
+  });
+
+  test('parses num_ctx and the model maximum from /api/show payloads', () => {
+    expect(parseNumCtx('stop "<|im_end|>"\nnum_ctx 65536\ntemperature 0.7')).toBe(65536);
+    expect(parseNumCtx('temperature 0.7')).toBeUndefined();
+    expect(parseNumCtx(undefined)).toBeUndefined();
+    expect(
+      modelMaxContext({ 'general.architecture': 'qwen3', 'qwen3.context_length': 40960 }),
+    ).toBe(40960);
+    expect(modelMaxContext({})).toBeUndefined();
+    expect(modelMaxContext(null)).toBeUndefined();
+  });
+
+  test('POSTs the model name; ok at 64k, low under 32k, unknown without num_ctx', async () => {
+    const seen: Array<{ url: string; method?: string; body?: string }> = [];
+    const mk = (body: unknown) => {
+      const f = async (input: string | URL | Request, init?: RequestInit) => {
+        seen.push({ url: String(input), method: init?.method, body: String(init?.body) });
+        return show(body);
+      };
+      return f as unknown as typeof fetch;
+    };
+    const ok = await checkOllamaContext(ollama, { fetch: mk({ parameters: 'num_ctx 65536' }) });
+    expect(ok.status).toBe('ok');
+    expect(ok.contextLength).toBe(65536);
+    expect(seen[0]).toEqual({
+      url: 'http://localhost:11434/api/show',
+      method: 'POST',
+      body: JSON.stringify({ model: 'qwen3-coder' }),
+    });
+
+    const low = await checkOllamaContext(ollama, { fetch: mk({ parameters: 'num_ctx 8192' }) });
+    expect(low.status).toBe('low');
+    expect(low.message).toMatch(/num_ctx 8,192; agents need at least 32,768/);
+    expect(low.message).toContain('OLLAMA_CONTEXT_LENGTH=65536');
+
+    const small = await checkOllamaContext(ollama, {
+      fetch: mk({ model_info: { 'llama.context_length': 8192 } }),
+    });
+    expect(small.status).toBe('low');
+    expect(small.message).toMatch(/supports at most 8,192/);
+
+    const unknown = await checkOllamaContext(ollama, {
+      fetch: mk({ model_info: { 'qwen3.context_length': 262144 } }),
+    });
+    expect(unknown.status).toBe('unknown');
+    expect(unknown.message).toMatch(/did not report a context length/);
+  });
+
+  test('non-Ollama profiles and unreachable servers are skipped quietly', async () => {
+    const down = fakeFetch(() => new Error('ECONNREFUSED'));
+    expect((await checkOllamaContext(ollama, { fetch: down.fetch })).status).toBe('skipped');
+    expect((await checkOllamaContext(claude, { fetch: down.fetch })).status).toBe('skipped');
+    expect(down.calls.length).toBe(1);
+    const err = fakeFetch(() => new Response('nope', { status: 404 }));
+    expect((await checkOllamaContext(ollama, { fetch: err.fetch })).status).toBe('skipped');
   });
 });

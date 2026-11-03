@@ -3,7 +3,14 @@ import { resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { HELP, parseArgs } from './cli/args.ts';
 import { loadConfig, resolveProfile } from './config.ts';
-import { checkProfile, doctor, hasProblems, PROBLEM_STATUSES } from './doctor.ts';
+import {
+  checkOllamaContext,
+  checkProfile,
+  doctor,
+  hasProblems,
+  isOllama,
+  PROBLEM_STATUSES,
+} from './doctor.ts';
 import type { Answer, AskRequest } from './permissions.ts';
 import { formatModelError } from './providers.ts';
 import { Runtime } from './runtime.ts';
@@ -101,6 +108,14 @@ async function runDoctor(args: ReturnType<typeof parseArgs>, cwd: string): Promi
     process.stdout.write(
       `${mark} ${c.name.padEnd(10)} ${dim(`${c.profile.kind} · ${c.profile.model}`)}\n    ${c.message}\n`,
     );
+    if (isOllama(c.profile) && c.status !== 'unreachable') {
+      const ctx = await checkOllamaContext(c.profile);
+      if (ctx.status !== 'skipped') {
+        process.stdout.write(
+          `    ${ctx.status === 'ok' ? dim('context:') : yellow('context:')} ${ctx.message}\n`,
+        );
+      }
+    }
   }
   return hasProblems(checks) ? 1 : 0;
 }

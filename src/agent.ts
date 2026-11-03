@@ -18,7 +18,13 @@ import {
 import type { ProviderProfile } from './config.ts';
 import type { PermissionManager } from './permissions.ts';
 import { addUsage, emptyUsage, estimateCost, pricingFor, type UsageTotals } from './providers.ts';
-import { type AnyTool, type ToolContext, toAiTools, toolRegistry } from './tools/index.ts';
+import {
+  type AnyTool,
+  describeInputs,
+  type ToolContext,
+  toAiTools,
+  toolRegistry,
+} from './tools/index.ts';
 import { firstLines } from './util/text.ts';
 
 export interface ToolCallInfo {
@@ -86,6 +92,32 @@ export function repairJson(raw: string): string | null {
   }
 }
 
+/** `{}`, `""`, null or undefined: the model named a tool but gave it nothing. */
+export function isEmptyInput(input: unknown): boolean {
+  if (input === undefined || input === null || input === '') return true;
+  return typeof input === 'object' && Object.keys(input as object).length === 0;
+}
+
+/**
+ * For a call the SDK marked invalid, the SDK already appended its own error tool-result. The
+ * loop answers every call itself (one result per id), so drop the SDK's copy.
+ */
+function withoutSdkResults(messages: ModelMessage[], invalidIds: Set<string>): ModelMessage[] {
+  if (invalidIds.size === 0) return messages;
+  const out: ModelMessage[] = [];
+  for (const m of messages) {
+    if (m.role !== 'tool') {
+      out.push(m);
+      continue;
+    }
+    const content = m.content.filter(
+      (p) => !(p.type === 'tool-result' && invalidIds.has(p.toolCallId)),
+    );
+    if (content.length > 0) out.push({ ...m, content });
+  }
+  return out;
+}
+
 function previewFor(tool: AnyTool, input: unknown): string | undefined {
   if (!input || typeof input !== 'object') return undefined;
   const i = input as Record<string, unknown>;
@@ -112,14 +144,23 @@ export class Agent {
   messages: ModelMessage[];
   usage: UsageTotals = emptyUsage();
   readonly opts: AgentOptions;
-  private readonly registry: Map<string, AnyTool>;
-  private readonly aiTools;
+  private registry: Map<string, AnyTool>;
+  private aiTools: ReturnType<typeof toAiTools>;
+  /** Consecutive tool calls with no arguments; the first one in a row gets a guided retry. */
+  private emptyArgStreak = 0;
 
   constructor(opts: AgentOptions) {
     this.opts = opts;
     this.messages = opts.messages ?? [];
     this.registry = toolRegistry(opts.tools);
     this.aiTools = toAiTools(opts.tools);
+  }
+
+  /** Swap the tool set (e.g. after /model to a profile with another toolMode). */
+  setTools(tools: AnyTool[]): void {
+    this.opts.tools = tools;
+    this.registry = toolRegistry(tools);
+    this.aiTools = toAiTools(tools);
   }
 
   /** Estimated USD spent this session, or undefined when pricing is unknown. */
@@ -134,6 +175,7 @@ export class Agent {
 
   async run(userText: string, signal?: AbortSignal): Promise<RunResult> {
     this.messages.push({ role: 'user', content: userText });
+    this.emptyArgStreak = 0;
     let steps = 0;
     for (let step = 1; step <= this.opts.maxSteps; step++) {
       if (signal?.aborted) return { stop: 'aborted', steps, text: '' };
@@ -154,6 +196,7 @@ export class Agent {
   ): Promise<{ kind: 'final' | 'continue' | 'aborted'; text: string }> {
     const { events } = this.opts;
     const calls: Array<{ toolCallId: string; toolName: string; input: unknown }> = [];
+    const invalidIds = new Set<string>();
     let text = '';
     // The SDK validates tool names/inputs itself and, on failure, emits a tool-error part and
     // appends an error tool-result to responseMessages so the model can self-correct.
@@ -186,6 +229,7 @@ export class Agent {
             events.onReasoning?.(part.text);
             break;
           case 'tool-call':
+            if (part.invalid) invalidIds.add(part.toolCallId);
             calls.push({ toolCallId: part.toolCallId, toolName: part.toolName, input: part.input });
             break;
           case 'tool-error':
@@ -222,7 +266,7 @@ export class Agent {
       throw err;
     }
 
-    this.messages.push(...(await result.responseMessages));
+    this.messages.push(...withoutSdkResults(await result.responseMessages, invalidIds));
     events.onStepEnd?.(this.messages.length, this.usage);
 
     if (calls.length === 0) return { kind: sdkToolErrors > 0 ? 'continue' : 'final', text };
@@ -250,6 +294,23 @@ export class Agent {
     const tool = this.registry.get(call.toolName);
     if (!tool) {
       return { ...base, output: { type: 'error-text', value: `Unknown tool "${call.toolName}".` } };
+    }
+    // Weak local models often emit `{}` on a first attempt. Guide one retry with the field list;
+    // a second empty call in a row falls through to the plain validation error.
+    if (isEmptyInput(call.input)) {
+      this.emptyArgStreak++;
+      if (this.emptyArgStreak === 1) {
+        events.onNotice?.(`Model called ${tool.name} with no arguments; asked it to retry.`);
+        return {
+          ...base,
+          output: {
+            type: 'error-text',
+            value: `[mrig] Your call to "${tool.name}" had no arguments. Call it again with: ${describeInputs(tool.inputSchema)}`,
+          },
+        };
+      }
+    } else {
+      this.emptyArgStreak = 0;
     }
     const parsed = tool.inputSchema.safeParse(call.input);
     if (!parsed.success) {
