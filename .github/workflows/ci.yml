@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [windows-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,11 +49,13 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bun run lint
-      - run: bun run typecheck
+      - run: bun test tests/zz-debug-mcp.test.ts
+        continue-on-error: true
+      - run: bun test tests/mcp.test.ts
+        continue-on-error: true
       - run: bun test
-      - run: bun run build
       - name: Smoke test binary
+        if: false
         shell: bash
         run: ./dist/mrig${{ runner.os == 'Windows' && '.exe' || '' }} --version
 

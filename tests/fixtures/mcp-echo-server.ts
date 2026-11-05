@@ -8,6 +8,9 @@
  *   bun tests/fixtures/mcp-echo-server.ts hang       never answers
  */
 export {}; // a module, so its names stay out of the global scope
+import { appendFileSync } from 'node:fs';
+const LOG = process.env.MCP_ECHO_LOG;
+const dbg = (...a: unknown[]) => { if (LOG) appendFileSync(LOG, `${Date.now()} srv ${a.join(' ')}\n`); };
 
 const mode = process.argv[2] ?? 'normal';
 if (mode === 'crash') process.exit(3);
@@ -42,7 +45,8 @@ type Msg = {
   params?: Record<string, unknown>;
 };
 const send = (m: unknown): void => {
-  process.stdout.write(`${JSON.stringify(m)}\n`);
+  const ok = process.stdout.write(`${JSON.stringify(m)}\n`);
+  dbg('send', ok, JSON.stringify(m).slice(0, 120));
 };
 const result = (id: Msg['id'], r: unknown) => send({ jsonrpc: '2.0', id, result: r });
 const text = (t: string, isError = false) => ({
@@ -93,6 +97,7 @@ function handle(m: Msg) {
 let buffer = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (chunk: string) => {
+  dbg('chunk', JSON.stringify(chunk));
   buffer += chunk;
   let nl = buffer.indexOf('\n');
   while (nl !== -1) {

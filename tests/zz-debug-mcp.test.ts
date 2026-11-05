@@ -1,95 +1,100 @@
-// TEMPORARY diagnostic for the Windows MCP hang. Not for merging.
+// TEMPORARY Windows diagnostics. Never merge.
 import { expect, test } from 'bun:test';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { McpManager } from '../src/mcp.ts';
+import { createMCPClient } from '@ai-sdk/mcp';
+import { StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio';
+import { type McpClientLike, McpManager } from '../src/mcp.ts';
 
 const FIXTURE = join(import.meta.dir, 'fixtures', 'mcp-echo-server.ts');
-const log = (...a: unknown[]) =>
-  console.log('[mcpdbg]', new Date().toISOString().slice(11, 23), ...a);
+const LOG = join(tmpdir(), `mcpdbg-${process.pid}.log`);
+const log = (...a: unknown[]) => {
+  const line = `${Date.now()} cli ${a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ')}\n`;
+  writeFileSync(LOG, line, { flag: 'a' });
+};
 
-test('raw stdio exchange with the fixture', async () => {
-  const p = Bun.spawn([process.execPath, FIXTURE], {
-    stdin: 'pipe',
-    stdout: 'pipe',
-    stderr: 'pipe',
-  });
-  const reader = p.stdout.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
-  const readLine = async (ms: number) => {
-    const end = Date.now() + ms;
-    while (!buf.includes('\n')) {
-      const r = await Promise.race([
-        reader.read(),
-        Bun.sleep(Math.max(1, end - Date.now())).then(() => 'timeout' as const),
-      ]);
-      if (r === 'timeout') return 'TIMEOUT';
-      if (r.done) return 'EOF';
-      log('chunk', JSON.stringify(dec.decode(r.value)));
-      buf += dec.decode(r.value);
-    }
-    const i = buf.indexOf('\n');
-    const line = buf.slice(0, i);
-    buf = buf.slice(i + 1);
-    return line;
-  };
-  const send = (o: unknown) => {
-    p.stdin.write(`${JSON.stringify(o)}\n`);
-    p.stdin.flush();
-  };
-  send({
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'initialize',
-    params: {
-      protocolVersion: '2025-06-18',
-      capabilities: {},
-      clientInfo: { name: 'dbg', version: '1' },
-    },
-  });
-  log('init ->', await readLine(5000));
-  for (const [id, name, args] of [
-    [2, 'echo', { text: 'a' }],
-    [3, 'add', { a: 1, b: 2 }],
-    [4, 'ping', {}],
-    [5, 'fail', {}],
-    [6, 'echo', { text: 'after' }],
-  ] as const) {
-    send({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } });
-    log(name, '->', await readLine(5000));
+class LoggingTransport extends StdioMCPTransport {
+  override send(message: Parameters<StdioMCPTransport['send']>[0]) {
+    log('send', JSON.stringify(message).slice(0, 120));
+    const p = super.send(message);
+    p.then(() => log('send resolved', (message as { id?: unknown }).id));
+    return p;
   }
-  p.stdin.end();
-  log('stderr:', await new Response(p.stderr).text());
-  p.kill();
-  expect(true).toBe(true);
-}, 60_000);
+  // biome-ignore lint/suspicious/noExplicitAny: debug
+  override set onmessage(fn: any) {
+    // biome-ignore lint/suspicious/noExplicitAny: debug
+    (this as any)._onmessage = fn;
+  }
+  // biome-ignore lint/suspicious/noExplicitAny: debug
+  override get onmessage(): any {
+    // biome-ignore lint/suspicious/noExplicitAny: debug
+    const fn = (this as any)._onmessage;
+    if (!fn) return fn;
+    // biome-ignore lint/suspicious/noExplicitAny: debug
+    return (m: any) => {
+      log('recv', JSON.stringify(m).slice(0, 120));
+      return fn(m);
+    };
+  }
+}
 
-test('SDK path with a logging connect', async () => {
+const ctx = { cwd: '/tmp', maxOutputChars: 10_000 };
+
+async function run(label: string, order: string[], callTimeoutMs?: number) {
+  writeFileSync(LOG, '');
+  log('=====', label);
   const m = new McpManager(
-    { echo: { command: process.execPath, args: [FIXTURE] } },
-    { callTimeoutMs: 8000 },
+    { echo: { command: process.execPath, args: [FIXTURE], env: { MCP_ECHO_LOG: LOG } } },
+    {
+      callTimeoutMs: callTimeoutMs ?? 5000,
+      connect: async (_n, config, timeoutMs) => {
+        if (!('command' in config)) throw new Error('x');
+        const transport = new LoggingTransport({
+          command: config.command,
+          args: config.args,
+          env: config.env,
+          stderr: 'ignore',
+        });
+        return createMCPClient({
+          transport,
+          clientName: 'mrig',
+          initializationOptions: { timeout: timeoutMs },
+          onUncaughtError: (e) => log('uncaught', String(e)),
+        }) as Promise<McpClientLike>;
+      },
+    },
   );
   await m.start();
-  for (const n of ['echo', 'add', 'ping', 'fail', 'echo']) {
+  for (const n of order) {
     const t = m.tools().find((x) => x.name === `mcp__echo__${n}`);
     const t0 = Date.now();
     try {
       const out = await t?.execute(
-        n === 'echo' ? { text: 'x' } : n === 'add' ? { a: 1, b: 2 } : {},
-        { cwd: '/tmp', maxOutputChars: 1000 },
+        n === 'echo' ? { text: 'hello' } : n === 'add' ? { a: 2, b: 40 } : {},
+        ctx,
       );
-      log('sdk', n, 'ok', JSON.stringify(out), `${Date.now() - t0}ms`);
+      log('call', n, 'ok', out, `${Date.now() - t0}ms`);
     } catch (e) {
-      log(
-        'sdk',
-        n,
-        'ERR',
-        (e as Error).constructor.name,
-        (e as Error).message,
-        `${Date.now() - t0}ms`,
-      );
+      log('call', n, 'ERR', (e as Error).message, `${Date.now() - t0}ms`);
     }
   }
   await m.close();
+  await new Promise((r) => setTimeout(r, 200));
+  for (const line of readFileSync(LOG, 'utf8').split('\n')) if (line) console.log(`[mcpdbg] ${line}`);
+}
+
+test('replica of the real test', async () => {
+  await run('replica', ['echo', 'add', 'ping', 'fail', 'echo']);
   expect(true).toBe(true);
-}, 90_000);
+}, 150_000);
+
+test('fail first', async () => {
+  await run('fail-first', ['fail', 'echo', 'fail', 'ping', 'fail']);
+  expect(true).toBe(true);
+}, 150_000);
+
+test('default timeout', async () => {
+  await run('default-timeout', ['echo', 'add', 'ping', 'fail', 'echo'], 120_000);
+  expect(true).toBe(true);
+}, 150_000);
