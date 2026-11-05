@@ -16,7 +16,10 @@ export const writeTool = defineTool<z.infer<typeof schema>>({
     'Create a new file or overwrite an existing one with the given content. Parent directories are created. Prefer `edit` for changing parts of an existing file.',
   inputSchema: schema,
   readOnly: false,
-  summarize: (i) => `write ${i.path} (${i.content.split('\n').length} lines)`,
+  summarize: (i) => {
+    const n = i.content.split('\n').length;
+    return `write ${i.path} (${n} line${n === 1 ? '' : 's'})`;
+  },
   async execute(input, ctx) {
     const abs = resolvePath(ctx.cwd, input.path);
     const existed = existsSync(abs);

@@ -9,6 +9,7 @@
  *   "fetch:<glob>"    allow fetching from hosts matching <glob>, e.g. "fetch:*.python.org"
  *   "<tool>:*"        allow every call of that tool
  */
+import type { PermissionPolicy } from './modes.ts';
 import type { AnyTool } from './tools/index.ts';
 import { displayPath, globToRegExp } from './util/paths.ts';
 
@@ -86,6 +87,8 @@ function inputCommand(input: unknown): string | undefined {
 
 export class PermissionManager {
   yolo: boolean;
+  /** The mode's policy (T1). `normal` is the gate described above. */
+  policy: PermissionPolicy = 'normal';
   private rules: Rule[];
   private readonly ask: AskFn;
   private readonly cwd: string;
@@ -133,8 +136,14 @@ export class PermissionManager {
     return false;
   }
 
+  /** Whether calls run without asking: yolo, and only when the mode allows it. */
+  get promptsSkipped(): boolean {
+    return this.yolo && this.policy === 'normal';
+  }
+
   /** The rule an "always" answer would add for this call. */
   alwaysRuleFor(tool: AnyTool, input: unknown): string {
+    if (this.policy === 'ask-every-time') return 'once (teach mode asks every time)';
     if (tool.name === 'bash') {
       if (this.noBashRules) return 'bash: once (offline mode asks every time)';
       const cmd = inputCommand(input)?.trim() ?? '';
@@ -157,8 +166,11 @@ export class PermissionManager {
 
   async check(tool: AnyTool, input: unknown, preview?: string): Promise<Decision> {
     if (tool.readOnly) return 'allow';
-    if (this.yolo) return 'allow';
-    if (this.matches(tool, input)) return 'allow';
+    // learn mode: the tool should not have been offered; refuse it without asking.
+    if (this.policy === 'read-only') return 'deny';
+    const everyTime = this.policy === 'ask-every-time';
+    if (!everyTime && this.yolo) return 'allow';
+    if (!everyTime && this.matches(tool, input)) return 'allow';
     const alwaysRule = this.alwaysRuleFor(tool, input);
     const answer = await this.ask({
       tool,
@@ -168,7 +180,7 @@ export class PermissionManager {
       alwaysRule,
     });
     if (answer === 'always') {
-      this.addRule(alwaysRule);
+      if (!everyTime) this.addRule(alwaysRule);
       return 'allow';
     }
     return answer === 'yes' ? 'allow' : 'deny';

@@ -406,10 +406,25 @@ Put project conventions, commands, and rules there.
 It needs an interactive terminal; without one mrig falls back to the plain REPL. The plain REPL
 stays the default until the TUI has had more real use.
 
+## Modes
+
+A mode changes how mrig works with you. Switch with `/mode <name>`, or start in one with
+`--mode <name>`. The session remembers its mode, so `mrig -c` and `/resume` bring it back.
+
+| Mode | What it does | Permissions |
+|------|--------------|-------------|
+| `default` | Does the work. | As usual: allow rules and `--yolo` apply. |
+| `teach` | Explains before acting, works one small step at a time, and asks you to try each next step first, then reviews your attempt. | Every change asks, even with `--yolo` or a matching allow rule; "always" counts once. |
+| `learn` | Quizzes you one question at a time, adjusts the difficulty, and keeps a running list of what you covered. | Only read-only tools are offered: it reads and searches to make questions, and changes nothing. |
+
+`learn` keeps its list in the conversation. Remembering what you've learned across sessions is a
+later item (learner memory), which needs a design note first. The banner and the TUI status line
+show the mode when it isn't `default`.
+
 ## Slash commands
 
 `/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/mcp` · `/clear` ·
-`/yolo` · `/verbose` · `/lang` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
+`/yolo` · `/mode <name>` · `/verbose` · `/lang` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
 Ctrl+C aborts a running turn; press it twice at the prompt to quit.
 
 `/verbose` (or `/verbose on`, `/verbose off`) shows the model's reasoning, dim, before each answer.
@@ -518,5 +533,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

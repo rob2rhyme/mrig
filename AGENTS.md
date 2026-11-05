@@ -29,6 +29,9 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   `lang/*.md` read once per session into the system prompt; `/lang` reports it.
   `src/lang/corpus.ts` + `src/lang/csv.ts` — corpus search (A4) over a CLDF Wordlist and text
   files; the `corpus` tool wraps it. Plain search only; embeddings need a decision first.
+- `src/modes.ts` — modes (T1): each is prompt text plus a permission policy (`normal`,
+  `ask-every-time`, `read-only`) that `PermissionManager` and `Runtime.currentTools()` apply.
+  The session meta stores the mode.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the
