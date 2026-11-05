@@ -17,6 +17,8 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
 - `src/permissions.ts` — read-only tools always run; write/edit/bash ask unless yolo or an
   allow rule matches (`bash:<prefix>`, `write:<glob>`, `edit:<glob>`, `<tool>:*`).
 - `src/providers.ts` + `src/config.ts` — named profiles; add providers here, never in the loop.
+  A project's `.mrig/config.json` may only set `PROJECT_KEYS` unless the global
+  `trustedProjects` lists it; security-relevant keys never come from an untrusted repo.
 - `src/session.ts` — JSONL under `~/.mrig/sessions`; `sync()` appends, rewrites on shrink.
 - `src/ui/repl.ts` — readline REPL; `src/ui/tui.tsx` + `tui-controller.ts` — the Ink TUI
   (`--tui`); `src/ui/commands.ts` — slash commands both share. `src/index.ts` — CLI + headless `-p`.

@@ -116,6 +116,28 @@ defaults; env vars (`MRIG_PROVIDER`, `MRIG_YOLO=1`, `MRIG_HOME`) apply last; CLI
 Built-in profiles: `claude`, `opus`, `fable`, `haiku` (Anthropic), `openai`, `ollama`,
 `lmstudio`, `llamacpp`. Any OpenAI-compatible server works with `kind: "openai-compatible"`.
 
+### Project configs and trust
+
+A project's `.mrig/config.json` arrives with the repo, so someone else may have written it. By
+default it may only set `defaultProvider` (naming one of your profiles), `maxSteps`,
+`maxToolOutputChars`, `cacheTtl` and `compaction`. Everything else comes from
+`~/.mrig/config.json` only:
+
+- `permissions` (`yolo` and `allow`). A cloned repo can't skip your prompts.
+- `providers`. A cloned repo can't point `claude` at another server along with your API key.
+- `mcpServers`. A cloned repo can't run a command when mrig starts.
+
+mrig names whatever it ignored in a one-line notice at startup. For your own projects, list them
+in the global config and their project config then applies in full, subfolders included:
+
+```json
+{ "trustedProjects": ["~/code/mrig", "/work/api"] }
+```
+
+Paths must be absolute (a leading `~/` is your home folder). Only the global config can trust a
+folder. `MRIG_YOLO=1` and `--yolo` are your own choice and still work anywhere outside an
+offline zone.
+
 ## Prompt caching (Claude)
 
 Anthropic profiles send every request with automatic prompt caching on, plus one explicit
@@ -185,8 +207,10 @@ appear as `mcp__<server>__<tool>`:
 - **Every MCP tool asks before it runs**, like write, edit and bash. Allow rules work the same
   way, one per tool: `"mcp__github__list_issues:*"` lets that tool run without asking, and
   answering "always" at the prompt adds that rule for the session.
-- **Only the global config starts servers.** A project's `.mrig/config.json` cannot: in a cloned
-  repo that would run any command the moment mrig starts. mrig tells you when it ignores one.
+- **Only the global config starts servers.** A project's `.mrig/config.json` cannot, unless the
+  folder is in `trustedProjects` (see [Project configs and trust](#project-configs-and-trust)): in
+  a cloned repo that would run any command the moment mrig starts. mrig tells you when it ignores
+  one.
 - **Failures don't stop mrig.** A server that does not start becomes a one-line notice; `/mcp`
   lists every server, its state and its tools.
 - **Offline mode** does not contact remote servers. Local servers still run.
