@@ -10,9 +10,9 @@ You are continuing development of **mrig**, my personal, local, model-agnostic t
 
 A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands, works with files, and answers general questions. One provider layer (Vercel AI SDK 7) serves Anthropic (`claude-sonnet-5` default, `claude-opus-5`, `claude-fable-5-1`, `claude-haiku-4-5-20251001`), OpenAI, and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, OpenRouter). It is for me alone: private repo, no telemetry, no analytics, no third-party scripts, ever. It compiles to a single binary per OS with `bun build --compile`.
 
-## Current state — v0.1 plus Track 1 (L0–L7) and Track 2 A2–A3
+## Current state — v0.1 plus Track 1 (L0–L7) and Track 2 A2–A4
 
-Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2 and A3 are built:
+Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7 and A2–A4 are built:
 
 - **L0 prompt caching:** request-level automatic caching plus a system-block breakpoint for Anthropic profiles, cache-write pricing, a minimum-prefix table that `/cost` uses to explain a miss, and `cacheTtl`.
 - **L1 hygiene:** `mrig doctor` checks model ids against each provider's model list, the REPL runs the same check at startup, session meta is rewritten in place, and CI runs macOS and Windows only where it matters.
@@ -26,6 +26,7 @@ Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2 and A3 are bui
 - **L7 quality of life:** `/verbose`, headless `--json` / `--output-last` (`src/headless.ts`), `mrig init` (`src/init.ts`).
 - **Track 2, A2 transliteration:** `src/lang/tables.ts` (the character tables, Brahmi provisional until A1) and `src/lang/translit.ts` (pure functions through the Devanagari NFC hub, lossy and unmapped reports). `src/tools/translit.ts` is the eighth built-in tool: read-only, local, so it never asks and stays offline.
 - **Track 2, A3 language memory:** `src/lang/memory.ts` reads `lang/<tag>[-<topic>].md` from `~/.mrig/lang/` and each `.mrig/lang/` from the git root to cwd, once per session, into a labelled system-prompt block (32,000-character budget, whole files only, NFC). `/lang` reports files and tokens; `/lang reload` rereads. Font-tool commands are in `AGENTS.md`.
+- **Track 2, A4 corpus search:** `src/lang/corpus.ts` (find, load, search, format) and `src/lang/csv.ts` (an RFC 4180 reader that keeps line numbers). `src/tools/corpus.ts` is the ninth built-in tool: read-only, local. Config `corpus` (a project may set it) or a `cldf/` folder up to the git root. Fixture: `tests/fixtures/cldf-wordlist/` (invented rows).
 
 v0.1 in detail:
 
@@ -151,7 +152,7 @@ Language rules: `docs/LANGUAGE.md`. Details: `docs/ROADMAP.md` and `docs/related
   - `lang/*.md` conventions, variety tags, and `/lang`, which reports what's loaded and its token count. Keep loaded content stable across turns, so it stays inside the cached prefix.
   - Document fontTools, fontmake, `hb-shape` and fontspector in `AGENTS.md`, with bash allow-rules.
   - The `hb-shape` golden tests live in the font repo.
-- **A4. Corpus search over the CLDF export (S→M, after L4).**
+- **A4. Corpus search over the CLDF export (S→M, after L4).** ✅ Built 2026-11-05, in-process rather than through ripgrep (ripgrep can't NFC-normalize, fold diacritics or read CSV rows); no embeddings.
   - Ripgrep first: a corpus-aware wrapper over `grep` that searches both the NFC Devanagari and the romanized forms, and returns the source file and line.
   - Embeddings only if plain search fails, and only local embeddings under L5.
 - **A5–A8 live outside or alongside mrig:**

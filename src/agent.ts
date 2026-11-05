@@ -87,6 +87,8 @@ export interface AgentOptions {
   cacheTtl?: CacheTtl;
   /** Automatic compaction (L4). Off when absent. */
   compaction?: CompactionOptions;
+  /** Config `corpus`, passed to tools (A4). */
+  corpus?: string;
 }
 
 export interface CompactionOptions {
@@ -482,6 +484,7 @@ export class Agent {
       cwd: this.opts.cwd,
       signal,
       maxOutputChars: this.opts.maxToolOutputChars,
+      ...(this.opts.corpus ? { corpus: this.opts.corpus } : {}),
     };
     this.stats.toolsUsed[tool.name] = (this.stats.toolsUsed[tool.name] ?? 0) + 1;
     try {

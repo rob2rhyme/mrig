@@ -292,6 +292,7 @@ read shell commands before you approve them.
 | bash   | Run a shell command (bash/sh; PowerShell on Windows)    | asks     |
 | fetch  | Read a public web page or API as text (100 KB max)      | asks     |
 | translit | Devanagari ↔ Akkha (Brahmi) ↔ ISO 15919, by fixed tables | never    |
+| corpus | Search the language corpus (CLDF wordlist + text files)  | never    |
 
 At a prompt answer `y` (once), `n` (deny — the model is told and asked to adapt), or `a`
 (always — adds a rule for this session, e.g. `bash:npm test` or `edit:src/**`). Copy rules
@@ -350,6 +351,33 @@ same from turn to turn. `/lang` lists what is loaded and roughly how many tokens
 characters, and a file that doesn't fit is skipped, not cut. Conventions are in
 [`docs/LANGUAGE.md`](docs/LANGUAGE.md#language-memory-files-langmd). The files go to whichever
 model is active, so keep consent-bound material out of them or work in an offline zone.
+
+### Corpus search
+
+`corpus` searches a language corpus and answers with `file:line` hits, so the model can cite
+the data instead of inventing words. It reads a [CLDF](https://cldf.clld.org) Wordlist (the
+`*-metadata.json` says which file is which table) and any text files next to it (`.csv`, `.tsv`,
+`.txt`, `.md`, `.json`, `.jsonl`).
+
+```
+corpus: ~/data/magar-cldf (CLDF Wordlist-metadata.json · 6 forms, 3 languages, 3 concepts)
+searched: आमा (as typed) · āmā (iso 15919) · 𑀆𑀫𑀸 (akkha); case and Latin diacritics ignored
+forms.csv:2  mgp  MOTHER  आमा
+forms.csv:3  kgj  MOTHER  आमा
+notes/sentences.md:3  untagged  आमाको घर ठूलो छ।
+```
+
+- **Every form of the query is searched**: the Devanagari, its romanization (also without the
+  final a, as `magar` for मगर), the Akkha form, and the text as typed, so an English gloss
+  (`house`) finds the concept and lists its forms.
+- **Matching** ignores case and Latin diacritics (`ama` finds `āmā`), normalizes Devanagari to
+  NFC, and only counts matches at the start of a word (`आमा` finds `आमाको`; `ama` skips `Kamala`).
+- **Varieties are labelled**, from the LanguageTable's ISO 639-3 codes. `variety: "kgj"` keeps
+  only Gamal Kham forms and says how many forms in other varieties it left out.
+- **Where:** the tool's `path`, else `"corpus"` in the config (a project's config may set it),
+  else a `cldf/` folder from the working directory up to the git root.
+- It is read-only and local, so it never asks and works offline. There are no embeddings; plain
+  search comes first, and local embeddings come only if it proves not to be enough.
 
 ## Sessions and memory
 
@@ -487,8 +515,8 @@ models.
 
 ## Status
 
-v0.1 — Phase 0 + 1: loop, six tools (now eight, with fetch and translit), providers, permissions, sessions, memory, REPL, headless
+v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

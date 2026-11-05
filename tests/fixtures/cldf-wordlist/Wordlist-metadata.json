@@ -1,0 +1,53 @@
+{
+  "@context": ["http://www.w3.org/ns/csvw", { "@language": "en" }],
+  "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#Wordlist",
+  "tables": [
+    {
+      "url": "forms.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#FormTable",
+      "tableSchema": {
+        "columns": [
+          { "name": "ID", "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id" },
+          {
+            "name": "Language_ID",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#languageReference"
+          },
+          {
+            "name": "Parameter_ID",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#parameterReference"
+          },
+          { "name": "Lexeme", "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#form" },
+          { "name": "Comment", "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#comment" }
+        ]
+      }
+    },
+    {
+      "url": "languages.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#LanguageTable",
+      "tableSchema": {
+        "columns": [
+          { "name": "ID", "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id" },
+          { "name": "Name", "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name" },
+          {
+            "name": "ISO639P3code",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#iso639P3code"
+          }
+        ]
+      }
+    },
+    {
+      "url": "parameters.csv",
+      "dc:conformsTo": "http://cldf.clld.org/v1.0/terms.rdf#ParameterTable",
+      "tableSchema": {
+        "columns": [
+          { "name": "ID", "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#id" },
+          { "name": "Name", "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#name" },
+          {
+            "name": "Concepticon_ID",
+            "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#concepticonReference"
+          }
+        ]
+      }
+    }
+  ]
+}

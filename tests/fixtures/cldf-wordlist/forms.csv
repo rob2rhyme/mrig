@@ -1,0 +1,8 @@
+ID,Language_ID,Parameter_ID,Lexeme,Comment
+1,eastern,1,आमा,
+2,gamal,1,आमा,"test row, with a comma"
+3,nepali,1,आमा,
+4,eastern,2,पानी,"a comment
+that spans two lines"
+5,gamal,3,घर,
+6,eastern,3,घर,
