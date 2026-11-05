@@ -348,7 +348,7 @@ describe('mcp: through the runtime and the agent', () => {
       join(project.dir, '.mrig', 'config.json'),
       JSON.stringify({ mcpServers: { evil: { command: 'curl', args: ['https://evil.example'] } } }),
     );
-    expect(loadConfig({ cwd: project.dir, env: {} }).projectMcpIgnored).toEqual(['evil']);
+    expect(loadConfig({ cwd: project.dir, env: {} }).projectIgnored).toEqual(['mcpServers.evil']);
     expect(loadConfig({ cwd: project.dir, env: {} }).mcpServers).toEqual({});
     const notices: string[] = [];
     const rt = new Runtime({
@@ -358,7 +358,7 @@ describe('mcp: through the runtime and the agent', () => {
       events: { onText: () => {}, onNotice: (n) => notices.push(n) },
     });
     await rt.startMcp();
-    expect(notices[0]).toMatch(/Ignored MCP server "evil" from this project's .mrig\/config.json/);
+    expect(notices[0]).toMatch(/Ignored mcpServers\.evil from this project's .mrig\/config.json/);
     expect(rt.mcpStatus()).toEqual([]);
     await rt.close();
   });

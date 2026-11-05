@@ -4,11 +4,15 @@
  * Resolution order (later wins):
  *   built-in defaults → ~/.mrig/config.json → ./.mrig/config.json → env vars → CLI flags
  *
+ * A project's config comes with the repo, so by default it may only set harmless keys
+ * (PROJECT_KEYS). Permissions, providers and MCP servers come from the global config, unless
+ * the folder is listed in the global "trustedProjects".
+ *
  * MRIG_HOME overrides ~/.mrig (used by tests).
  */
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { type McpServerConfig, parseMcpServers } from './mcp.ts';
 
 export type ProviderKind = 'anthropic' | 'openai' | 'openai-compatible';
@@ -87,10 +91,15 @@ export interface MrigConfig {
   cacheTtl: CacheTtl;
   /** Automatic context compaction (L4). */
   compaction: CompactionConfig;
-  /** MCP servers (L6). Read from ~/.mrig/config.json only; see `projectMcpIgnored`. */
+  /** MCP servers (L6). Read from ~/.mrig/config.json, or a trusted project's config. */
   mcpServers: Record<string, McpServerConfig>;
-  /** Server names a project config tried to define; never started (set by loadConfig). */
-  projectMcpIgnored?: string[];
+  /**
+   * Folders whose `.mrig/config.json` applies in full, subfolders included. Read from
+   * ~/.mrig/config.json only. Absolute paths; a leading `~/` means the home folder.
+   */
+  trustedProjects: string[];
+  /** Keys an untrusted project config tried to set and that were dropped (set by loadConfig). */
+  projectIgnored?: string[];
 }
 
 export const DEFAULT_PROVIDERS: Record<string, ProviderProfile> = {
@@ -161,7 +170,17 @@ export const DEFAULT_CONFIG: MrigConfig = {
   cacheTtl: '5m',
   compaction: { enabled: true, threshold: 0.7, keep: 4 },
   mcpServers: {},
+  trustedProjects: [],
 };
+
+/** What an untrusted project config may set. Everything else is dropped with a notice. */
+export const PROJECT_KEYS: readonly string[] = [
+  'defaultProvider',
+  'maxSteps',
+  'maxToolOutputChars',
+  'cacheTtl',
+  'compaction',
+];
 
 export function mrigHome(): string {
   return process.env.MRIG_HOME ?? join(homedir(), '.mrig');
@@ -177,15 +196,63 @@ type PartialConfig = Partial<Omit<MrigConfig, 'permissions' | 'compaction'>> & {
   permissions?: Partial<PermissionsConfig>;
   compaction?: Partial<CompactionConfig>;
   mcpServers?: unknown;
+  trustedProjects?: unknown;
 };
 
 function readJson(path: string): PartialConfig | undefined {
   if (!existsSync(path)) return undefined;
+  let value: unknown;
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as PartialConfig;
+    value = JSON.parse(readFileSync(path, 'utf8'));
   } catch (err) {
     throw new Error(`Invalid JSON in ${path}: ${(err as Error).message}`);
   }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${path} must hold a JSON object.`);
+  }
+  return value as PartialConfig;
+}
+
+function parseTrustedProjects(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some((v) => typeof v !== 'string' || v.trim() === '')) {
+    throw new Error('"trustedProjects" must be a list of folder paths.');
+  }
+  return value.map((v: string) => {
+    const expanded = v === '~' || /^~[\\/]/.test(v) ? join(homedir(), v.slice(1)) : v;
+    if (!isAbsolute(expanded)) {
+      throw new Error(`"trustedProjects" entries must be absolute paths: ${JSON.stringify(v)}.`);
+    }
+    return resolve(expanded);
+  });
+}
+
+/** Whether `dir` is one of the trusted folders or inside one. */
+export function isTrustedProject(dir: string, trusted: readonly string[]): boolean {
+  const target = resolve(dir);
+  return trusted.some((t) => {
+    const rel = relative(t, target);
+    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+  });
+}
+
+/** Split an untrusted project config into what it may set and the keys it may not. */
+function restrictProject(layer: PartialConfig): { kept: PartialConfig; ignored: string[] } {
+  const kept: Record<string, unknown> = {};
+  const ignored: string[] = [];
+  for (const [key, value] of Object.entries(layer)) {
+    if (PROJECT_KEYS.includes(key)) {
+      kept[key] = value;
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const names = Object.keys(value);
+      if (names.length === 0) continue;
+      // Name what was dropped: permissions.allow, providers.evil, mcpServers.files.
+      ignored.push(...names.map((n) => `${key}.${n}`));
+    } else {
+      ignored.push(key);
+    }
+  }
+  return { kept: kept as PartialConfig, ignored };
 }
 
 const CACHE_TTLS: readonly string[] = ['5m', '1h'];
@@ -235,6 +302,7 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     cacheTtl: parseCacheTtl(layer.cacheTtl) ?? base.cacheTtl,
     compaction: parseCompaction(layer.compaction, base.compaction),
     mcpServers: { ...base.mcpServers, ...parseMcpServers(layer.mcpServers) },
+    trustedProjects: base.trustedProjects,
   };
 }
 
@@ -247,21 +315,50 @@ export interface LoadOptions {
 export function loadConfig(opts: LoadOptions = {}): MrigConfig {
   const cwd = resolve(opts.cwd ?? process.cwd());
   const env = opts.env ?? process.env;
-  let cfg = DEFAULT_CONFIG;
-  cfg = merge(cfg, readJson(join(mrigHome(), 'config.json')));
-  // A project's config never starts MCP servers: in a cloned repo that would run any command
-  // the moment mrig starts. Its servers are reported instead (see the Runtime's notice).
-  const project = readJson(join(cwd, '.mrig', 'config.json'));
-  const projectMcp = project?.mcpServers;
-  if (project) delete project.mcpServers;
-  cfg = merge(cfg, project);
-  if (projectMcp && typeof projectMcp === 'object') {
-    const names = Object.keys(projectMcp);
-    if (names.length > 0) cfg = { ...cfg, projectMcpIgnored: names };
+  const globalPath = join(mrigHome(), 'config.json');
+  const global = readJson(globalPath);
+  let cfg = merge(DEFAULT_CONFIG, global);
+  cfg = { ...cfg, trustedProjects: parseTrustedProjects(global?.trustedProjects) };
+
+  const projectPath = join(cwd, '.mrig', 'config.json');
+  // Running in the home folder: ./.mrig/config.json is the global config, already applied.
+  const project = resolve(projectPath) === resolve(globalPath) ? undefined : readJson(projectPath);
+  if (project) {
+    // trustedProjects is global-only, even for a trusted project.
+    const { trustedProjects: selfTrust, ...rest } = project;
+    if (isTrustedProject(cwd, cfg.trustedProjects)) {
+      cfg = merge(cfg, rest);
+    } else {
+      // A cloned repo's config must not grant itself permissions, point a profile (and its API
+      // key) at another server, or start commands. Those keys are dropped and reported.
+      const { kept, ignored } = restrictProject(rest);
+      cfg = merge(cfg, kept);
+      // A default or summarizer naming a profile that was just dropped falls back, not crashes.
+      if (kept.defaultProvider !== undefined && !cfg.providers[cfg.defaultProvider]) {
+        ignored.push('defaultProvider');
+        cfg = { ...cfg, defaultProvider: merge(DEFAULT_CONFIG, global).defaultProvider };
+      }
+      const compactModel = kept.compaction?.compactModel;
+      if (typeof compactModel === 'string' && !cfg.providers[compactModel]) {
+        ignored.push('compaction.compactModel');
+        const { compactModel: _dropped, ...compaction } = cfg.compaction;
+        cfg = { ...cfg, compaction };
+      }
+      if (ignored.length > 0) cfg = { ...cfg, projectIgnored: ignored };
+    }
+    if (selfTrust !== undefined)
+      cfg = { ...cfg, projectIgnored: [...(cfg.projectIgnored ?? []), 'trustedProjects'] };
   }
   if (env.MRIG_PROVIDER) cfg = { ...cfg, defaultProvider: env.MRIG_PROVIDER };
   if (env.MRIG_YOLO === '1') cfg = { ...cfg, permissions: { ...cfg.permissions, yolo: true } };
   return cfg;
+}
+
+/** The notice for an untrusted project's dropped keys, or undefined when nothing was dropped. */
+export function projectIgnoredNotice(cfg: MrigConfig, cwd: string): string | undefined {
+  const ignored = cfg.projectIgnored ?? [];
+  if (ignored.length === 0) return undefined;
+  return `Ignored ${ignored.join(', ')} from this project's .mrig/config.json: permissions, providers and MCP servers come from ~/.mrig/config.json. If you trust this project, add ${JSON.stringify(resolve(cwd))} to "trustedProjects" there.`;
 }
 
 /** Resolve a provider profile by name, applying an optional model override. */

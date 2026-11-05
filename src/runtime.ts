@@ -3,7 +3,13 @@
  */
 import type { LanguageModel } from 'ai';
 import { Agent, type AgentEvents, type CompactionOptions } from './agent.ts';
-import { loadConfig, type MrigConfig, type ProviderProfile, resolveProfile } from './config.ts';
+import {
+  loadConfig,
+  type MrigConfig,
+  type ProviderProfile,
+  projectIgnoredNotice,
+  resolveProfile,
+} from './config.ts';
 import {
   type ContextCheck,
   checkOllamaContext,
@@ -207,15 +213,12 @@ export class Runtime {
 
   /**
    * Connect the MCP servers from the global config (L6) and add their tools. Call once after
-   * construction; failures become notices. The eval harness never calls it.
+   * construction; failures become notices. It also reports keys an untrusted project config
+   * tried to set. The eval harness never calls it.
    */
   async startMcp(opts: { connect?: McpConnect } = {}): Promise<void> {
-    const ignored = this.config.projectMcpIgnored ?? [];
-    if (ignored.length > 0) {
-      this.events.onNotice?.(
-        `Ignored MCP server${ignored.length === 1 ? '' : 's'} ${ignored.map((n) => `"${n}"`).join(', ')} from this project's .mrig/config.json: only ~/.mrig/config.json can start servers.`,
-      );
-    }
+    const ignored = projectIgnoredNotice(this.config, this.cwd);
+    if (ignored && !this.mcp) this.events.onNotice?.(ignored);
     if (this.mcp || Object.keys(this.config.mcpServers).length === 0) return;
     this.mcp = new McpManager(this.config.mcpServers, {
       offline: this.offline !== undefined,
