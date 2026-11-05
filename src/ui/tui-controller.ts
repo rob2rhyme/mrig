@@ -17,6 +17,7 @@ export type ItemKind =
   | 'banner'
   | 'user'
   | 'assistant'
+  | 'reasoning'
   | 'tool'
   | 'notice'
   | 'info'
@@ -47,6 +48,8 @@ export interface TuiSnapshot {
   items: Item[];
   /** Assistant text streaming in right now. */
   live: string;
+  /** Reasoning streaming in right now; only with /verbose. */
+  reasoning: string;
   /** The tool call running right now. */
   activeTool?: string;
   running: boolean;
@@ -68,7 +71,13 @@ const EMPTY_STATUS: StatusInfo = {
 
 export class TuiController {
   runtime: Runtime | undefined;
-  private snap: TuiSnapshot = { items: [], live: '', running: false, status: EMPTY_STATUS };
+  private snap: TuiSnapshot = {
+    items: [],
+    live: '',
+    reasoning: '',
+    running: false,
+    status: EMPTY_STATUS,
+  };
   private readonly listeners = new Set<() => void>();
   private nextId = 1;
   private running: AbortController | null = null;
@@ -106,8 +115,15 @@ export class TuiController {
     });
   }
 
+  /** Move streamed reasoning into the transcript (shown dim). */
+  private flushReasoning(): void {
+    if (this.snap.reasoning.trim()) this.push('reasoning', this.snap.reasoning, { reasoning: '' });
+    else if (this.snap.reasoning) this.update({ reasoning: '' });
+  }
+
   /** Move streamed text into the transcript as a finished assistant item. */
   private flushLive(): void {
+    this.flushReasoning();
     if (this.snap.live.trim()) this.push('assistant', this.snap.live, { live: '' });
     else if (this.snap.live) this.update({ live: '' });
   }
@@ -134,7 +150,14 @@ export class TuiController {
 
   private events(): AgentEvents {
     return {
-      onText: (delta) => this.update({ live: this.snap.live + delta, hint: undefined }),
+      onText: (delta) => {
+        this.flushReasoning();
+        this.update({ live: this.snap.live + delta, hint: undefined });
+      },
+      onReasoning: (delta) => {
+        if (!this.runtime?.verbose || !delta) return;
+        this.update({ reasoning: this.snap.reasoning + delta, hint: undefined });
+      },
       onToolStart: (call: ToolCallInfo) => {
         this.flushLive();
         this.update({ activeTool: call.summary });

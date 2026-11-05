@@ -19,6 +19,8 @@ export class Repl {
   private questionAbort: AbortController | null = null;
   private atLineStart = true;
   private thinking = false;
+  /** Reasoning is being printed (dim) for /verbose; the next text or tool line starts a new line. */
+  private inReasoning = false;
   private sigintAt = 0;
 
   constructor(private readonly opts: Omit<RuntimeOptions, 'ask' | 'events'>) {
@@ -53,6 +55,13 @@ export class Repl {
     this.atLineStart = s.endsWith('\n');
   }
 
+  /** Close a /verbose reasoning block so the answer starts on its own line. */
+  private endReasoning(): void {
+    if (!this.inReasoning) return;
+    this.inReasoning = false;
+    this.ensureNewline();
+  }
+
   private ensureNewline(): void {
     if (!this.atLineStart) this.write('\n');
   }
@@ -71,11 +80,21 @@ export class Repl {
 
   private events(): AgentEvents {
     return {
-      onText: (delta) => this.write(delta),
-      onReasoning: () => {
-        // Reasoning is not shown by default; a future /verbose flag can surface it.
+      onText: (delta) => {
+        this.endReasoning();
+        this.write(delta);
+      },
+      onReasoning: (delta) => {
+        if (!this.runtime.verbose || !delta) return;
+        if (!this.inReasoning) {
+          this.ensureNewline();
+          this.write(dim('thinking: '));
+          this.inReasoning = true;
+        }
+        this.write(dim(delta));
       },
       onToolStart: (call: ToolCallInfo) => {
+        this.endReasoning();
         this.ensureNewline();
         this.write(`${dim('⚙')} ${cyan(call.summary)}`);
       },
@@ -188,6 +207,7 @@ export class Repl {
       this.write(`${red('error:')} ${formatModelError(err, rt.profile)}\n\n`);
     } finally {
       this.running = null;
+      this.inReasoning = false;
       rt.save();
     }
   }

@@ -69,6 +69,8 @@ export class Runtime {
   readonly offline: Offline | undefined;
   /** The sessions folder: the zone's inside an offline zone, else undefined (~/.mrig/sessions). */
   readonly sessionsDir: string | undefined;
+  /** `/verbose` (L7): the UIs show the model's reasoning as it streams. Off by default. */
+  verbose = false;
   /** Connected MCP servers, once startMcp() ran. */
   private mcp: McpManager | undefined;
   private readonly events: AgentEvents;

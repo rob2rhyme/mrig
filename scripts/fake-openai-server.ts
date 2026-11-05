@@ -7,6 +7,9 @@
  *
  *   bun run scripts/fake-openai-server.ts            # listens on :8089
  *   mrig -P fake -p "what is in README.md"           # with a profile pointing at it
+ *
+ * FAKE_REASONING=1 streams `reasoning_content` before the answer, like Qwen3 or DeepSeek on a
+ * local server, so `/verbose` has something to show.
  */
 const port = Number(process.env.PORT ?? 8089);
 
@@ -79,6 +82,10 @@ Bun.serve({
       const answer = runCmd
         ? `FAKE-MODEL: the command said: ${firstLine}`
         : `FAKE-MODEL: the first line of ${file} is: ${firstLine}`;
+      if (process.env.FAKE_REASONING === '1') {
+        for (const word of 'I read the file, so I can quote it.'.split(' '))
+          parts.push(sse(chunk({ reasoning_content: `${word} ` }, null)));
+      }
       for (const word of answer.split(' ')) parts.push(sse(chunk({ content: `${word} ` }, null)));
       parts.push(sse(chunk({}, 'stop', usage)));
     }

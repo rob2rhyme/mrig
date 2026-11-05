@@ -28,6 +28,8 @@ function ItemView({ item }: { item: Item }) {
       return <Text color="red">{`error: ${item.text}`}</Text>;
     case 'footer':
       return <Text dimColor>{item.text}</Text>;
+    case 'reasoning':
+      return <Text dimColor italic>{`thinking: ${item.text}`}</Text>;
     default:
       return <Text>{item.text}</Text>;
   }
@@ -125,6 +127,7 @@ export function TuiApp({ controller }: { controller: TuiController }) {
   return (
     <>
       <Static items={state.items}>{(item) => <ItemView key={item.id} item={item} />}</Static>
+      {state.reasoning ? <Text dimColor italic>{`thinking: ${state.reasoning}`}</Text> : null}
       {state.live ? <Text>{state.live}</Text> : null}
       {state.activeTool ? <Text color="cyan">{`⚙ ${state.activeTool} …`}</Text> : null}
       {state.ask ? (
@@ -147,7 +150,7 @@ export function TuiApp({ controller }: { controller: TuiController }) {
           <Text color="magenta" bold>
             {'❯ '}
           </Text>
-          {state.running && !state.live && !state.activeTool ? (
+          {state.running && !state.live && !state.reasoning && !state.activeTool ? (
             <Text dimColor>thinking… (Ctrl+C to stop)</Text>
           ) : (
             <Text>

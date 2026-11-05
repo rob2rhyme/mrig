@@ -15,6 +15,12 @@ export interface CliArgs {
   tui: boolean;
   /** `mrig doctor`: check configured model ids against each provider's /v1/models. */
   doctor: boolean;
+  /** `--json` (with -p): print one JSON result object instead of streaming text (L7). */
+  json: boolean;
+  /** `--output-last` (with -p): print only the final assistant message (L7). */
+  outputLast: boolean;
+  /** `mrig init` / `--init`: write a starter ~/.mrig/config.json (L7). */
+  init: boolean;
   version: boolean;
   help: boolean;
 }
@@ -25,9 +31,12 @@ Usage:
   mrig [options] [initial prompt]        interactive session
   mrig -p "prompt" [options]             headless: run once, print, exit
   mrig doctor [-P <name>] [-m <id>]      check model ids against each provider's model list
+  mrig init                              write a starter ~/.mrig/config.json
 
 Options:
   -p, --print <prompt>     Run a single prompt non-interactively and exit
+      --json               With -p: print one JSON object (text, usage, cost, session id)
+      --output-last        With -p: print only the final answer, not the text streamed on the way
   -P, --provider <name>    Provider profile (claude, opus, fable, haiku, openai, ollama, lmstudio, llamacpp, or custom)
   -m, --model <id>         Override the profile's model id
   -y, --yolo               Skip permission prompts (dangerous outside a sandbox)
@@ -39,6 +48,7 @@ Options:
       --offline            Only local models; prompts always on (also: a .mrig-zone file)
       --tui                Terminal UI with a status line (experimental)
       --doctor             Same as "mrig doctor"
+      --init               Same as "mrig init"
   -v, --version            Print version
   -h, --help               Show this help
 
@@ -54,10 +64,14 @@ export function parseArgs(argv: string[]): CliArgs {
     offline: false,
     tui: false,
     doctor: false,
+    json: false,
+    outputLast: false,
+    init: false,
     version: false,
     help: false,
   };
   const positional: string[] = [];
+  let initWord = false;
   const take = (flag: string, i: number): string => {
     const v = argv[i + 1];
     if (v === undefined || v.startsWith('-')) throw new Error(`Missing value for ${flag}`);
@@ -112,6 +126,15 @@ export function parseArgs(argv: string[]): CliArgs {
       case '--doctor':
         args.doctor = true;
         break;
+      case '--json':
+        args.json = true;
+        break;
+      case '--output-last':
+        args.outputLast = true;
+        break;
+      case '--init':
+        args.init = true;
+        break;
       case '-v':
       case '--version':
         args.version = true;
@@ -126,9 +149,22 @@ export function parseArgs(argv: string[]): CliArgs {
           args.doctor = true;
           break;
         }
+        if (a === 'init' && positional.length === 0 && args.print === undefined) {
+          initWord = true;
+          break;
+        }
         positional.push(a);
     }
   }
+  // `mrig init` alone is the subcommand; `mrig init a git repo here` is a prompt.
+  if (initWord) {
+    if (positional.length) positional.unshift('init');
+    else args.init = true;
+  }
   if (positional.length) args.prompt = positional.join(' ');
+  if ((args.json || args.outputLast) && args.print === undefined) {
+    throw new Error(`${args.json ? '--json' : '--output-last'} works with -p "prompt"`);
+  }
+  if (args.json && args.outputLast) throw new Error('Use --json or --output-last, not both');
   return args;
 }

@@ -39,6 +39,14 @@ Or run from source during development: `bun run dev` (alias for `bun run src/ind
 
 ## Quick start
 
+```sh
+mrig init                    # writes a starter ~/.mrig/config.json (never overwrites one)
+```
+
+The starter picks Claude when `ANTHROPIC_API_KEY` is set, OpenAI when `OPENAI_API_KEY` is, and
+Ollama otherwise. It holds no key: profiles read keys from those variables. Everything below also
+works without it.
+
 **Claude (strongest):**
 
 ```sh
@@ -71,6 +79,26 @@ echo "explain this error: $(cat err.log)" | xargs -0 mrig -p
 ```
 
 Exit codes: `0` done, `1` error, `2` stopped at max steps, `130` aborted.
+
+stdout holds only the answer; tool lines, notices and the summary go to stderr. Two flags change
+what reaches stdout:
+
+- `--output-last` prints only the final answer, not text the model wrote between tool calls.
+- `--json` prints one JSON object when the run ends, shaped like this:
+
+  ```sh
+  mrig -p "what does src/agent.ts do?" --json | jq -r .text
+  ```
+
+  ```json
+  {"text":"…","stop":"done","steps":3,"sessionId":"20261105-…","provider":"claude",
+   "model":"claude-sonnet-5","usage":{"inputTokens":5120,"outputTokens":310,
+   "cacheReadTokens":4096,"cacheWriteTokens":0,"requests":3},"cost":0.0042}
+  ```
+
+  `stop` is `done`, `max-steps`, `aborted` or `error`, and an `error` field explains the last one.
+  `cost` is `null` when the profile has no pricing. Errors are JSON too, so a script can always
+  parse stdout.
 
 **Check your setup:**
 
@@ -304,8 +332,13 @@ stays the default until the TUI has had more real use.
 ## Slash commands
 
 `/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/mcp` · `/clear` ·
-`/yolo` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
+`/yolo` · `/verbose` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
 Ctrl+C aborts a running turn; press it twice at the prompt to quit.
+
+`/verbose` (or `/verbose on`, `/verbose off`) shows the model's reasoning, dim, before each answer.
+Only models that stream their reasoning have any to show: reasoning models on a local server,
+such as Qwen3 or DeepSeek, do. mrig does not turn on Claude's extended thinking, so Claude
+profiles show none. Reasoning is display only; it is never quoted in summaries.
 
 ## Development
 
@@ -408,5 +441,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now seven, with fetch), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

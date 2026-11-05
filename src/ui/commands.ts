@@ -48,6 +48,7 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           `${bold('/compact')}           summarize the conversation to free context`,
           `${bold('/clear')}             start a fresh conversation (same session file)`,
           `${bold('/yolo')}              toggle permission prompts`,
+          `${bold('/verbose')}           show or hide the model's reasoning`,
           `${bold('/sessions')}          list saved sessions · ${bold('/resume <id>')} to load one`,
           `${bold('/tools')}             list tools · ${bold('/memory')} show loaded AGENTS.md files`,
           `${bold('/mcp')}               MCP servers and the tools they added`,
@@ -124,6 +125,15 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           ? yellow('yolo ON — no permission prompts')
           : 'yolo off — prompts enabled',
       );
+    case 'verbose': {
+      if (arg && arg !== 'on' && arg !== 'off') return info('usage: /verbose [on|off]');
+      rt.verbose = arg ? arg === 'on' : !rt.verbose;
+      return info(
+        rt.verbose
+          ? `verbose on: reasoning is shown ${dim('(only models that stream it, such as Qwen3 or DeepSeek on a local server)')}`
+          : 'verbose off: reasoning is hidden',
+      );
+    }
     case 'sessions': {
       const list = rt.listSessions().slice(0, 20);
       if (!list.length) return info('No sessions yet.');

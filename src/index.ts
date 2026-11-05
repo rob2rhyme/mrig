@@ -11,14 +11,14 @@ import {
   isOllama,
   PROBLEM_STATUSES,
 } from './doctor.ts';
+import { runHeadless } from './headless.ts';
+import { initConfig, initReport } from './init.ts';
 import type { Answer, AskRequest } from './permissions.ts';
-import { formatModelError } from './providers.ts';
-import { Runtime } from './runtime.ts';
 import { Session } from './session.ts';
 import { dim, green, red, yellow } from './ui/ansi.ts';
 import { Repl } from './ui/repl.ts';
 import { VERSION } from './version.ts';
-import { describeOffline, findZone, resolveOffline, zoneSessionsDir } from './zone.ts';
+import { findZone, resolveOffline, zoneSessionsDir } from './zone.ts';
 
 async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promise<number> {
   const interactive = process.stdin.isTTY === true;
@@ -38,67 +38,31 @@ async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promis
     const a = (await rl.question('  Allow? yes / no / always › ')).trim().toLowerCase();
     return a.startsWith('a') ? 'always' : a.startsWith('y') ? 'yes' : 'no';
   };
-  let atLineStart = true;
-  const runtime = new Runtime({
-    cwd,
-    provider: args.provider,
-    model: args.model,
-    // Only an explicit --yolo overrides; otherwise MRIG_YOLO and permissions.yolo apply.
-    yolo: args.yolo ? true : undefined,
-    offline: args.offline,
-    maxSteps: args.maxSteps,
-    resume: args.continue ? 'latest' : args.resume,
-    ask,
-    events: {
-      onText: (d) => {
-        process.stdout.write(d);
-        atLineStart = d.endsWith('\n');
-      },
-      onToolStart: (c) => {
-        if (!atLineStart) process.stderr.write('\n');
-        process.stderr.write(`${dim('⚙')} ${c.summary}\n`);
-        atLineStart = true;
-      },
-      onToolEnd: (_c, o) => {
-        if (o.status === 'denied') process.stderr.write(`  ${yellow('denied')}\n`);
-        else if (o.status === 'error')
-          process.stderr.write(`  ${red('error')} ${dim(o.text.split('\n')[0] ?? '')}\n`);
-      },
-      onNotice: (m) => process.stderr.write(`${yellow('!')} ${m}\n`),
-    },
-  });
-  await runtime.startMcp();
-  if (runtime.offline) {
-    process.stderr.write(
-      dim(
-        `${describeOffline(runtime.offline)} · local models only · every write, edit and command asks\n`,
-      ),
-    );
-  }
   const ac = new AbortController();
   process.on('SIGINT', () => ac.abort());
   try {
-    let result: Awaited<ReturnType<typeof runtime.agent.run>>;
-    try {
-      result = await runtime.agent.run(args.print ?? '', ac.signal);
-    } catch (err) {
-      if (!atLineStart) process.stdout.write('\n');
-      process.stderr.write(`${red('error:')} ${formatModelError(err, runtime.profile)}\n`);
-      return 1;
-    }
-    if (!atLineStart) process.stdout.write('\n');
-    const cost = runtime.agent.cost();
-    const u = runtime.agent.usage;
-    process.stderr.write(
-      dim(
-        `— ${result.steps} steps · ${u.inputTokens} in / ${u.outputTokens} out${cost !== undefined ? ` · ~$${cost.toFixed(4)}` : ''} · session ${runtime.session.meta.id}\n`,
-      ),
+    return await runHeadless(
+      {
+        cwd,
+        prompt: args.print ?? '',
+        output: args.json ? 'json' : args.outputLast ? 'last' : 'stream',
+        provider: args.provider,
+        model: args.model,
+        // Only an explicit --yolo overrides; otherwise MRIG_YOLO and permissions.yolo apply.
+        yolo: args.yolo ? true : undefined,
+        offline: args.offline,
+        maxSteps: args.maxSteps,
+        resume: args.continue ? 'latest' : args.resume,
+      },
+      {
+        stdout: (t) => process.stdout.write(t),
+        stderr: (t) => process.stderr.write(t),
+        ask,
+        signal: ac.signal,
+      },
     );
-    return result.stop === 'done' ? 0 : result.stop === 'aborted' ? 130 : 2;
   } finally {
-    runtime.save();
     rl?.close();
-    await runtime.close();
   }
 }
 
@@ -147,6 +111,15 @@ async function main(): Promise<void> {
   }
   if (args.version) {
     process.stdout.write(`mrig ${VERSION}\n`);
+    return;
+  }
+  if (args.init) {
+    try {
+      for (const line of initReport(initConfig())) process.stdout.write(`${line}\n`);
+    } catch (err) {
+      process.stderr.write(`${red('error:')} ${(err as Error).message}\n`);
+      process.exit(1);
+    }
     return;
   }
   const cwd = resolve(args.cwd ?? process.cwd());
