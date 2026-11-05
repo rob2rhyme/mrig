@@ -10,7 +10,17 @@ You are continuing development of **mrig**, my personal, local, model-agnostic t
 
 A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands, works with files, and answers general questions. One provider layer (Vercel AI SDK 7) serves Anthropic (`claude-sonnet-5` default, `claude-opus-5`, `claude-fable-5-1`, `claude-haiku-4-5-20251001`), OpenAI, and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, OpenRouter). It is for me alone: private repo, no telemetry, no analytics, no third-party scripts, ever. It compiles to a single binary per OS with `bun build --compile`.
 
-## Current state — v0.1 (Phase 0 + 1 complete)
+## Current state — v0.1 plus Track 1 items L0–L3
+
+Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L3 are built:
+
+- **L0 prompt caching:** request-level automatic caching plus a system-block breakpoint for Anthropic profiles, cache-write pricing, a minimum-prefix table that `/cost` uses to explain a miss, and `cacheTtl`.
+- **L1 hygiene:** `mrig doctor` checks model ids against each provider's model list, the REPL runs the same check at startup, session meta is rewritten in place, and CI runs macOS and Windows only where it matters.
+- **L2 hardening:** an Ollama context-length warning, `toolMode: "minimal"` (bash only), and one guided retry on empty tool arguments. Model trials wait on Robin; see `docs/LOCAL_MODELS.md`.
+- **L3 eval harness:** `bun run eval` runs ten tasks against profiles and writes `docs/COMPATIBILITY.md`. The real matrix waits on Robin's runs.
+
+v0.1 in detail:
+
 
 - `src/agent.ts` — the loop. One `streamText` per step with tools defined **without** `execute`; the loop collects tool calls, gates them through `PermissionManager`, runs them, appends a `role: 'tool'` message, repeats until the model answers with no tool calls or `maxSteps` (default 40). The SDK validates tool names/inputs itself and emits `tool-error` parts; the loop treats those as "continue" so the model can self-correct. `repairJson()` salvages fenced/trailing-comma JSON from weak local models. Usage and estimated cost are tracked per session.
 - `src/tools/` — `read` (numbered lines, offset/limit, dir listing, binary guard), `edit` (exact string replace, must match once or `replace_all`), `write`, `bash` (bash/sh on POSIX, PowerShell on Windows; timeout default 120 s, output truncated middle-out to `maxToolOutputChars`), `glob` (Bun.Glob, newest first, skips node_modules/.git/dist), `grep` (ripgrep with `--glob !node_modules` etc., pure-JS fallback). Tools are `defineTool({ name, description, inputSchema (zod), readOnly, summarize, execute })` and throw `ToolError` for model-facing failures.
@@ -19,13 +29,13 @@ A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands
 - `src/session.ts` — JSONL under `~/.mrig/sessions/<id>.jsonl`; `sync()` appends new messages, rewrites when the transcript shrinks (compaction/clear). `-c` resumes latest in cwd, `-r <id>` a specific one.
 - `src/prompt.ts` — system prompt under ~1k tokens (identity, environment, how-to-work rules) plus memory from `AGENTS.md`/`MRIG.md` found from cwd up to the git root, nearest last, plus `~/.mrig/AGENTS.md`.
 - `src/ui/repl.ts` — readline REPL: streaming text, `⚙ tool` lines with ✓/✗ and timing, permission prompts (y/n/a), Ctrl+C aborts a run (twice at the prompt exits), slash commands `/model /provider /providers /cost /compact /clear /yolo /sessions /resume /tools /memory /help /exit`. `src/index.ts` — CLI (`src/cli/args.ts`) and headless `-p "prompt"` mode (auto-denies non-read-only tools when there is no TTY; `--yolo` allows). Exit codes 0 done / 1 error / 2 max-steps / 130 aborted.
-- Tests: 47 in `tests/` with `bun test`, no network — the loop is tested against `MockLanguageModelV4` via `tests/helpers.ts` (`mockModel`, `textTurn`, `toolTurn`). `scripts/fake-openai-server.ts` is a fake OpenAI-compatible model on :8089 for end-to-end runs (`mrig -P fake -p "what is in README.md"`, or `run <cmd>` to exercise the bash permission path).
+- Tests: 116 in `tests/` (47 at v0.1) with `bun test`, no network — the loop is tested against `MockLanguageModelV4` via `tests/helpers.ts` (`mockModel`, `textTurn`, `toolTurn`). `scripts/fake-openai-server.ts` is a fake OpenAI-compatible model on :8089 for end-to-end runs (`mrig -P fake -p "what is in README.md"`, or `run <cmd>` to exercise the bash permission path).
 - CI: `.github/workflows/ci.yml` runs lint/typecheck/test/build on ubuntu for every push and PR; macos and windows only on PRs to `main`, `v*` tags and manual runs; all four binaries are uploaded on `main` and tags.
-- Quality gate: `bun run check` = Biome lint (zero warnings) + `tsc --noEmit` + `bun test` + `bun run build`. It is green at v0.1.
+- Quality gate: `bun run check` = Biome lint (zero warnings) + `tsc --noEmit` + `bun test` + `bun run build`. It must be green before any change is called done.
 
 ## Known gaps and caveats (do not "fix" silently — mention them when relevant)
 
-- Prompt caching (L0) is implemented for Anthropic profiles but the live acceptance check (step 2 of a 2-step run reports `cacheReadTokens > 0`) still has to be run against the API by hand.
+- Prompt caching (L0) is implemented for Anthropic profiles, but the live acceptance check still has to be run against the API by hand: `cacheReadTokens > 0` from the second request on, once the prompt is longer than the model's minimum cacheable prefix.
 - No automatic context compaction yet; only manual `/compact`. Long sessions on 64k-context local models will eventually overflow.
 - No MCP client, no web tools, no reasoning display, no subagents, plain readline UI.
 - No offline guarantee yet (L5): nothing stops a remote profile from being used in a sensitive directory.
@@ -139,4 +149,4 @@ Language rules: `docs/LANGUAGE.md`. Details: `docs/ROADMAP.md` and `docs/related
 
 ## Start now
 
-Run the checks, confirm green, then implement **L0 (prompt caching + cache-write pricing)** end to end: code, tests, README section, `bun run check`. Stop for review before starting L1.
+Run the checks and confirm green. Then read **Build order and status** at the top of `docs/ROADMAP.md` and implement the first item in the agent's queue that is not marked ✅, end to end: code, tests, README section if user-facing, the roadmap mark, `bun run check`. Skip parts marked ⏳: they wait on Robin and never block the next item. Stop for review after one item.
