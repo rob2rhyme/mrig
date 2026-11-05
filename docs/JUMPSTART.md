@@ -47,7 +47,7 @@ A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands
 
 ## Backlog — in priority order, with acceptance criteria
 
-The source of truth for order is `docs/ROADMAP.md`. It has two tracks: **local AI first, Akkha second.** Item IDs match it. Do **one item per commit**, with `bun run check` green.
+The source of truth for order is `docs/ROADMAP.md`. It has three tracks: **local AI first, Akkha second, modes and media third.** Item IDs match it. Do **one item per commit**, with `bun run check` green.
 
 ### Track 1 — Local AI (mrig)
 
@@ -137,6 +137,35 @@ Language rules: `docs/LANGUAGE.md`. Details: `docs/ROADMAP.md` and `docs/related
   - A7: Contribute mode.
   - A8: language evaluation (chrF + human review), then NLLB / speech recognition.
   - See `docs/ROADMAP.md`.
+
+### Track 3 — Modes and media (mrig, after v1.0)
+
+Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, not commitments.
+
+- **T1. Modes (S).**
+  - `/mode default|teach|learn` and `--mode <name>`.
+  - A mode is a named preset of system-prompt text and permission defaults, defined in code.
+  - `teach` explains before acting, works in small steps, and asks the user to try the next step first. `learn` quizzes the user and records what was covered.
+  - **Acceptance:** mock-model tests show the prompt and the permission behaviour change per mode; the mode is saved in the session meta and survives `-c`; each mode's prompt stays under ~1,000 tokens before memory.
+- **T2. Learner memory (S–M).**
+  - Write a decision note in `docs/decisions/` first: what is stored, where (local only), how the user inspects it (`/learned`) and deletes it (`/forget`).
+  - **Acceptance:** Robin approves the note before any code; then read, write and delete are tested; nothing is sent over the network; the offline guarantee (L5) is respected.
+- **T3. Vision input (S).**
+  - An image path in a prompt reaches vision-capable models as an image part. Add a profile flag for vision support.
+  - **Acceptance:** a mock-model test shows the image part reaching the model; a profile without vision gets a clear message, not a crash.
+- **T4. Image generation (S–M).**
+  - An `image` tool with a configurable provider. It saves the file, returns the path, asks permission unless an `image:*` rule allows it, and prices each image.
+  - **Acceptance:** mock tests for the tool, the permission gate and the price math; a manual live check with one real provider.
+- **T5. Speech (M).**
+  - `speak` (text to speech) and `transcribe` (speech to text), with a local option.
+  - **Acceptance:** as T4, plus a local round trip that passes with networking disabled.
+- **T6. Video (M–L).**
+  - A `video` tool that starts a job, polls it and downloads the result. The SDK marks video as experimental, so read its types first.
+  - **Acceptance:** a short clip is generated end to end; a per-job cost cap stops an over-budget job.
+- **T7. Model routing (unranked; only when asked).** Send easy work to a local model and hard work to a frontier model by rule.
+- **T8. Akkha tutor mode (S–M).** The language tutor, built on `learn` mode, language memory (A3) and corpus search (A4). **Acceptance:** defined when T1, T2, A3 and A4 have landed.
+
+Shared rules for T3–T6: files on disk, sessions store paths not bytes; every call asks permission unless a rule allows it; costs use the same pricing table; only local generators are allowed under L5; no telemetry. Read the `.d.ts` files for each media function before using it.
 
 ## Start now
 

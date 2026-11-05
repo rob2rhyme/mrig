@@ -1,6 +1,6 @@
 # Roadmap: Local AI first, Akkha second
 
-Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables).
+Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.**
 
 Labels: **[V]** verified · **[S]** secondary · **[I]** inference or recommendation. Effort: S = under a day, M = a few days, L = a week+ of evenings.
 
@@ -75,7 +75,31 @@ Goal: a dependable agent that runs **fully offline** on the M4 Pro (24 GB), with
 | A7 | **Contribute mode + dataset releases** (`docs/related/magar-knowledge-platform.md`) | L | A6 |
 | A8 | **Language evaluation** (chrF + human review) on the private test sets, then an NLLB fine-tune and speech recognition for pronunciation (MLX / sibling directory) | M–L | L3, A7 data volume |
 
-## Not blocked by either track
+## Track 3 — Modes and media
+
+Robin's request: teaching and learning modes, a path to image, sound and eventually video generation, and the best answers available from the models mrig can call.
+
+**Order:** starts after Local AI v1.0 (L0–L5). T8 also waits for A3 and A4. Sizes and dependencies here are estimates [I], not commitments.
+
+| # | Item | Effort | Done when |
+|---|---|---|---|
+| T1 | **Modes**: `/mode` and `--mode` switch named presets of system prompt and permission defaults. `default` is today's behaviour; `teach` explains before acting, works in small steps and asks you to try the next step first; `learn` quizzes you and tracks what you have covered | S | Mock-model tests show each mode changes the prompt and the permission behaviour; the mode is saved in the session; each prompt stays under ~1k tokens before memory |
+| T2 | **Learner memory**: what mrig remembers about what you have learned. A decision note first (what is stored, where, how you inspect and delete it), then `/learned` and `/forget` | S–M | Robin approves the decision note; read, write and delete are tested; nothing leaves the machine |
+| T3 | **Vision input**: an image path in a prompt reaches vision-capable models as an image part; other models get a clear message | S | A mock-model test shows the image part; a profile without vision is refused politely |
+| T4 | **Image generation**: an `image` tool with a configurable provider. It saves a file, returns the path, asks permission and prices each image | S–M | Mock tests for the tool and the price math; one live check with a real provider |
+| T5 | **Speech**: `speak` (text to speech) and `transcribe` (speech to text), with a local option for offline use | M | As T4, plus a local round trip with networking disabled |
+| T6 | **Video**: a `video` tool that starts a job, polls it and downloads the result, with a cost cap per job | M–L | A short clip is generated end to end; the cap stops an over-budget job |
+| T7 | **Model routing** (unranked; only when asked): send easy work to a local model and hard work to a frontier model by rule | S–M | — |
+| T8 | **Akkha tutor mode**: the language tutor, built on `learn` mode, language memory and corpus search | S–M | T1, T2, A3, A4 |
+
+**Notes:**
+
+- **Quality ceiling [I].** mrig cannot be smarter than the model it calls. Profiles for Claude, OpenAI and anything reachable through OpenRouter already give frontier quality; T7 would make the choice automatic. Training a local model to match Claude is not planned.
+- **Media tools.** The installed `ai` package exports image, speech, transcription and experimental video functions [V]. Read their `.d.ts` files before building, per the repo rule. Whether Claude models can generate images, audio or video is to be confirmed when building; assume not, so these tools need other providers [I].
+- **Shared rules for T3–T6.** Files go on disk and sessions store paths, not bytes. Each call asks permission unless an allow rule such as `image:*` matches. Costs go through the same pricing table. Under the L5 offline guarantee only local generators are allowed. No telemetry.
+- **T2 is the one that needs design first.** Do not write code until the decision note exists.
+
+## Not blocked by any track
 
 These are decisions or paperwork, not engineering.
 

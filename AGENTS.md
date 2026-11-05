@@ -42,13 +42,15 @@ transliteration code.
 
 ## Roadmap
 
-Priorities and backlog live in `docs/ROADMAP.md`. It has two tracks:
+Priorities and backlog live in `docs/ROADMAP.md`. It has three tracks:
 
 - **Track 1, local AI first.** Prompt caching, hygiene, local runtime bring-up and
   hardening, an agent eval harness, two-tier compaction, an offline guarantee, then MCP,
   fetch and TUI. "Local AI v1.0" is L0–L5.
 - **Track 2, Akkha** (font, transliteration, language memory, corpus search), built on
   mrig after v1.0.
+- **Track 3, modes and media** (teach and learn modes, learner memory, vision input, image,
+  speech and video generation), after v1.0.
 
 `docs/JUMPSTART.md` carries the acceptance criteria. Later ideas, unranked: per-model edit
 formats for weak local models, subagents, auto-update.
