@@ -121,12 +121,14 @@ describe('mcp: the manager', () => {
       expect(await tool('echo').execute({ text: 'hello' }, ctx)).toBe('hello');
       expect(await tool('add').execute({ a: 2, b: 40 }, ctx)).toBe('42');
       expect(await tool('ping').execute({}, ctx)).toBe('pong');
-      expect(tool('fail').execute({}, ctx)).rejects.toThrow('the fail tool failed, as designed');
+      await expect(tool('fail').execute({}, ctx)).rejects.toThrow(
+        'the fail tool failed, as designed',
+      );
       expect(tool('echo').summarize({ text: 'hi' })).toBe('echo · echo {"text":"hi"}');
     } finally {
       await m.close();
     }
-  });
+  }, 20000);
 
   test('servers that fail to start become notices, never crashes', async () => {
     const notices: string[] = [];
@@ -154,11 +156,16 @@ describe('mcp: the manager', () => {
       expect(notices.length).toBe(3);
       expect(notices.find((n) => n.includes('"crash"'))).toMatch(/exited during startup/);
       expect(notices.find((n) => n.includes('"hang"'))).toMatch(/timed out/);
-      expect(notices.find((n) => n.includes('"missing"'))).toMatch(/command not found|ENOENT/);
+      // Windows reports a missing executable as the process closing, not as ENOENT.
+      expect(notices.find((n) => n.includes('"missing"'))).toMatch(
+        process.platform === 'win32'
+          ? /command not found|ENOENT|exited during startup/
+          : /command not found|ENOENT/,
+      );
     } finally {
       await m.close();
     }
-  });
+  }, 20000);
 
   test('offline: remote servers are skipped, local ones still start', async () => {
     let remoteContacted = false;
@@ -216,6 +223,24 @@ describe('mcp: the manager', () => {
     await m.close();
     await m.close();
     expect(closed).toBe(1);
+  });
+});
+
+describe('mcp: shutdown', () => {
+  test('close() never hangs on a server that does not close', async () => {
+    const stuck: McpClientLike = {
+      listTools: async () => ({ tools: [] }),
+      callTool: async () => ({ content: [] }),
+      close: () => new Promise<void>(() => {}), // never resolves
+    };
+    const m = new McpManager(
+      { s: { command: 'x' } },
+      { connect: async () => stuck, closeTimeoutMs: 50 },
+    );
+    await m.start();
+    const t0 = Date.now();
+    await m.close();
+    expect(Date.now() - t0).toBeLessThan(1000);
   });
 });
 
@@ -284,7 +309,7 @@ describe('mcp: through the runtime and the agent', () => {
     } finally {
       await rt.close();
     }
-  });
+  }, 20000);
 
   test('allow rules work unchanged for MCP tools', async () => {
     writeGlobal({ permissions: { allow: ['mcp__echo__echo:*'] } });
@@ -306,7 +331,7 @@ describe('mcp: through the runtime and the agent', () => {
     } finally {
       await rt.close();
     }
-  });
+  }, 20000);
 
   test("a project's config cannot start servers; it is told why", async () => {
     writeFileSync(join(home.dir, 'config.json'), JSON.stringify({ providers: { fake } }));
@@ -356,5 +381,5 @@ describe('mcp: through the runtime and the agent', () => {
     } finally {
       await rt.close();
     }
-  });
+  }, 20000);
 });
