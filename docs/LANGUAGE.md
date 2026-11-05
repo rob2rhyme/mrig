@@ -37,6 +37,27 @@ This is **track 2** work. It starts after Local AI v1.0; see [`docs/ROADMAP.md`]
   - Chandrabindu → anusvara, visarga dropped, nukta dropped (base letter kept): defaults in the tool, **pending Robin's confirmation**.
 - Everything else in Nepali Devanagari has an Akkha form (Robin, November 5, 2026), mapped one to one onto the Brahmi block. The Brahmi table stays provisional until the font spike passes.
 
+## Language memory files (`lang/*.md`)
+
+Notes that mrig puts into the model's system prompt, one variety per file.
+
+- **Where:** `~/.mrig/lang/` for notes that apply everywhere, and `.mrig/lang/` in a project.
+  Project folders from the git root down to the working directory are all read, nearest last.
+- **Names:** `<tag>.md` or `<tag>-<topic>.md`. The tag is a variety (`mgp`, `mrd`, `kgj`, `kip`,
+  `kif`, `kjl`, `kzq`) or `shared` for rules that hold for every variety, e.g. `mgp-lexicon.md`,
+  `kgj-grammar.md`, `shared-orthography.md`. Other names are not loaded, and `/lang` says why.
+- **Content:** Devanagari in NFC (mrig normalizes and flags files that are not); romanization
+  and Akkha produced with `translit`, never typed by hand; IPA for Kham entries, whose spelling
+  omits the glottal stop and breathy vowels. Keep one variety per file: the prompt labels each
+  file with its variety, and pooling them would mix separate languages.
+- **Budget:** 32,000 characters in total (about 8,000 tokens). A file that would pass it is not
+  loaded at all rather than cut, and `/lang` lists it.
+- **Caching:** the files are read once when the session starts. Edits take effect on
+  `/lang reload` (or the next session), so the cached prompt prefix doesn't change from turn to
+  turn.
+- **Privacy:** the files go to whichever model is active. Keep consent-bound material, such as
+  Kaike recordings and their transcripts, out of them, or work in an offline zone (`.mrig-zone`).
+
 ## Romanization conventions
 
 The tool's romanization is strict ISO 15919-style, so it converts back to Devanagari exactly:

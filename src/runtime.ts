@@ -17,6 +17,7 @@ import {
   type DoctorOptions,
   type ModelCheck,
 } from './doctor.ts';
+import { type LangMemory, loadLangMemory } from './lang/memory.ts';
 import { formatMcpStatus, type McpConnect, McpManager, type McpServerStatus } from './mcp.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
 import { buildSystemPrompt } from './prompt.ts';
@@ -69,6 +70,11 @@ export class Runtime {
   readonly offline: Offline | undefined;
   /** The sessions folder: the zone's inside an offline zone, else undefined (~/.mrig/sessions). */
   readonly sessionsDir: string | undefined;
+  /**
+   * Language memory (A3), read once here and on reloadLang(). Kept fixed in between, so the
+   * system prompt, and with it the cached prefix, does not change from turn to turn.
+   */
+  lang: LangMemory;
   /** `/verbose` (L7): the UIs show the model's reasoning as it streams. Off by default. */
   verbose = false;
   /** Connected MCP servers, once startMcp() ran. */
@@ -123,6 +129,7 @@ export class Runtime {
       });
     }
 
+    this.lang = loadLangMemory(opts.cwd);
     this.agent = new Agent({
       model: this.model,
       modelLabel: this.modelLabel(),
@@ -149,7 +156,15 @@ export class Runtime {
       cwd: this.cwd,
       modelLabel: this.modelLabel(),
       toolMode: this.profile.toolMode,
+      lang: this.lang.block,
     });
+  }
+
+  /** `/lang reload`: read the lang/ files again. The next request re-caches the prompt. */
+  reloadLang(): LangMemory {
+    this.lang = loadLangMemory(this.cwd);
+    this.agent.opts.systemPrompt = this.systemPrompt();
+    return this.lang;
   }
 
   /** Ask the active provider whether it serves the configured model id (never throws). */

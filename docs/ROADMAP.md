@@ -109,7 +109,7 @@ Two build notes:
 |---|---|---|---|
 | A1 | **Font spike**: the GurbachhanAkkhaRik font re-encoded to Brahmi, `brah` script tag, `hb-shape` → Safari / Word / Chrome (font repo) | S | — |
 | A2 | **Transliteration tool in mrig**: Devanagari (NFC) hub ↔ Akkha-Brahmi + romanization; lossy-set report; round-trip tests. ✅ Built 2026-11-05 (`feat/A2-transliteration`), ahead of A1 by Robin's choice: `src/lang/`, the read-only `translit` tool, seeded round-trip property tests, lossy and unmapped reports. ⏳ The Brahmi table stays provisional until A1 passes; chandrabindu, visarga and nukta defaults await Robin | S/M | A1 |
-| A3 | **Language memory**: `lang/*.md`, variety tags, `/lang`; font commands in `AGENTS.md`; `hb-shape` golden tests | S | A2 |
+| A3 | **Language memory**: `lang/*.md`, variety tags, `/lang`; font commands in `AGENTS.md`; `hb-shape` golden tests. ✅ Built 2026-11-05 (`feat/A3-language-memory`): `src/lang/memory.ts`, `<tag>[-<topic>].md` in `~/.mrig/lang/` and `.mrig/lang/`, read once per session, `/lang` and `/lang reload`; the font-tools section in `AGENTS.md`. ⏳ The `hb-shape` golden tests belong to the font repo, with A1 | S | A2 |
 | A4 | **Corpus search over the CLDF export** + retrieval for the local LLM | S→M | L4, A3 |
 | A5 | **Akkha-Rik app data fixes**: `lang` tag on all 269 vocabulary items; `ak` generated from `deva`; then real Unicode rendering via the web font | S/M | A1, A2 |
 | A6 | **Wordlist pilot** (on BAMA's free Kobo Community plan) | S | BAMA agreement |
