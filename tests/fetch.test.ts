@@ -159,7 +159,7 @@ describe('fetch: the tool', () => {
       ['https://user:pass@example.com/', /username or password/],
       ['not a url', /Not a valid URL/],
     ] as const) {
-      expect(web.tool.execute({ url }, ctx())).rejects.toThrow(message);
+      await expect(web.tool.execute({ url }, ctx())).rejects.toThrow(message);
     }
     expect(web.requests).toEqual([]);
   });
@@ -180,11 +180,11 @@ describe('fetch: the tool', () => {
     const out = await web.tool.execute({ url: 'https://example.com/old' }, ctx());
     expect(out).toContain('URL: https://example.com/new');
     expect(out).toContain('moved here');
-    expect(web.tool.execute({ url: 'https://example.com/trap' }, ctx())).rejects.toThrow(
+    await expect(web.tool.execute({ url: 'https://example.com/trap' }, ctx())).rejects.toThrow(
       /169\.254\.169\.254/,
     );
     expect(web.requests).not.toContain('http://169.254.169.254/latest/meta-data/');
-    expect(web.tool.execute({ url: 'https://example.com/loop' }, ctx())).rejects.toThrow(
+    await expect(web.tool.execute({ url: 'https://example.com/loop' }, ctx())).rejects.toThrow(
       /Too many redirects/,
     );
   });
@@ -197,13 +197,13 @@ describe('fetch: the tool', () => {
       },
       { 'nowhere.example': [] },
     );
-    expect(web.tool.execute({ url: 'https://example.com/missing' }, ctx())).rejects.toThrow(
+    await expect(web.tool.execute({ url: 'https://example.com/missing' }, ctx())).rejects.toThrow(
       /Status: 404[\s\S]*HTTP 404/,
     );
-    expect(web.tool.execute({ url: 'https://example.com/img' }, ctx())).rejects.toThrow(
+    await expect(web.tool.execute({ url: 'https://example.com/img' }, ctx())).rejects.toThrow(
       /Not text \(image\/png\)/,
     );
-    expect(web.tool.execute({ url: 'https://nowhere.example/' }, ctx())).rejects.toThrow(
+    await expect(web.tool.execute({ url: 'https://nowhere.example/' }, ctx())).rejects.toThrow(
       /Cannot resolve nowhere\.example/,
     );
   });
@@ -218,7 +218,7 @@ describe('fetch: the tool', () => {
       lookup: async () => ['93.184.216.34'],
       timeoutMs: 50,
     });
-    expect(tool.execute({ url: 'https://slow.example/' }, ctx())).rejects.toThrow(
+    await expect(tool.execute({ url: 'https://slow.example/' }, ctx())).rejects.toThrow(
       /Timed out after 0s/,
     );
   });
