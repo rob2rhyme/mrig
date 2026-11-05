@@ -5,15 +5,70 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModel, LanguageModelUsage } from 'ai';
-import { type Pricing, type ProviderProfile, resolveApiKey } from './config.ts';
+import { type CacheTtl, type Pricing, type ProviderProfile, resolveApiKey } from './config.ts';
 
 /** USD per million tokens for known hosted models. Local/openai-compatible default to free. */
 export const KNOWN_PRICING: Array<{ match: RegExp; pricing: Pricing }> = [
-  { match: /claude-fable-5-1/, pricing: { input: 10, output: 50 } },
+  { match: /claude-fable-5-1/, pricing: { input: 10, output: 50, cacheRead: 0.25 } },
   { match: /claude-opus-5/, pricing: { input: 5, output: 25 } },
   { match: /claude-sonnet-5/, pricing: { input: 2, output: 10 } },
   { match: /claude-haiku-4-5/, pricing: { input: 1, output: 5 } },
 ];
+
+/** Cache writes are billed above the input price: 1.25× for the 5-minute TTL, 2× for 1 hour. */
+export const CACHE_WRITE_MULTIPLIER: Record<CacheTtl, number> = { '5m': 1.25, '1h': 2 };
+
+/**
+ * Minimum cacheable prefix per Claude model, in tokens. Shorter prompts are silently not
+ * cached (no error; cache_creation_input_tokens stays 0). Order matters: a model id must hit
+ * its own row before a looser pattern (sonnet-5-5 → 512 before sonnet-5 → 1024).
+ */
+export const CACHE_MIN_PREFIX: Array<{ match: RegExp; tokens: number }> = [
+  { match: /claude-(opus-5|fable-5|sonnet-5-5|haiku-5-5)/, tokens: 512 },
+  {
+    match:
+      /claude-(opus-4-8|opus-4-1|opus-4-0|opus-4-2|sonnet-5|sonnet-4-6|sonnet-4-5|sonnet-4-0|sonnet-4-2)/,
+    tokens: 1024,
+  },
+  { match: /claude-(opus-4-7|haiku-3-5|3-5-haiku)/, tokens: 2048 },
+  { match: /claude-(opus-4-6|opus-4-5|haiku-4-5)/, tokens: 4096 },
+];
+
+/** Minimum cacheable prompt length for a model, or undefined when unknown. */
+export function cacheMinPrefix(model: string): number | undefined {
+  return CACHE_MIN_PREFIX.find((p) => p.match.test(model))?.tokens;
+}
+
+export type CacheProviderOptions = {
+  anthropic: { cacheControl: { type: 'ephemeral'; ttl: CacheTtl } };
+};
+
+/**
+ * Provider options that turn on prompt caching. Anthropic only: passed at request level it
+ * enables automatic caching; on a system block or tool it marks an explicit breakpoint.
+ * Undefined for OpenAI and local servers, which have no cache to pay for.
+ */
+export function cacheProviderOptions(
+  profile: ProviderProfile,
+  cacheTtl: CacheTtl,
+): CacheProviderOptions | undefined {
+  if (profile.kind !== 'anthropic') return undefined;
+  return { anthropic: { cacheControl: { type: 'ephemeral', ttl: cacheTtl } } };
+}
+
+/** One line for `/cost` on why the cache did nothing, or undefined when there's nothing to say. */
+export function explainCacheMiss(usage: UsageTotals, profile: ProviderProfile): string | undefined {
+  if (profile.kind !== 'anthropic' || usage.requests === 0) return undefined;
+  if (usage.cacheWriteTokens === 0 && usage.cacheReadTokens === 0) {
+    const min = cacheMinPrefix(profile.model);
+    const floor = min ? `${min.toLocaleString()} tokens` : 'a model-specific minimum';
+    return `No prompt-cache activity: ${profile.model} only caches prefixes of at least ${floor}. More context (memory files, tool results) crosses it.`;
+  }
+  if (usage.requests >= 2 && usage.cacheReadTokens === 0) {
+    return 'Cache written but never read: the prompt prefix changed between requests (system prompt, tool list, or edited history).';
+  }
+  return undefined;
+}
 
 export function pricingFor(profile: ProviderProfile): Pricing | undefined {
   if (profile.pricing) return profile.pricing;
@@ -21,14 +76,24 @@ export function pricingFor(profile: ProviderProfile): Pricing | undefined {
   return KNOWN_PRICING.find((p) => p.match.test(profile.model))?.pricing;
 }
 
-/** Estimated cost in USD for a usage record. Returns undefined when pricing is unknown. */
-export function estimateCost(usage: UsageTotals, pricing: Pricing | undefined): number | undefined {
+/**
+ * Estimated cost in USD for a usage record. Returns undefined when pricing is unknown.
+ * `inputTokens` is the provider total (uncached + cache reads + cache writes); cache writes
+ * carry the TTL premium unless the pricing sets `cacheWrite` explicitly.
+ */
+export function estimateCost(
+  usage: UsageTotals,
+  pricing: Pricing | undefined,
+  cacheTtl: CacheTtl = '5m',
+): number | undefined {
   if (!pricing) return undefined;
   const cacheRead = pricing.cacheRead ?? pricing.input * 0.1;
-  const uncached = Math.max(0, usage.inputTokens - usage.cacheReadTokens);
+  const cacheWrite = pricing.cacheWrite ?? pricing.input * CACHE_WRITE_MULTIPLIER[cacheTtl];
+  const uncached = Math.max(0, usage.inputTokens - usage.cacheReadTokens - usage.cacheWriteTokens);
   return (
     (uncached * pricing.input +
       usage.cacheReadTokens * cacheRead +
+      usage.cacheWriteTokens * cacheWrite +
       usage.outputTokens * pricing.output) /
     1_000_000
   );
@@ -38,11 +103,12 @@ export interface UsageTotals {
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
+  cacheWriteTokens: number;
   requests: number;
 }
 
 export function emptyUsage(): UsageTotals {
-  return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, requests: 0 };
+  return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, requests: 0 };
 }
 
 export function addUsage(totals: UsageTotals, usage: LanguageModelUsage): UsageTotals {
@@ -50,6 +116,7 @@ export function addUsage(totals: UsageTotals, usage: LanguageModelUsage): UsageT
     inputTokens: totals.inputTokens + (usage.inputTokens ?? 0),
     outputTokens: totals.outputTokens + (usage.outputTokens ?? 0),
     cacheReadTokens: totals.cacheReadTokens + (usage.inputTokenDetails?.cacheReadTokens ?? 0),
+    cacheWriteTokens: totals.cacheWriteTokens + (usage.inputTokenDetails?.cacheWriteTokens ?? 0),
     requests: totals.requests + 1,
   };
 }
