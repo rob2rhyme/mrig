@@ -163,6 +163,35 @@ and hosted ones 128,000. Set `contextWindow` to match your server for the best t
 `/context` shows how full the context is and where it compacts; `/compact` summarizes now.
 Summaries written by a separate `compactModel` are not added to `/cost`.
 
+## MCP servers
+
+mrig is an MCP client. Servers listed in `~/.mrig/config.json` start with mrig, and their tools
+appear as `mcp__<server>__<tool>`:
+
+```json
+{
+  "mcpServers": {
+    "files": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/notes"] },
+    "github": { "command": "github-mcp-server", "args": ["stdio"], "env": { "GITHUB_TOKEN": "ghp_…" } },
+    "docs": { "url": "https://mcp.example.com/mcp" }
+  }
+}
+```
+
+- **Local servers** use `command`, `args`, optional `env` and `cwd`, and talk over stdin and
+  stdout. They get only a safe subset of your environment (`PATH`, `HOME` and the like), so pass
+  what a server needs in `env`. **Remote servers** use `url`, with `"transport": "sse"` for
+  older servers and optional `headers`. `"disabled": true` keeps an entry without starting it.
+- **Every MCP tool asks before it runs**, like write, edit and bash. Allow rules work the same
+  way, one per tool: `"mcp__github__list_issues:*"` lets that tool run without asking, and
+  answering "always" at the prompt adds that rule for the session.
+- **Only the global config starts servers.** A project's `.mrig/config.json` cannot: in a cloned
+  repo that would run any command the moment mrig starts. mrig tells you when it ignores one.
+- **Failures don't stop mrig.** A server that does not start becomes a one-line notice; `/mcp`
+  lists every server, its state and its tools.
+- **Offline mode** does not contact remote servers. Local servers still run.
+- Bash-only profiles (`toolMode: "minimal"`) leave MCP tools out.
+
 ## Offline mode and zones
 
 For sensitive work, mrig can guarantee that nothing leaves your machine through it. Turn it on
@@ -227,7 +256,7 @@ Put project conventions, commands, and rules there.
 
 ## Slash commands
 
-`/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/clear` ·
+`/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/mcp` · `/clear` ·
 `/yolo` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
 Ctrl+C aborts a running turn; press it twice at the prompt to quit.
 
@@ -332,5 +361,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools, providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. Next (see `docs/ROADMAP.md`):
-model trials and the first real matrix, then L6. Licensing is yours to choose before publishing (add a `LICENSE` file).
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client. Next (see `docs/ROADMAP.md`):
+model trials and the first real matrix, the fetch tool and the TUI. Licensing is yours to choose before publishing (add a `LICENSE` file).

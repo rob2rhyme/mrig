@@ -9,6 +9,7 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { type McpServerConfig, parseMcpServers } from './mcp.ts';
 
 export type ProviderKind = 'anthropic' | 'openai' | 'openai-compatible';
 
@@ -86,6 +87,10 @@ export interface MrigConfig {
   cacheTtl: CacheTtl;
   /** Automatic context compaction (L4). */
   compaction: CompactionConfig;
+  /** MCP servers (L6). Read from ~/.mrig/config.json only; see `projectMcpIgnored`. */
+  mcpServers: Record<string, McpServerConfig>;
+  /** Server names a project config tried to define; never started (set by loadConfig). */
+  projectMcpIgnored?: string[];
 }
 
 export const DEFAULT_PROVIDERS: Record<string, ProviderProfile> = {
@@ -155,6 +160,7 @@ export const DEFAULT_CONFIG: MrigConfig = {
   maxToolOutputChars: 30_000,
   cacheTtl: '5m',
   compaction: { enabled: true, threshold: 0.7, keep: 4 },
+  mcpServers: {},
 };
 
 export function mrigHome(): string {
@@ -170,6 +176,7 @@ export function ensureMrigHome(): string {
 type PartialConfig = Partial<Omit<MrigConfig, 'permissions' | 'compaction'>> & {
   permissions?: Partial<PermissionsConfig>;
   compaction?: Partial<CompactionConfig>;
+  mcpServers?: unknown;
 };
 
 function readJson(path: string): PartialConfig | undefined {
@@ -227,6 +234,7 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     maxToolOutputChars: layer.maxToolOutputChars ?? base.maxToolOutputChars,
     cacheTtl: parseCacheTtl(layer.cacheTtl) ?? base.cacheTtl,
     compaction: parseCompaction(layer.compaction, base.compaction),
+    mcpServers: { ...base.mcpServers, ...parseMcpServers(layer.mcpServers) },
   };
 }
 
@@ -241,7 +249,16 @@ export function loadConfig(opts: LoadOptions = {}): MrigConfig {
   const env = opts.env ?? process.env;
   let cfg = DEFAULT_CONFIG;
   cfg = merge(cfg, readJson(join(mrigHome(), 'config.json')));
-  cfg = merge(cfg, readJson(join(cwd, '.mrig', 'config.json')));
+  // A project's config never starts MCP servers: in a cloned repo that would run any command
+  // the moment mrig starts. Its servers are reported instead (see the Runtime's notice).
+  const project = readJson(join(cwd, '.mrig', 'config.json'));
+  const projectMcp = project?.mcpServers;
+  if (project) delete project.mcpServers;
+  cfg = merge(cfg, project);
+  if (projectMcp && typeof projectMcp === 'object') {
+    const names = Object.keys(projectMcp);
+    if (names.length > 0) cfg = { ...cfg, projectMcpIgnored: names };
+  }
   if (env.MRIG_PROVIDER) cfg = { ...cfg, defaultProvider: env.MRIG_PROVIDER };
   if (env.MRIG_YOLO === '1') cfg = { ...cfg, permissions: { ...cfg.permissions, yolo: true } };
   return cfg;

@@ -41,7 +41,8 @@ import {
 } from './providers.ts';
 import {
   type AnyTool,
-  describeInputs,
+  acceptsEmptyInput,
+  describeToolInputs,
   type ToolContext,
   toAiTools,
   toolRegistry,
@@ -160,7 +161,7 @@ function estimateToolTokens(tools: AnyTool[]): number {
   for (const t of tools) {
     chars += t.name.length + t.description.length + 40;
     try {
-      chars += JSON.stringify(z.toJSONSchema(t.inputSchema)).length;
+      chars += JSON.stringify(t.parameters ?? z.toJSONSchema(t.inputSchema)).length;
     } catch {
       chars += 600; // a typical schema, if one cannot be converted
     }
@@ -431,7 +432,8 @@ export class Agent {
     }
     // Weak local models often emit `{}` on a first attempt. Guide one retry with the field list;
     // a second empty call in a row falls through to the plain validation error.
-    if (isEmptyInput(call.input)) {
+    // Only when `{}` is not a valid call: some tools (many MCP tools) take no arguments.
+    if (isEmptyInput(call.input) && !acceptsEmptyInput(tool)) {
       this.emptyArgStreak++;
       if (this.emptyArgStreak === 1) {
         this.stats.invalidCalls++;
@@ -440,7 +442,7 @@ export class Agent {
           ...base,
           output: {
             type: 'error-text',
-            value: `[mrig] Your call to "${tool.name}" had no arguments. Call it again with: ${describeInputs(tool.inputSchema)}`,
+            value: `[mrig] Your call to "${tool.name}" had no arguments. Call it again with: ${describeToolInputs(tool)}`,
           },
         };
       }

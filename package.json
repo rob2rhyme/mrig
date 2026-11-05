@@ -1,7 +1,7 @@
 {
   "name": "mrig",
   "version": "0.1.0",
-  "description": "mrig \u2014 a personal, local, model-agnostic coding and general-purpose agent for the terminal",
+  "description": "mrig — a personal, local, model-agnostic coding and general-purpose agent for the terminal",
   "type": "module",
   "private": true,
   "bin": {
@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.54",
+    "@ai-sdk/mcp": "^2.0.91",
     "@ai-sdk/openai": "^4.0.67",
     "@ai-sdk/openai-compatible": "^3.0.49",
     "ai": "7",
