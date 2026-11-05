@@ -11,6 +11,7 @@ import {
   parseMcpServers,
 } from '../src/mcp.ts';
 import { Runtime } from '../src/runtime.ts';
+import { ToolError } from '../src/tools/types.ts';
 import { ZONE_MARKER } from '../src/zone.ts';
 import { mockModel, tempDir, textTurn, toolTurn } from './helpers.ts';
 
@@ -121,9 +122,16 @@ describe('mcp: the manager', () => {
       expect(await tool('echo').execute({ text: 'hello' }, ctx)).toBe('hello');
       expect(await tool('add').execute({ a: 2, b: 40 }, ctx)).toBe('42');
       expect(await tool('ping').execute({}, ctx)).toBe('pong');
-      await expect(tool('fail').execute({}, ctx)).rejects.toThrow(
-        'the fail tool failed, as designed',
-      );
+      // Catch with a plain await, not `expect(...).rejects`: on Windows, Bun's `rejects` waits
+      // in a loop that never reads the server's stdout pipe, so the reply never arrives.
+      const failed = await tool('fail')
+        .execute({}, ctx)
+        .then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+      expect(failed).toBeInstanceOf(ToolError);
+      expect((failed as Error).message).toContain('the fail tool failed, as designed');
       expect(tool('echo').summarize({ text: 'hi' })).toBe('echo · echo {"text":"hi"}');
     } finally {
       await m.close();
