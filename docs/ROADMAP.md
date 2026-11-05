@@ -6,7 +6,7 @@ Labels: **[V]** verified · **[S]** secondary · **[I]** inference or recommenda
 
 ## Track 1 — Local AI (mrig)
 
-Goal: a dependable agent that runs **fully offline** on the M4 Pro (24 GB today, **64 GB planned**; Robin, November 5, 2026: "plan for abundance"), with Claude as an optional online profile.
+Goal: a dependable agent that runs **fully offline** on Robin's Mac, with Claude as an optional online profile. Hardware: an M4 Pro with 24 GB today; **target 128 GB**, with 64 GB as the backup (Robin, November 5, 2026: "plan for abundance"). See **Hardware plan and backups** below.
 
 | # | Item | Effort | Done when |
 |---|---|---|---|
@@ -29,11 +29,12 @@ Goal: a dependable agent that runs **fully offline** on the M4 Pro (24 GB today,
 - **Models to trial, first wave at 24 GB** (all Apache 2.0 [V]):
   - Qwen3.5-9B at Q4/Q6
   - Gemma 4 12B at Q4/Q6
-  - Gemma 4 26B-A4B at Q4 (tight fit at 24 GB, comfortable at 64 GB)
-- **Second wave at 64 GB [I]:** the largest Qwen3.5 and Gemma 4 dense variants at Q6/Q8, Gemma 4 26B-A4B at Q8, and one 70B-class model at Q4 as a ceiling test. Confirm exact tags on ollama.com before pulling; the names here are families, not tags.
-- **Memory budget [I]:** leave about 6–8 GB for macOS and apps. That is roughly 16–18 GB for models at 24 GB and 48–52 GB at 64 GB. Context grows memory use too: default to 64k and go to 128k where the model supports it.
-- **Speed, not memory, is the ceiling at 64 GB [I].** Decode speed is bounded by memory bandwidth (about 273 GB/s on the M4 Pro) divided by the model's size in memory: a 5 GB model tops out near 50 tok/s, 20 GB near 13, 40 GB near 7. Mixture-of-experts models such as Gemma 4 26B-A4B read only their active experts per token, so they stay fast while knowing more: the sweet spot. The eval harness records real tokens/s; treat these as upper bounds.
-- **What 64 GB unlocks:** two models resident at once (a small fast one for routine work, a large one for hard tasks), so T7 routing can be local-to-local and fully offline; a local embedding model alongside for A4 corpus search; local speech models for T5; and headroom for MLX fine-tunes (A8) on larger bases.
+  - Gemma 4 26B-A4B at Q4 (tight fit at 24 GB, comfortable from 64 GB)
+- **Second wave at 64 GB [I]:** the largest Qwen3.5 and Gemma 4 dense variants at Q6/Q8, Gemma 4 26B-A4B at Q8, and one 70B-class model at Q4 as a ceiling test.
+- **Third wave at 128 GB, the target [I]:** 100B-class mixture-of-experts models at Q4–Q6, 70B-class dense models at Q6/Q8, and **pairs** of models loaded together (a fast routine model plus a large hard-task model), evaluated as a pair.
+- Confirm exact tags on ollama.com before pulling any wave; the names here are families, not tags.
+- **Memory budget [I]:** leave 6–8 GB for macOS and apps at 24–64 GB, and 10–12 GB at 128 GB. That gives roughly 16–18 GB for models at 24 GB, 48–52 GB at 64 GB and 105–115 GB at 128 GB. macOS limits how much memory the GPU may use by default; the `iogpu.wired_limit_mb` sysctl raises it [I, verify on the machine before relying on it]. Context grows memory use too: default to 64k and go to 128k where the model supports it.
+- **Speed, not memory, is the ceiling from 64 GB up [I].** Decode speed is bounded by memory bandwidth divided by the model's size in memory. For a 40 GB model that is about 7 tok/s on the M4 Pro (about 273 GB/s), 15 on an M5 Max (614 GB/s [S]) and 30 on an M5 Ultra (up to 1.2 TB/s [V]). Mixture-of-experts models read only their active experts per token, so they stay fast while knowing more: the sweet spot at every size. The eval harness records real tokens/s; treat these as upper bounds.
 - **Hardening** (carried over from the JUMPSTART "local-model hardening" item):
   - with an Ollama profile, query `GET /api/show` at startup and warn when the context is under 32k;
   - add `toolMode: "minimal"` (bash-only) for models that can't do multi-tool calling;
@@ -92,7 +93,7 @@ Robin's request: teaching and learning modes, a path to image, sound and eventua
 | T4 | **Image generation**: an `image` tool with a configurable provider. It saves a file, returns the path, asks permission and prices each image | S–M | Mock tests for the tool and the price math; one live check with a real provider |
 | T5 | **Speech**: `speak` (text to speech) and `transcribe` (speech to text), with a local option for offline use | M | As T4, plus a local round trip with networking disabled |
 | T6 | **Video**: a `video` tool that starts a job, polls it and downloads the result, with a cost cap per job | M–L | A short clip is generated end to end; the cap stops an over-budget job |
-| T7 | **Model routing** (unranked; only when asked): send easy work to a local model and hard work to a frontier model by rule. At 64 GB the hard-task model can be a large local one, so routing works fully offline | S–M | — |
+| T7 | **Model routing** (unranked; only when asked): send easy work to a local model and hard work to a frontier model by rule. From 64 GB the hard-task model can be a large local one, and at 128 GB both stay loaded, so routing works fully offline | S–M | — |
 | T8 | **Akkha tutor mode**: the language tutor, built on `learn` mode, language memory and corpus search | S–M | T1, T2, A3, A4 |
 
 **Notes:**
@@ -101,6 +102,69 @@ Robin's request: teaching and learning modes, a path to image, sound and eventua
 - **Media tools.** The installed `ai` package exports image, speech, transcription and experimental video functions [V]. Read their `.d.ts` files before building, per the repo rule. Whether Claude models can generate images, audio or video is to be confirmed when building; assume not, so these tools need other providers [I].
 - **Shared rules for T3–T6.** Files go on disk and sessions store paths, not bytes. Each call asks permission unless an allow rule such as `image:*` matches. Costs go through the same pricing table. Under the L5 offline guarantee only local generators are allowed. No telemetry.
 - **T2 is the one that needs design first.** Do not write code until the decision note exists.
+
+## Hardware plan and backups
+
+Robin's direction (November 5, 2026): plan for abundance, **target 128 GB**, and keep backup plans. Everything here is an estimate [I] unless marked.
+
+**Memory cannot be added later** on Apple silicon, the DGX Spark or the Ryzen AI Max boxes [I]: buy the final size once.
+
+### The 128 GB machine
+
+| Option | Memory | Bandwidth | Fit for mrig |
+|---|---|---|---|
+| **Mac Studio, M5 Max, 128 GB** (recommended) | 128 GB | 614 GB/s [S] | macOS is where mrig is developed and hand-tested; MLX for fine-tuning; quiet |
+| Mac Studio, M5 Ultra | 96–512 GB [V] | up to 1.2 TB/s [V] | Twice the speed for big models; much higher price |
+| NVIDIA DGX Spark | 128 GB [S] | 273 GB/s [S] | Linux and CUDA: strongest for fine-tuning and image or video generation; mrig not hand-tested on Linux |
+| AMD Ryzen AI Max+ 395 box | 128 GB, about 96–120 GB usable by the GPU [S] | about 256 GB/s [S] | Cheapest 128 GB; Linux preferred; mrig not hand-tested |
+
+**Decision needed (Robin):** which machine. Recommendation [I]: the M5 Max at 128 GB. Move to the Ultra only if the eval shows the hard-task model too slow to use.
+
+### The full setup at 128 GB
+
+Loaded at the same time:
+
+| Role | Example | Memory |
+|---|---|---|
+| Routine model, always loaded | a fast mixture-of-experts model, such as Gemma 4 26B-A4B at Q8 | about 28 GB |
+| Hard-task model | a 70B-class dense or 100B-class mixture-of-experts model at Q4 | about 40–60 GB |
+| Embeddings for A4 corpus search | a small local embedding model | about 1–2 GB |
+| Speech for T5 | local speech-to-text and text-to-speech | about 2–4 GB |
+| Context for both models | 64k–128k each | about 10–20 GB |
+| macOS and apps | — | about 10–12 GB |
+
+The upper ends do not all fit at once; trim the hard-task model or its context to stay under 128 GB.
+
+What this setup gives:
+
+- **Hybrid, fully offline.** T7 routes routine work to the fast model and hard work to the large one. Claude stays optional, for the hardest problems or a second opinion.
+- **Two defaults instead of one.** L3 picks `local` (routine) and `local-hard` from the matrix, both by the same rule.
+- **Track 3 locally.** Speech and image generation run on the machine where a good local model exists; video probably stays hosted at first.
+- **Fine-tuning at home.** MLX fine-tunes (A8) on larger bases, and trials of the "saved knowledge" and fine-tuning routes for making local models better at your own work.
+
+### Backup plans
+
+**Hardware ladder.** The plan degrades gracefully; nothing in mrig depends on having the target machine.
+
+| If the machine has | Local handles | Claude handles |
+|---|---|---|
+| 128 GB, the target | routine and hard tasks, fully offline; speech and images | only the hardest problems, optionally |
+| 64 GB, the backup | routine tasks on a strong mixture-of-experts model; one large model at a time, swapped in when needed | hard tasks when speed matters |
+| 24 GB, today | routine tasks on first-wave models | planning, hard bugs, big refactors |
+| any size, but no local model passes L3's 70% bar | private and simple tasks only | the default for coding until a model passes |
+
+**Other fallbacks:**
+
+- **Runtime.** Ollama first. LM Studio and llama.cpp profiles already exist if Ollama mishandles a model's tool calling.
+- **Tool calling.** `toolMode: "minimal"` for models that cannot juggle six tools.
+- **Model families.** If a family's licence or quality changes, re-run the eval; nothing in mrig is tied to one family.
+- **Cloud provider.** If Anthropic is unavailable or too costly, OpenAI and OpenRouter profiles take the online role. L5 keeps sensitive projects local either way.
+- **Media (Track 3).** A local generator first, a hosted provider if no local one is good enough; L5 refuses the hosted ones in offline zones.
+- **Improving local models.** If fine-tuning on another provider's outputs is not allowed by its terms, or does not move the eval scores, fall back to saved knowledge and retrieval (T2, A4).
+- **Buying a non-Apple machine.** Hand-test mrig on Linux first; CI covers Linux, but nobody has used it there yet. Windows last.
+- **Supply and price.** The 512 GB and 256 GB Mac Studio options were pulled for months in 2026 during a memory shortage [S]. If 128 GB is unavailable or too expensive, take 64 GB and follow the ladder rather than wait.
+
+**Data backups.** Back up `~/.mrig`: config, sessions, and learner memory once T2 exists. Eval results and the matrix live in git. Models can be pulled again, so record exact tags with every eval run to keep results reproducible.
 
 ## Not blocked by any track
 

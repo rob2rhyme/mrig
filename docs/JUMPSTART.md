@@ -67,7 +67,7 @@ The source of truth for order is `docs/ROADMAP.md`. It has three tracks: **local
   - CI trim: Linux on every push; the macOS + Windows matrix only on PRs to `main`, tags and `workflow_dispatch`.
 - **L2. Local runtime bring-up and hardening (S–M).**
   - Runtime: Ollama or LM Studio (both support tool calling). **Not `mlx_lm.server`:** it documents no tool calling and is "not recommended for production". MLX is for fine-tuning only.
-  - Models to trial on the M4 Pro: first wave at 24 GB: Qwen3.5-9B (Q4/Q6), Gemma 4 12B (Q4/Q6), Gemma 4 26B-A4B (Q4, tight). Second wave once the machine has 64 GB: the largest Qwen3.5 and Gemma 4 variants at Q6/Q8, and one 70B-class model at Q4 as a ceiling test. Memory and speed budgets are in the ROADMAP L2 notes.
+  - Models to trial on the M4 Pro: first wave at 24 GB: Qwen3.5-9B (Q4/Q6), Gemma 4 12B (Q4/Q6), Gemma 4 26B-A4B (Q4, tight). Second wave at 64 GB, the backup size: the largest Qwen3.5 and Gemma 4 variants at Q6/Q8, and one 70B-class model at Q4 as a ceiling test. Third wave at 128 GB, the target: 100B-class mixture-of-experts and 70B-class dense models, and pairs of a fast routine model with a large hard-task model. Memory, speed, machine choice and backup plans are in ROADMAP "Hardware plan and backups".
   - Set the context length to fit the GPU memory budget, and record tokens/s.
   - Hardening:
     - with an Ollama profile, query `GET /api/show` at startup and warn when the context is under 32k;
