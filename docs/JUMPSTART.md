@@ -58,7 +58,7 @@ v0.1 in detail:
 
 ## Backlog — in priority order, with acceptance criteria
 
-The source of truth for order is `docs/ROADMAP.md`. It has two tracks: **local AI first, Akkha second.** Item IDs match it. Do **one item per commit**, with `bun run check` green.
+The source of truth for order is `docs/ROADMAP.md`. It has three tracks: **local AI first, Akkha second, modes and media third.** Item IDs match it. Do **one item per commit**, with `bun run check` green.
 
 ### Track 1 — Local AI (mrig)
 
@@ -78,10 +78,10 @@ The source of truth for order is `docs/ROADMAP.md`. It has two tracks: **local A
   - CI trim: Linux on every push; the macOS + Windows matrix only on PRs to `main`, tags and `workflow_dispatch`.
 - **L2. Local runtime bring-up and hardening (S–M).**
   - Runtime: Ollama or LM Studio (both support tool calling). **Not `mlx_lm.server`:** it documents no tool calling and is "not recommended for production". MLX is for fine-tuning only.
-  - Models to trial on the M4 Pro (24 GB): Qwen3.5-9B (Q4/Q6), Gemma 4 12B (Q4/Q6), Gemma 4 26B-A4B (Q4, tight).
+  - Models to trial on the M4 Pro: first wave at 24 GB: Qwen3.5-9B (Q4/Q6), Gemma 4 12B (Q4/Q6), Gemma 4 26B-A4B (Q4, tight). Second wave at 64 GB, the backup size: the largest Qwen3.5 and Gemma 4 variants at Q6/Q8, and one 70B-class model at Q4 as a ceiling test. Third wave at 128 GB, the target: 100B-class mixture-of-experts and 70B-class dense models, and pairs of a fast routine model with a large hard-task model. Memory, speed, machine choice and backup plans are in ROADMAP "Hardware plan and backups".
   - Set the context length to fit the GPU memory budget, and record tokens/s.
   - Hardening:
-    - with an Ollama profile, query `GET /api/show` at startup and warn when the context is under 32k;
+    - with an Ollama profile, query `POST /api/show` at startup and warn when the context is under 32k;
     - add `toolMode: "minimal"` (bash-only) for models that can't do multi-tool calling;
     - retry once on empty tool arguments.
   - **Acceptance:** each candidate model completes a read → edit → bash task, and the hardening behaviours have tests.
@@ -89,6 +89,7 @@ The source of truth for order is `docs/ROADMAP.md`. It has two tracks: **local A
   - A mini-SWE-agent-style script that runs about 10 repo tasks headless (`-p`) against every profile: read, edit, write, grep/glob, bash, and a multi-step fix.
   - Report per profile: pass rate, tool-call validity, how often `repairJson` was used, tokens/s, and cost.
   - **Acceptance:** a compatibility matrix is committed, and the default `local` profile is chosen from it. Track 2 later adds chrF + human review for language tasks.
+  - **Follow-up (S):** no `local` profile exists yet. Add it to the built-in profiles once Robin's first matrix exists, plus `local-hard` at 128 GB. This waits on Robin's run; do L4 and L5 meanwhile.
 - **L4. Two-tier compaction (M).**
   - **Tier (a):** cheap pruning of old tool results and reasoning (AI SDK 7 `pruneMessages`).
   - **Tier (b):** an LLM summary when the estimated transcript tokens exceed a threshold.
@@ -96,6 +97,8 @@ The source of truth for order is `docs/ROADMAP.md`. It has two tracks: **local A
     - The threshold defaults to 70% of `profile.contextWindow`, or of 128k if unset, and is configurable as `compaction.threshold`.
     - It runs before the next step, through the existing `Agent.compact()`, with a configurable `compactModel` (the local model when offline).
     - It keeps the last 4 messages verbatim after the summary, and emits `onNotice`.
+    - Cut at a turn boundary: the kept tail must never start with a tool result whose call was summarized away.
+  - **Preserved thinking:** for Claude models that keep thinking blocks (Fable 5.1, Opus 5.5, Sonnet 5.5), tier (a) edits history ahead of kept thinking blocks, which newer accounts can see rejected. Check Anthropic's current docs; for those profiles prefer tier (b), which replaces the whole history.
   - Trigger rarely, because every compaction invalidates the prompt cache.
   - **Tests:** the threshold triggers with the mock model; below it nothing happens; the transcript after compaction still round-trips through `Session`. A 100-step local session never overflows.
 - **L5. Offline guarantee (M).**
@@ -108,6 +111,8 @@ The source of truth for order is `docs/ROADMAP.md`. It has two tracks: **local A
     - refuse cross-zone resume.
   - Pure config logic with unit tests.
   - **Acceptance:** the L3 harness passes with networking disabled.
+  - **Keep the harness working:** the harness runs with permissions off in temp folders that carry no zone marker and does not pass `--offline`, so the `--yolo` refusal must not apply to it.
+  - **One loopback check:** move the harness's `isLocalProfile` into `src/config.ts` and use it for the zone rule too.
 - **L6. MCP → fetch → TUI (S / S / M).**
   - **MCP:**
     - Library: `@modelcontextprotocol/sdk` or `@ai-sdk/mcp` (`createMCPClient`). Choose by reading both `.d.ts` files.
@@ -130,7 +135,7 @@ The source of truth for order is `docs/ROADMAP.md`. It has two tracks: **local A
 
 Language rules: `docs/LANGUAGE.md`. Details: `docs/ROADMAP.md` and `docs/related/`.
 
-- **A1. Font spike (S, font repo, not mrig).** Brahmi re-encode, `brah` script tag, `hb-shape` → Safari / Word / Chrome. It may run earlier, because it touches no mrig code.
+- **A1. Font spike (S, font repo, not mrig).** Brahmi re-encode, `brah` script tag, `hb-shape` → Safari / Word / Chrome. Run it during v1.0: it touches no mrig code, and A2 waits for it, because a failed Brahmi spike moves the encoding to the PUA fallback.
 - **A2. Transliteration (S/M, after A1).**
   - A Devanagari (NFC) hub ↔ Akkha-Brahmi and ISO 15919-style romanization.
   - A table-driven character map, as pure functions.
@@ -148,6 +153,35 @@ Language rules: `docs/LANGUAGE.md`. Details: `docs/ROADMAP.md` and `docs/related
   - A7: Contribute mode.
   - A8: language evaluation (chrF + human review), then NLLB / speech recognition.
   - See `docs/ROADMAP.md`.
+
+### Track 3 — Modes and media (mrig, after v1.0)
+
+Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, not commitments.
+
+- **T1. Modes (S).**
+  - `/mode default|teach|learn` and `--mode <name>`.
+  - A mode is a named preset of system-prompt text and permission defaults, defined in code.
+  - `teach` explains before acting, works in small steps, and asks the user to try the next step first. `learn` quizzes the user and records what was covered.
+  - **Acceptance:** mock-model tests show the prompt and the permission behaviour change per mode; the mode is saved in the session meta and survives `-c`; each mode's prompt stays under ~1,000 tokens before memory.
+- **T2. Learner memory (S–M).**
+  - Write a decision note in `docs/decisions/` first: what is stored, where (local only), how the user inspects it (`/learned`) and deletes it (`/forget`).
+  - **Acceptance:** Robin approves the note before any code; then read, write and delete are tested; nothing is sent over the network; the offline guarantee (L5) is respected.
+- **T3. Vision input (S).**
+  - An image path in a prompt reaches vision-capable models as an image part. Add a profile flag for vision support.
+  - **Acceptance:** a mock-model test shows the image part reaching the model; a profile without vision gets a clear message, not a crash.
+- **T4. Image generation (S–M).**
+  - An `image` tool with a configurable provider. It saves the file, returns the path, asks permission unless an `image:*` rule allows it, and prices each image.
+  - **Acceptance:** mock tests for the tool, the permission gate and the price math; a manual live check with one real provider.
+- **T5. Speech (M).**
+  - `speak` (text to speech) and `transcribe` (speech to text), with a local option.
+  - **Acceptance:** as T4, plus a local round trip that passes with networking disabled.
+- **T6. Video (M–L).**
+  - A `video` tool that starts a job, polls it and downloads the result. The SDK marks video as experimental, so read its types first.
+  - **Acceptance:** a short clip is generated end to end; a per-job cost cap stops an over-budget job.
+- **T7. Model routing (unranked; only when asked).** Send easy work to a local model and hard work to a frontier model by rule.
+- **T8. Akkha tutor mode (S–M).** The language tutor, built on `learn` mode, language memory (A3) and corpus search (A4). **Acceptance:** defined when T1, T2, A3 and A4 have landed.
+
+Shared rules for T3–T6: files on disk, sessions store paths not bytes; every call asks permission unless a rule allows it; costs use the same pricing table; only local generators are allowed under L5; no telemetry. Read the `.d.ts` files for each media function before using it.
 
 ## Start now
 
