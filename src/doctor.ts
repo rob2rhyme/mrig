@@ -4,6 +4,7 @@
  * runs the same check for the active profile at startup and prints a one-line warning.
  */
 import { type MrigConfig, type ProviderProfile, resolveApiKey } from './config.ts';
+import { isLocalProfile } from './zone.ts';
 
 export type CheckStatus =
   | 'ok'
@@ -12,7 +13,9 @@ export type CheckStatus =
   | 'auth'
   | 'unreachable'
   /** The server answered but gave no usable model list; the id was not checked. */
-  | 'no-list';
+  | 'no-list'
+  /** Offline mode: a profile that is not on this machine is not contacted. */
+  | 'offline';
 
 export interface ModelCheck {
   name: string;
@@ -54,6 +57,8 @@ export interface DoctorOptions {
   fetch?: typeof fetch;
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
+  /** Offline mode (L5): skip profiles that are not on this machine. */
+  offline?: boolean;
 }
 
 function suggest(model: string, ids: string[]): string {
@@ -74,6 +79,14 @@ export async function checkProfile(
   const doFetch = opts.fetch ?? fetch;
   const key = resolveApiKey(profile, env);
   const base = { name, profile, models: [] as string[] };
+
+  if (opts.offline && !isLocalProfile(profile)) {
+    return {
+      ...base,
+      status: 'offline',
+      message: 'skipped: offline mode only contacts this machine',
+    };
+  }
 
   if (profile.kind !== 'openai-compatible' && !key) {
     const envName =

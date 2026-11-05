@@ -8,8 +8,8 @@ import type { Answer, AskRequest } from '../permissions.ts';
 import { findMemoryFiles } from '../prompt.ts';
 import { CACHE_WRITE_MULTIPLIER, explainCacheMiss, formatModelError } from '../providers.ts';
 import { Runtime, type RuntimeOptions } from '../runtime.ts';
-import { Session } from '../session.ts';
 import { VERSION } from '../version.ts';
+import { describeOffline } from '../zone.ts';
 import { bold, cyan, dim, green, magenta, red, yellow } from './ansi.ts';
 
 const out = (s: string) => process.stdout.write(s);
@@ -173,6 +173,11 @@ export class Repl {
     this.write(
       `${bold(magenta('mrig'))} ${dim(`v${VERSION}`)} · ${rt.modelLabel()}${rt.permissions.yolo ? ` · ${yellow('yolo')}` : ''}\n`,
     );
+    if (rt.offline) {
+      this.write(
+        `${yellow(describeOffline(rt.offline))} ${dim('· local models only · every write, edit and command asks')}\n`,
+      );
+    }
     this.write(
       `${dim(`${rt.cwd}${memory.length ? ` · memory: ${memory.map((m) => m.split('/').pop()).join(', ')}` : ''}`)}\n`,
     );
@@ -312,14 +317,18 @@ export class Repl {
         rt.save();
         return this.info('Conversation cleared.');
       case 'yolo':
-        rt.permissions.yolo = !rt.permissions.yolo;
+        try {
+          rt.setYolo(!rt.permissions.yolo);
+        } catch (err) {
+          return this.info(red((err as Error).message));
+        }
         return this.info(
           rt.permissions.yolo
             ? yellow('yolo ON — no permission prompts')
             : 'yolo off — prompts enabled',
         );
       case 'sessions': {
-        const list = Session.list().slice(0, 20);
+        const list = rt.listSessions().slice(0, 20);
         if (!list.length) return this.info('No sessions yet.');
         for (const s of list) {
           const here = s.cwd === rt.cwd ? green('•') : dim('·');
@@ -333,9 +342,7 @@ export class Repl {
       case 'resume': {
         if (!arg) return this.info('usage: /resume <id>');
         try {
-          const s = Session.load(arg);
-          rt.session = s;
-          rt.agent.messages = s.messages;
+          const s = rt.resume(arg);
           return this.info(`Resumed ${s.meta.id} (${s.messages.length} messages).`);
         } catch (err) {
           return this.info(red((err as Error).message));

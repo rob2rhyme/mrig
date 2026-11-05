@@ -29,6 +29,8 @@ export interface SessionMeta {
   provider: string;
   model: string;
   title: string;
+  /** The offline zone this session belongs to (L5); absent outside zones. */
+  zone?: string;
 }
 
 type Line = { type: 'meta' } & SessionMeta;
@@ -42,8 +44,9 @@ function padHead(head: string, width: number): string {
   return len >= width ? head : head + ' '.repeat(width - len);
 }
 
-export function sessionsDir(): string {
-  const dir = join(mrigHome(), 'sessions');
+/** Where sessions live: `dir` when given (an offline zone's folder), else ~/.mrig/sessions. */
+export function sessionsDir(dir?: string): string {
+  dir ??= join(mrigHome(), 'sessions');
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -82,13 +85,17 @@ export class Session {
   private headWidth: number;
   /** False for in-memory sessions (the eval harness): nothing is ever written to disk. */
   private persist = true;
+  /** The sessions folder (an offline zone's), or undefined for ~/.mrig/sessions. */
+  private readonly dir: string | undefined;
 
   private constructor(
     meta: SessionMeta,
     messages: ModelMessage[],
     savedCount: number,
     headWidth: number,
+    dir?: string,
   ) {
+    this.dir = dir;
     this.meta = meta;
     this.messages = messages;
     this.savedCount = savedCount;
@@ -96,7 +103,7 @@ export class Session {
   }
 
   get filePath(): string {
-    return join(sessionsDir(), `${this.meta.id}.jsonl`);
+    return join(sessionsDir(this.dir), `${this.meta.id}.jsonl`);
   }
 
   static create(opts: {
@@ -105,6 +112,10 @@ export class Session {
     model: string;
     /** Keep the session in memory only; nothing touches ~/.mrig/sessions. */
     ephemeral?: boolean;
+    /** Sessions folder (an offline zone's); default ~/.mrig/sessions. */
+    dir?: string;
+    /** The offline zone the session belongs to. */
+    zone?: string;
   }): Session {
     const now = new Date().toISOString();
     const meta: SessionMeta = {
@@ -115,15 +126,16 @@ export class Session {
       provider: opts.provider,
       model: opts.model,
       title: '',
+      ...(opts.zone ? { zone: opts.zone } : {}),
     };
-    const s = new Session(meta, [], 0, 0);
+    const s = new Session(meta, [], 0, 0, opts.dir);
     if (opts.ephemeral) s.persist = false;
     s.writeAll();
     return s;
   }
 
-  static load(id: string): Session {
-    const path = join(sessionsDir(), `${id}.jsonl`);
+  static load(id: string, dir?: string): Session {
+    const path = join(sessionsDir(dir), `${id}.jsonl`);
     if (!existsSync(path)) throw new Error(`No session with id "${id}".`);
     const content = readFileSync(path, 'utf8');
     const firstBreak = content.indexOf('\n');
@@ -139,11 +151,11 @@ export class Session {
       } else if (line.type === 'message') messages.push(line.message);
     }
     if (!meta) throw new Error(`Session file ${path} has no meta line.`);
-    return new Session(meta, messages, messages.length, headWidth);
+    return new Session(meta, messages, messages.length, headWidth, dir);
   }
 
-  static list(): SessionMeta[] {
-    const dir = sessionsDir();
+  static list(where?: string): SessionMeta[] {
+    const dir = sessionsDir(where);
     const metas: SessionMeta[] = [];
     for (const name of readdirSync(dir)) {
       if (!name.endsWith('.jsonl')) continue;
@@ -161,8 +173,8 @@ export class Session {
     return metas.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  static latest(cwd?: string): SessionMeta | undefined {
-    const all = Session.list();
+  static latest(cwd?: string, dir?: string): SessionMeta | undefined {
+    const all = Session.list(dir);
     return cwd ? all.find((m) => m.cwd === cwd) : all[0];
   }
 
