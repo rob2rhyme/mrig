@@ -21,6 +21,7 @@ Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L5 are built:
 - **L4 compaction:** `src/compaction.ts` plus `Agent.maybeCompact()`. Before each step, past `compaction.threshold` (70% of the window), old tool activity is pruned; if that is not enough, all but the last `compaction.keep` messages are summarized, by `compaction.compactModel` if set. Preserved-thinking Claude models skip pruning. `/context` shows the numbers.
 - **L5 offline guarantee:** `src/zone.ts` holds the rules; the Runtime applies them at startup, `/model`, `/provider`, the compaction model, `/yolo`, resume and the tool set. Triggered by `--offline` or a `.mrig-zone` marker (same upward search as AGENTS.md). Local profiles only (`isLocalProfile`, shared with the eval harness); prompts always on and bash rules ignored; tools marked `remote` dropped; zone sessions under `<zone>/.mrig/sessions` with a `.gitignore`; no resume across a zone boundary.
 - **L6 MCP client:** `src/mcp.ts` (`McpManager`, built on `@ai-sdk/mcp`). `Runtime.startMcp()` connects the servers in `mcpServers` from `~/.mrig/config.json` (a project config's servers are ignored, with a notice) and adds their tools as `mcp__<server>__<tool>`: never read-only, JSON Schema passed through via `MrigTool.parameters`, remote ones marked `remote`. `/mcp` shows status. Test server: `tests/fixtures/mcp-echo-server.ts`.
+- **L6 fetch tool:** `src/tools/fetch.ts`, the seventh built-in tool. Asks unless `fetch:<domain-glob>` matches the host; refuses non-public addresses after DNS and on every redirect (`isBlockedAddress`); 20 s, 2 MB download, 100 KB text; HTML converted with Bun's `HTMLRewriter`; `remote`, so offline mode drops it. Residual risk: DNS rebinding between the check and the connection.
 
 v0.1 in detail:
 
@@ -40,7 +41,7 @@ v0.1 in detail:
 
 - Prompt caching (L0) is implemented for Anthropic profiles, but the live acceptance check still has to be run against the API by hand: `cacheReadTokens > 0` from the second request on, once the prompt is longer than the model's minimum cacheable prefix.
 - Automatic compaction (L4) needs the right context window: set `contextWindow` on local profiles, or let the REPL read it from Ollama. Headless runs on local profiles without one assume 32,768 tokens.
-- No web fetch tool yet, no reasoning display, no subagents, plain readline UI.
+- No web search, no reasoning display, no subagents, plain readline UI.
 - A project's `.mrig/config.json` can still add allow rules, providers and `permissions.yolo` when mrig starts in that folder. Only MCP servers are restricted to the global config. Treat cloned repos' `.mrig/` folders with care until this is tightened.
 - The offline guarantee (L5) does not sandbox the shell: an approved bash command can still reach the network. Offline mode keeps every command behind a prompt instead.
 - `openai` profile default model id `gpt-5` is unverified; `lmstudio` model id is a placeholder. `mrig doctor` (L1) checks both against the server's model list instead of guessing.

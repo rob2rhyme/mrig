@@ -238,10 +238,17 @@ read shell commands before you approve them.
 | edit   | Exact string replacement; must match once               | asks     |
 | write  | Create/overwrite a file                                  | asks     |
 | bash   | Run a shell command (bash/sh; PowerShell on Windows)    | asks     |
+| fetch  | Read a public web page or API as text (100 KB max)      | asks     |
 
 At a prompt answer `y` (once), `n` (deny — the model is told and asked to adapt), or `a`
 (always — adds a rule for this session, e.g. `bash:npm test` or `edit:src/**`). Copy rules
 you like into `permissions.allow` to make them permanent. `--yolo` or `/yolo` skips prompts.
+
+**fetch** reads public web pages and APIs as text: HTML becomes readable text with links, up to
+100 KB, with a 20-second timeout and a 2 MB download limit. It refuses private, loopback and
+link-local addresses (your router, localhost services, cloud metadata), checked again on every
+redirect. Allow hosts with rules such as `fetch:docs.python.org` or `fetch:*.github.io`.
+Offline mode removes it.
 
 ## Sessions and memory
 
@@ -358,7 +365,7 @@ models.
 
 ## Status
 
-v0.1 — Phase 0 + 1: loop, six tools, providers, permissions, sessions, memory, REPL, headless
+v0.1 — Phase 0 + 1: loop, six tools (now seven, with fetch), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
 `toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client. Next (see `docs/ROADMAP.md`):

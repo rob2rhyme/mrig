@@ -6,6 +6,7 @@
  *   "bash:<prefix>"   allow bash commands whose trimmed text starts with <prefix>
  *   "write:<glob>"    allow writes to paths matching <glob> (relative to cwd, or absolute)
  *   "edit:<glob>"     allow edits to matching paths
+ *   "fetch:<glob>"    allow fetching from hosts matching <glob>, e.g. "fetch:*.python.org"
  *   "<tool>:*"        allow every call of that tool
  */
 import type { AnyTool } from './tools/index.ts';
@@ -60,6 +61,17 @@ function inputPath(input: unknown): string | undefined {
   return undefined;
 }
 
+function inputHost(input: unknown): string | undefined {
+  if (input && typeof input === 'object' && 'url' in input && typeof input.url === 'string') {
+    try {
+      return new URL(input.url).hostname.toLowerCase();
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 function inputCommand(input: unknown): string | undefined {
   if (
     input &&
@@ -108,6 +120,11 @@ export class PermissionManager {
         if (cmd.startsWith(rule.pattern)) return true;
         continue;
       }
+      if (tool.name === 'fetch') {
+        const host = inputHost(input);
+        if (host && rule.re?.test(host)) return true;
+        continue;
+      }
       const p = inputPath(input);
       if (p === undefined || !rule.re) continue;
       const rel = displayPath(this.cwd, p);
@@ -124,6 +141,10 @@ export class PermissionManager {
       // First two words is a sensible prefix: "git status", "npm test", "bun run".
       const prefix = cmd.split(/\s+/).slice(0, 2).join(' ');
       return `bash:${prefix}`;
+    }
+    if (tool.name === 'fetch') {
+      const host = inputHost(input);
+      return host ? `fetch:${host}` : 'fetch:*';
     }
     const p = inputPath(input);
     if (p) {
