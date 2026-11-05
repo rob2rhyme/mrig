@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { Agent, type AgentEvents, repairJson } from '../src/agent.ts';
+import { Agent, type AgentEvents, isEmptyInput, repairJson } from '../src/agent.ts';
 import { PermissionManager } from '../src/permissions.ts';
-import { DEFAULT_TOOLS } from '../src/tools/index.ts';
+import { DEFAULT_TOOLS, toolsForMode } from '../src/tools/index.ts';
 import { mockModel, tempDir, textTurn, toolTurn } from './helpers.ts';
 
 function makeAgent(
@@ -106,6 +106,8 @@ describe('Agent loop', () => {
     expect(result.stop).toBe('done');
     expect(result.steps).toBe(2); // the model got a second turn to correct itself
     expect(toolLog).toEqual([]); // rejected before onToolStart
+    // Exactly one tool-result per call id: the SDK's own error result is dropped.
+    expect(agent.messages.map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'assistant']);
     const toolMsg = agent.messages[2];
     if (toolMsg?.role !== 'tool') throw new Error('expected tool message');
     const part = toolMsg.content[0];
@@ -124,6 +126,7 @@ describe('Agent loop', () => {
     expect(result.steps).toBe(2);
     expect(text.join('')).toBe('ok, no teleporting');
     expect(notices[0]).toMatch(/invalid tool call \(teleport\)/);
+    expect(agent.messages.map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'assistant']);
     const toolMsg = agent.messages[2];
     if (toolMsg?.role !== 'tool') throw new Error('expected tool message');
     const part = toolMsg.content[0];
@@ -165,6 +168,86 @@ describe('Agent loop', () => {
     agent.clear();
     expect(agent.messages.length).toBe(0);
     expect(agent.usage.requests).toBe(0);
+  });
+});
+
+describe('local-model hardening (L2)', () => {
+  let t: ReturnType<typeof tempDir>;
+  beforeEach(async () => {
+    t = tempDir();
+    await Bun.write(join(t.dir, 'notes.txt'), 'hello from notes\n');
+  });
+  afterEach(() => t.cleanup());
+
+  test('isEmptyInput', () => {
+    for (const v of [undefined, null, '', {}]) expect(isEmptyInput(v)).toBe(true);
+    for (const v of [{ path: 'x' }, 'x', 0, [1]]) expect(isEmptyInput(v)).toBe(false);
+  });
+
+  test('empty arguments: one guided retry listing the fields, then the call succeeds', async () => {
+    const { agent, text, notices, toolLog } = makeAgent(
+      [
+        toolTurn('read', '{}', 'c1'),
+        toolTurn('read', '{"path":"notes.txt"}', 'c2'),
+        textTurn('It says hello.'),
+      ],
+      t.dir,
+    );
+    const result = await agent.run('read notes');
+    expect(result.stop).toBe('done');
+    expect(result.steps).toBe(3);
+    expect(text.join('')).toBe('It says hello.');
+    expect(notices).toContain('Model called read with no arguments; asked it to retry.');
+    expect(toolLog).toEqual(['start:read', 'end:read:ok']); // only the real call reached the tool
+    const roles = agent.messages.map((m) => m.role);
+    expect(roles).toEqual(['user', 'assistant', 'tool', 'assistant', 'tool', 'assistant']);
+    const retry = agent.messages[2];
+    if (retry?.role !== 'tool' || retry.content[0]?.type !== 'tool-result')
+      throw new Error('expected tool result');
+    const out = retry.content[0].output;
+    expect(out.type).toBe('error-text');
+    if (out.type === 'error-text') {
+      expect(out.value).toContain('had no arguments');
+      expect(out.value).toContain('path (string, required)');
+      expect(out.value).toContain('offset (number, optional)');
+    }
+    expect(retry.content.length).toBe(1); // no duplicate result from the SDK
+  });
+
+  test('a second empty call in a row gets the plain validation error, not another guide', async () => {
+    const { agent, notices } = makeAgent(
+      [toolTurn('read', '', 'c1'), toolTurn('read', '{}', 'c2'), textTurn('giving up')],
+      t.dir,
+    );
+    await agent.run('read notes');
+    expect(notices.filter((n) => n.includes('no arguments')).length).toBe(1);
+    const second = agent.messages[4];
+    if (second?.role !== 'tool' || second.content[0]?.type !== 'tool-result')
+      throw new Error('expected tool result');
+    const out = second.content[0].output;
+    if (out.type === 'error-text') expect(out.value).toMatch(/^Invalid input: path/);
+    else throw new Error('expected error-text');
+  });
+
+  test('minimal tool mode exposes bash only; setTools swaps the registry live', async () => {
+    expect(toolsForMode('minimal').map((x) => x.name)).toEqual(['bash']);
+    expect(toolsForMode('full')).toBe(DEFAULT_TOOLS);
+    expect(toolsForMode()).toBe(DEFAULT_TOOLS);
+    const { agent, text } = makeAgent(
+      [toolTurn('read', '{"path":"notes.txt"}', 'c1'), textTurn('no read tool here')],
+      t.dir,
+    );
+    agent.setTools(toolsForMode('minimal'));
+    await agent.run('read notes');
+    const toolMsg = agent.messages[2];
+    if (toolMsg?.role !== 'tool' || toolMsg.content[0]?.type !== 'tool-result')
+      throw new Error('expected tool result');
+    const out = toolMsg.content[0].output;
+    if (out.type === 'error-text') expect(out.value).toMatch(/Unknown tool "read"/);
+    else throw new Error('expected error-text');
+    expect(text.join('')).toBe('no read tool here');
+    agent.setTools(DEFAULT_TOOLS);
+    expect(agent.opts.tools.length).toBe(6);
   });
 });
 

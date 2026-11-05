@@ -176,9 +176,26 @@ to the model to retry). Give local models ≥64k context and prefer models train
 tool use (Qwen3-Coder / Qwen3.x, GLM-Flash, DeepSeek-Flash, Devstral). Use `/model` to hand a
 hard task to Claude mid-session — the conversation carries over.
 
+Hardening for weak local models (L2):
+
+- **Context check.** For Ollama profiles, mrig asks `POST /api/show` at startup (and in
+  `mrig doctor`) and warns when the model runs with under 32k context, or when Ollama reports
+  none (the server default is 4,096 unless `OLLAMA_CONTEXT_LENGTH` is set). Fix:
+  `OLLAMA_CONTEXT_LENGTH=65536 ollama serve`, or `PARAMETER num_ctx 65536` in a Modelfile.
+- **`"toolMode": "minimal"`** on a profile exposes only `bash`. Models that cannot juggle six
+  tools read and edit files through shell commands instead, and the system prompt tells them how.
+  `/model` and `/provider` switch tool sets along with the profile.
+- **Empty arguments.** When a model calls a tool with `{}`, the first time it is told exactly
+  which fields the tool takes and asked to retry; a second empty call in a row gets the plain
+  validation error. Invalid calls always produce exactly one tool result, so the transcript
+  stays valid for strict APIs.
+
+The trial procedure and results for candidate models live in `docs/LOCAL_MODELS.md`.
+
 ## Status
 
 v0.1 — Phase 0 + 1: loop, six tools, providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L1 hygiene: `mrig doctor`, in-place session meta, leaner CI.
-Next (see `docs/ROADMAP.md`): prompt caching, local runtime hardening, eval harness, compaction,
-offline guarantee. Licensing is yours to choose before publishing (add a `LICENSE` file).
+L2 local-model hardening: Ollama context warning, bash-only `toolMode`, empty-argument retry.
+Next (see `docs/ROADMAP.md`): prompt caching, model trials, eval harness, compaction, offline
+guarantee. Licensing is yours to choose before publishing (add a `LICENSE` file).

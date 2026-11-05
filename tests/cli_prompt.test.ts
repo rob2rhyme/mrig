@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { parseArgs } from '../src/cli/args.ts';
 import { buildSystemPrompt, findMemoryFiles } from '../src/prompt.ts';
+import { Runtime } from '../src/runtime.ts';
 import { firstLines, humanBytes, truncateMiddle } from '../src/util/text.ts';
 import { tempDir } from './helpers.ts';
 
@@ -86,6 +87,46 @@ describe('system prompt and memory', () => {
     const prompt = buildSystemPrompt({ cwd: t.dir, modelLabel: 'x/y' });
     expect(prompt).not.toContain('Project memory');
     expect(prompt.length).toBeLessThan(4000); // ≈ under 1k tokens
+  });
+
+  test('minimal tool mode swaps the file-tool guidance for a bash-only workflow', () => {
+    const full = buildSystemPrompt({ cwd: t.dir, modelLabel: 'x/y' });
+    const minimal = buildSystemPrompt({ cwd: t.dir, modelLabel: 'x/y', toolMode: 'minimal' });
+    expect(full).toContain('use glob and grep');
+    expect(full).not.toContain('Only the bash tool');
+    expect(minimal).toContain('Only the bash tool is available');
+    expect(minimal).not.toContain('Prefer edit');
+    expect(minimal.length).toBeLessThan(4000);
+  });
+
+  test('Runtime picks the tool set and prompt from the profile toolMode, also on switch', async () => {
+    await Bun.write(
+      join(home.dir, 'config.json'),
+      JSON.stringify({
+        providers: {
+          mini: {
+            kind: 'openai-compatible',
+            baseURL: 'http://127.0.0.1:1/v1',
+            model: 'tiny',
+            toolMode: 'minimal',
+          },
+          big: { kind: 'openai-compatible', baseURL: 'http://127.0.0.1:1/v1', model: 'large' },
+        },
+      }),
+    );
+    const rt = new Runtime({
+      cwd: t.dir,
+      provider: 'mini',
+      ask: async () => 'no',
+      events: { onText: () => {} },
+    });
+    expect(rt.agent.opts.tools.map((x) => x.name)).toEqual(['bash']);
+    expect(rt.agent.opts.systemPrompt).toContain('Only the bash tool');
+    rt.switchModel('big');
+    expect(rt.agent.opts.tools.length).toBe(6);
+    expect(rt.agent.opts.systemPrompt).not.toContain('Only the bash tool');
+    rt.switchModel('mini');
+    expect(rt.agent.opts.tools.map((x) => x.name)).toEqual(['bash']);
   });
 });
 

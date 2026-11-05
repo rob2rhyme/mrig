@@ -156,3 +156,108 @@ export async function doctor(
 export function hasProblems(checks: ModelCheck[]): boolean {
   return checks.some((c) => PROBLEM_STATUSES.has(c.status));
 }
+
+// ---- Ollama context length (L2 hardening) ----------------------------------------------------
+
+/** Agents need room for the system prompt, memory and tool output; below this they thrash. */
+export const MIN_LOCAL_CONTEXT = 32_768;
+
+export type ContextStatus = 'ok' | 'low' | 'unknown' | 'skipped';
+
+export interface ContextCheck {
+  status: ContextStatus;
+  /** Tokens, when the server reported one (num_ctx or the model's maximum). */
+  contextLength?: number;
+  message: string;
+}
+
+/** An openai-compatible profile that points at Ollama (by name, port or host). */
+export function isOllama(profile: ProviderProfile): boolean {
+  if (profile.kind !== 'openai-compatible' || !profile.baseURL) return false;
+  return (
+    profile.name?.toLowerCase() === 'ollama' ||
+    /:11434(\/|$)/.test(profile.baseURL) ||
+    /ollama/i.test(profile.baseURL)
+  );
+}
+
+/** `http://host:11434/v1` → `http://host:11434`, where Ollama's native API lives. */
+export function ollamaApiRoot(baseURL: string): string {
+  return baseURL.replace(/\/+$/, '').replace(/\/v1$/, '');
+}
+
+/** `num_ctx` from the `parameters` text of /api/show, when the Modelfile sets one. */
+export function parseNumCtx(parameters: unknown): number | undefined {
+  if (typeof parameters !== 'string') return undefined;
+  const m = /^\s*num_ctx\s+(\d+)/m.exec(parameters);
+  return m ? Number(m[1]) : undefined;
+}
+
+/** The model's trained maximum, e.g. `model_info["qwen3.context_length"]`. */
+export function modelMaxContext(modelInfo: unknown): number | undefined {
+  if (!modelInfo || typeof modelInfo !== 'object') return undefined;
+  for (const [key, value] of Object.entries(modelInfo as Record<string, unknown>)) {
+    if (key.endsWith('.context_length') && typeof value === 'number') return value;
+  }
+  return undefined;
+}
+
+const CONTEXT_FIX =
+  'Set OLLAMA_CONTEXT_LENGTH=65536 before `ollama serve`, or PARAMETER num_ctx 65536 in a Modelfile.';
+
+/**
+ * Ask Ollama (POST /api/show) what context the model runs with and warn under 32k. Ollama only
+ * reports `num_ctx` when a Modelfile sets it; otherwise the server default applies (4,096 unless
+ * OLLAMA_CONTEXT_LENGTH is set), which this cannot see, so that case is reported as unknown.
+ */
+export async function checkOllamaContext(
+  profile: ProviderProfile,
+  opts: DoctorOptions = {},
+): Promise<ContextCheck> {
+  if (!isOllama(profile) || !profile.baseURL)
+    return { status: 'skipped', message: 'not an Ollama profile' };
+  const doFetch = opts.fetch ?? fetch;
+  const url = `${ollamaApiRoot(profile.baseURL)}/api/show`;
+  let json: { parameters?: unknown; model_info?: unknown };
+  try {
+    const res = await doFetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: profile.model }),
+      signal: AbortSignal.timeout(opts.timeoutMs ?? 5000),
+    });
+    if (!res.ok)
+      return { status: 'skipped', message: `Ollama /api/show answered HTTP ${res.status}` };
+    json = (await res.json()) as typeof json;
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    return { status: 'skipped', message: `cannot reach ${url} (${reason})` };
+  }
+  const n = MIN_LOCAL_CONTEXT.toLocaleString();
+  const numCtx = parseNumCtx(json.parameters);
+  if (numCtx !== undefined) {
+    return numCtx >= MIN_LOCAL_CONTEXT
+      ? {
+          status: 'ok',
+          contextLength: numCtx,
+          message: `Ollama runs ${profile.model} with a ${numCtx.toLocaleString()}-token context`,
+        }
+      : {
+          status: 'low',
+          contextLength: numCtx,
+          message: `Ollama runs ${profile.model} with num_ctx ${numCtx.toLocaleString()}; agents need at least ${n}. ${CONTEXT_FIX}`,
+        };
+  }
+  const max = modelMaxContext(json.model_info);
+  if (max !== undefined && max < MIN_LOCAL_CONTEXT) {
+    return {
+      status: 'low',
+      contextLength: max,
+      message: `${profile.model} supports at most ${max.toLocaleString()} context tokens; agents need at least ${n}. Pick a model with a larger context.`,
+    };
+  }
+  return {
+    status: 'unknown',
+    message: `Ollama did not report a context length for ${profile.model} (no num_ctx in its Modelfile), so the server default applies: 4,096 unless OLLAMA_CONTEXT_LENGTH is set. Agents need at least ${n}. ${CONTEXT_FIX}`,
+  };
+}
