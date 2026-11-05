@@ -291,6 +291,7 @@ read shell commands before you approve them.
 | write  | Create/overwrite a file                                  | asks     |
 | bash   | Run a shell command (bash/sh; PowerShell on Windows)    | asks     |
 | fetch  | Read a public web page or API as text (100 KB max)      | asks     |
+| translit | Devanagari ↔ Akkha (Brahmi) ↔ ISO 15919, by fixed tables | never    |
 
 At a prompt answer `y` (once), `n` (deny — the model is told and asked to adapt), or `a`
 (always — adds a rule for this session, e.g. `bash:npm test` or `edit:src/**`). Copy rules
@@ -301,6 +302,35 @@ you like into `permissions.allow` to make them permanent. `--yolo` or `/yolo` sk
 link-local addresses (your router, localhost services, cloud metadata), checked again on every
 redirect. Allow hosts with rules such as `fetch:docs.python.org` or `fetch:*.github.io`.
 Offline mode removes it.
+
+## Akkha transliteration
+
+`translit` converts text between Devanagari, Akkha and romanization with fixed tables, so the
+model never writes Brahmi or romanization from memory. It is local and read-only, so it never
+asks and works offline. The rules are in [`docs/LANGUAGE.md`](docs/LANGUAGE.md).
+
+- **Devanagari (NFC) is the hub.** Akkha-Brahmi and romanization are converted to and from it.
+- **Akkha is the Unicode Brahmi block** (U+11000–1107F), one code point per Devanagari one.
+  This is **provisional** until the font spike (A1) passes and BAMA signs off; don't publish
+  Akkha text before then. You need a font with Brahmi glyphs to see it (the GurbachhanAkkhaRik
+  re-encode, or Noto Sans Brahmi for now).
+- **The lossy set is reported, never silent.** Akkha has no form for श, ष, visarga,
+  chandrabindu or nukta. श and ष become स; chandrabindu becomes anusvara; visarga and nukta
+  are dropped. Each conversion lists what it substituted and how often:
+
+  ```
+  𑀲𑀺𑀓𑁆𑀲𑀸
+  lossy (no Akkha form): श sha → स ×1; ष ssa → स ×1
+  ```
+
+  Characters with no mapping at all (ॐ, for example) are left as they are and listed too.
+- **Romanization is strict ISO 15919-style.** The inherent a is always written (नमस्ते →
+  namaste, मगर → magara), so it converts back exactly. ए and ओ are e and o. `:` separates letters
+  that would otherwise merge (क्ह → k:ha, कइ → ka:i). Dandas are `|` and `‖`; digits become
+  ASCII digits.
+- **Varieties.** Pass a variety tag (`mgp`, `mrd`, `kgj`, `kip`, `kif`, `kjl`, `kzq`) to get its
+  caveats: the Kaike table isn't frozen yet, and Kham spelling doesn't show the glottal stop or
+  breathy vowels, so keep audio and IPA with each entry.
 
 ## Sessions and memory
 
@@ -438,8 +468,8 @@ models.
 
 ## Status
 
-v0.1 — Phase 0 + 1: loop, six tools (now seven, with fetch), providers, permissions, sessions, memory, REPL, headless
+v0.1 — Phase 0 + 1: loop, six tools (now eight, with fetch and translit), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

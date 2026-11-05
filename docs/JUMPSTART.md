@@ -10,9 +10,9 @@ You are continuing development of **mrig**, my personal, local, model-agnostic t
 
 A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands, works with files, and answers general questions. One provider layer (Vercel AI SDK 7) serves Anthropic (`claude-sonnet-5` default, `claude-opus-5`, `claude-fable-5-1`, `claude-haiku-4-5-20251001`), OpenAI, and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, OpenRouter). It is for me alone: private repo, no telemetry, no analytics, no third-party scripts, ever. It compiles to a single binary per OS with `bun build --compile`.
 
-## Current state — v0.1 plus Track 1 items L0–L5
+## Current state — v0.1 plus Track 1 (L0–L7) and Track 2 A2
 
-Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L5 are built:
+Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7 and A2 are built:
 
 - **L0 prompt caching:** request-level automatic caching plus a system-block breakpoint for Anthropic profiles, cache-write pricing, a minimum-prefix table that `/cost` uses to explain a miss, and `cacheTtl`.
 - **L1 hygiene:** `mrig doctor` checks model ids against each provider's model list, the REPL runs the same check at startup, session meta is rewritten in place, and CI runs macOS and Windows only where it matters.
@@ -23,6 +23,8 @@ Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L5 are built:
 - **L6 MCP client:** `src/mcp.ts` (`McpManager`, built on `@ai-sdk/mcp`). `Runtime.startMcp()` connects the servers in `mcpServers` from `~/.mrig/config.json` (a project config's servers are ignored, with a notice) and adds their tools as `mcp__<server>__<tool>`: never read-only, JSON Schema passed through via `MrigTool.parameters`, remote ones marked `remote`. `/mcp` shows status. Test server: `tests/fixtures/mcp-echo-server.ts`.
 - **L6 fetch tool:** `src/tools/fetch.ts`, the seventh built-in tool. Asks unless `fetch:<domain-glob>` matches the host; refuses non-public addresses after DNS and on every redirect (`isBlockedAddress`); 20 s, 2 MB download, 100 KB text; HTML converted with Bun's `HTMLRewriter`; `remote`, so offline mode drops it. Residual risk: DNS rebinding between the check and the connection.
 - **L6 TUI:** `mrig --tui`. `src/ui/tui-controller.ts` holds all state and behaviour with no React (testable without a terminal); `src/ui/tui.tsx` is the Ink view. Slash commands, the banner and startup checks live in `src/ui/commands.ts`, shared with the readline REPL. Ink loads React DevTools only with `DEV=true`; `stubs/react-devtools-core` stands in for it so the single binary builds. The readline REPL stays the default.
+- **L7 quality of life:** `/verbose`, headless `--json` / `--output-last` (`src/headless.ts`), `mrig init` (`src/init.ts`).
+- **Track 2, A2 transliteration:** `src/lang/tables.ts` (the character tables, Brahmi provisional until A1) and `src/lang/translit.ts` (pure functions through the Devanagari NFC hub, lossy and unmapped reports). `src/tools/translit.ts` is the eighth built-in tool: read-only, local, so it never asks and stays offline.
 
 v0.1 in detail:
 
@@ -140,7 +142,7 @@ The source of truth for order is `docs/ROADMAP.md`. It has three tracks: **local
 Language rules: `docs/LANGUAGE.md`. Details: `docs/ROADMAP.md` and `docs/related/`.
 
 - **A1. Font spike (S, font repo, not mrig).** Brahmi re-encode, `brah` script tag, `hb-shape` → Safari / Word / Chrome. Run it during v1.0: it touches no mrig code, and A2 waits for it, because a failed Brahmi spike moves the encoding to the PUA fallback.
-- **A2. Transliteration (S/M, after A1).**
+- **A2. Transliteration (S/M, after A1).** ✅ Built 2026-11-05, before A1 by Robin's choice; the Brahmi table is provisional until A1 passes.
   - A Devanagari (NFC) hub ↔ Akkha-Brahmi and ISO 15919-style romanization.
   - A table-driven character map, as pure functions.
   - **Tests:** round-trip property tests on the Akkha-representable subset, plus an explicit lossy-set report (श, ष, visarga, chandrabindu, nukta) that never maps silently.

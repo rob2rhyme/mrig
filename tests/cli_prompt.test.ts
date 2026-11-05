@@ -137,7 +137,7 @@ describe('system prompt and memory', () => {
     expect(rt.agent.opts.tools.map((x) => x.name)).toEqual(['bash']);
     expect(rt.agent.opts.systemPrompt).toContain('Only the bash tool');
     rt.switchModel('big');
-    expect(rt.agent.opts.tools.length).toBe(7); // read, edit, write, bash, glob, grep, fetch
+    expect(rt.agent.opts.tools.length).toBe(8); // read, edit, write, bash, glob, grep, fetch, translit
     expect(rt.agent.opts.systemPrompt).not.toContain('Only the bash tool');
     rt.switchModel('mini');
     expect(rt.agent.opts.tools.map((x) => x.name)).toEqual(['bash']);

@@ -32,7 +32,19 @@ This is **track 2** work. It starts after Local AI v1.0; see [`docs/ROADMAP.md`]
 ## Round-trip tests and the lossy set
 
 - Round-trip property tests run on the **Akkha-representable subset** only.
-- Devanagari characters with no Akkha form are an **explicit lossy set**: श, ष, visarga, chandrabindu and nukta. The tool reports them and never maps them silently. The proposed default श/ष → स still needs Robin's confirmation.
+- Devanagari characters with no Akkha form are an **explicit lossy set**: श, ष, visarga, chandrabindu and nukta. The tool reports them and never maps them silently.
+  - श/ष → स: **confirmed by Robin, November 5, 2026.**
+  - Chandrabindu → anusvara, visarga dropped, nukta dropped (base letter kept): defaults in the tool, **pending Robin's confirmation**.
+- Everything else in Nepali Devanagari has an Akkha form (Robin, November 5, 2026), mapped one to one onto the Brahmi block. The Brahmi table stays provisional until the font spike passes.
+
+## Romanization conventions
+
+The tool's romanization is strict ISO 15919-style, so it converts back to Devanagari exactly:
+
+- The inherent a is always written (no schwa deletion): मगर → magara.
+- ए, ओ are e, o (Nepali has no short e/o to contrast with).
+- `:` separates letters that would otherwise read as one: क्ह → k:ha (ख is kh), कइ → ka:i (कै is kai).
+- Dandas are `|` and `‖`; Devanagari digits become ASCII digits.
 
 ## Varieties
 

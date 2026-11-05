@@ -140,7 +140,7 @@ describe('offline rules: zones and the other checks', () => {
     const offline = offlineTools(tools, { source: 'flag' }).map((x) => x.name);
     expect(offline).not.toContain('webpage');
     expect(offline).not.toContain('fetch'); // the built-in fetch tool is remote too
-    expect(offline).toEqual(['read', 'edit', 'write', 'bash', 'glob', 'grep']);
+    expect(offline).toEqual(['read', 'edit', 'write', 'bash', 'glob', 'grep', 'translit']); // translit is local
   });
 
   test('resume never crosses a zone boundary', () => {

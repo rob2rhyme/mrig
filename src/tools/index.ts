@@ -6,6 +6,7 @@ import { fetchTool } from './fetch.ts';
 import { globTool } from './glob.ts';
 import { grepTool } from './grep.ts';
 import { readTool } from './read.ts';
+import { translitTool } from './translit.ts';
 import type { MrigTool } from './types.ts';
 import { writeTool } from './write.ts';
 
@@ -24,6 +25,7 @@ export const DEFAULT_TOOLS: AnyTool[] = [
   globTool,
   grepTool,
   fetchTool,
+  translitTool,
 ];
 
 /** The tool set for a profile's `toolMode`: everything, or bash alone for weak local models. */
