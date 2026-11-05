@@ -261,6 +261,22 @@ mrig reads `AGENTS.md` (or `MRIG.md`) from the current directory up to the git r
 `~/.mrig/AGENTS.md`, into the system prompt — the same idea as Claude Code's `CLAUDE.md`.
 Put project conventions, commands, and rules there.
 
+## Terminal UI (experimental)
+
+`mrig --tui` starts a terminal UI instead of the plain line-by-line REPL:
+
+- **Transcript:** your messages, the model's replies as they stream, and one line per tool call
+  with its result. Finished output stays in your terminal's scrollback, so you scroll it the
+  usual way.
+- **Permission prompts** appear in a box: press `y`, `n` or `a`.
+- **Status line** at the bottom: model, tokens in and out, estimated cost, how full the
+  context is, MCP servers, and offline or yolo mode.
+- Slash commands are the same as in the REPL (they share one implementation). Up and down
+  recall earlier input; Ctrl+C stops a running turn, and twice quits; Ctrl+D quits too.
+
+It needs an interactive terminal; without one mrig falls back to the plain REPL. The plain REPL
+stays the default until the TUI has had more real use.
+
 ## Slash commands
 
 `/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/mcp` · `/clear` ·
@@ -368,5 +384,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now seven, with fetch), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client. Next (see `docs/ROADMAP.md`):
-model trials and the first real matrix, the fetch tool and the TUI. Licensing is yours to choose before publishing (add a `LICENSE` file).
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. Next (see `docs/ROADMAP.md`):
+model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

@@ -5,12 +5,10 @@
 import { createInterface, type Interface } from 'node:readline/promises';
 import type { AgentEvents, ToolCallInfo, ToolCallOutcome } from '../agent.ts';
 import type { Answer, AskRequest } from '../permissions.ts';
-import { findMemoryFiles } from '../prompt.ts';
-import { CACHE_WRITE_MULTIPLIER, explainCacheMiss, formatModelError } from '../providers.ts';
+import { formatModelError } from '../providers.ts';
 import { Runtime, type RuntimeOptions } from '../runtime.ts';
-import { VERSION } from '../version.ts';
-import { describeOffline } from '../zone.ts';
-import { bold, cyan, dim, green, magenta, red, yellow } from './ansi.ts';
+import { bold, cyan, dim, magenta, red, yellow } from './ansi.ts';
+import { bannerLines, runCommand, startupChecks } from './commands.ts';
 
 const out = (s: string) => process.stdout.write(s);
 
@@ -130,7 +128,12 @@ export class Repl {
     }
     await this.runtime.startMcp();
     this.banner();
-    this.checkModelInBackground();
+    const rt = this.runtime;
+    startupChecks(
+      rt,
+      (m) => this.write(`${yellow('!')} ${m}\n`),
+      () => this.runtime === rt,
+    );
     if (initialPrompt) await this.send(initialPrompt);
     for (;;) {
       const line = await this.prompt();
@@ -147,56 +150,8 @@ export class Repl {
     await this.runtime.close();
   }
 
-  /**
-   * Startup checks (L1, L2): short background requests; only problems are reported.
-   * Model id not served by the provider, or an Ollama model running with under 32k context.
-   */
-  private checkModelInBackground(): void {
-    const rt = this.runtime;
-    void rt
-      .checkModel({ timeoutMs: 3000 })
-      .then((c) => {
-        if (c.status !== 'unknown-model' || this.runtime !== rt) return;
-        this.write(`${yellow('!')} ${c.message} ${dim('· mrig doctor')}\n`);
-      })
-      .catch(() => {});
-    void rt
-      .checkContext({ timeoutMs: 3000 })
-      .then((c) => {
-        if ((c.status !== 'low' && c.status !== 'unknown') || this.runtime !== rt) return;
-        this.write(`${yellow('!')} ${c.message}\n`);
-      })
-      .catch(() => {});
-  }
-
   private banner(): void {
-    const rt = this.runtime;
-    const memory = findMemoryFiles(rt.cwd);
-    this.write(
-      `${bold(magenta('mrig'))} ${dim(`v${VERSION}`)} · ${rt.modelLabel()}${rt.permissions.yolo ? ` · ${yellow('yolo')}` : ''}\n`,
-    );
-    if (rt.offline) {
-      this.write(
-        `${yellow(describeOffline(rt.offline))} ${dim('· local models only · every write, edit and command asks')}\n`,
-      );
-    }
-    this.write(
-      `${dim(`${rt.cwd}${memory.length ? ` · memory: ${memory.map((m) => m.split('/').pop()).join(', ')}` : ''}`)}\n`,
-    );
-    const mcp = rt.mcpStatus();
-    if (mcp.length > 0) {
-      const up = mcp.filter((x) => x.state === 'connected');
-      const tools = up.reduce((n, x) => n + x.tools.length, 0);
-      const failed = mcp.filter((x) => x.state === 'failed').length;
-      this.write(
-        `${dim(`mcp: ${up.length} of ${mcp.length} server${mcp.length === 1 ? '' : 's'} · ${tools} tool${tools === 1 ? '' : 's'}`)}${failed ? ` ${yellow(`· ${failed} failed, see /mcp`)}` : ''}\n`,
-      );
-    }
-    if (rt.agent.messages.length)
-      this.write(
-        `${dim(`resumed session ${rt.session.meta.id} (${rt.agent.messages.length} messages)`)}\n`,
-      );
-    this.write(`${dim('/help for commands · Ctrl+C aborts a run · /exit to quit')}\n\n`);
+    this.write(`${bannerLines(this.runtime).join('\n')}\n\n`);
   }
 
   private async prompt(): Promise<string | null> {
@@ -239,162 +194,18 @@ export class Repl {
 
   /** Returns true when the REPL should exit. */
   private async command(text: string): Promise<boolean> {
-    const rt = this.runtime;
-    const [cmd = '', ...rest] = text.slice(1).split(/\s+/);
-    const arg = rest.join(' ');
-    switch (cmd) {
-      case 'exit':
-      case 'quit':
-      case 'q':
-        return true;
-      case 'help':
-        this.write(
-          `${[
-            `${bold('/model <id>')}        switch model within the current provider`,
-            `${bold('/provider <name>')}   switch provider profile (keeps the conversation)`,
-            `${bold('/providers')}         list configured profiles`,
-            `${bold('/cost')}              tokens and estimated spend this session`,
-            `${bold('/context')}           how full the context is, and when it compacts`,
-            `${bold('/compact')}           summarize the conversation to free context`,
-            `${bold('/clear')}             start a fresh conversation (same session file)`,
-            `${bold('/yolo')}              toggle permission prompts`,
-            `${bold('/sessions')}          list saved sessions · ${bold('/resume <id>')} to load one`,
-            `${bold('/tools')}             list tools · ${bold('/memory')} show loaded AGENTS.md files`,
-            `${bold('/mcp')}               MCP servers and the tools they added`,
-            `${bold('/exit')}              quit`,
-          ].join('\n')}\n\n`,
-        );
-        return false;
-      case 'model':
-        if (!arg) return this.info(`model: ${rt.modelLabel()}`);
-        return this.trySwitch(undefined, arg);
-      case 'provider':
-        if (!arg) return this.info(`provider: ${rt.providerName}`);
-        return this.trySwitch(arg, undefined);
-      case 'providers':
-        for (const [name, p] of Object.entries(rt.config.providers)) {
-          const mark = name === rt.providerName ? green('●') : dim('○');
-          this.write(
-            `${mark} ${bold(name.padEnd(10))} ${p.kind.padEnd(18)} ${p.model}${p.baseURL ? dim(`  ${p.baseURL}`) : ''}\n`,
-          );
-        }
-        this.write('\n');
-        return false;
-      case 'context': {
-        const r = rt.agent.contextReport();
-        const pct = Math.round((r.estimate / r.window) * 100);
-        const when =
-          r.threshold !== undefined
-            ? `compacts at ~${r.threshold.toLocaleString()}`
-            : 'auto-compaction off';
-        return this.info(
-          `~${r.estimate.toLocaleString()} of ${r.window.toLocaleString()} tokens (${pct}%) · ${when} · /compact summarizes now`,
-        );
-      }
-      case 'cost': {
-        const u = rt.agent.usage;
-        const cost = rt.agent.cost();
-        const lines = [
-          `${u.requests} requests · ${u.inputTokens.toLocaleString()} input (${u.cacheReadTokens.toLocaleString()} cache read, ${u.cacheWriteTokens.toLocaleString()} cache write) · ${u.outputTokens.toLocaleString()} output · ${cost !== undefined ? `~$${cost.toFixed(4)}` : 'pricing unknown'}`,
-        ];
-        if (rt.profile.kind === 'anthropic') {
-          const ttl = rt.agent.cacheTtl();
-          lines.push(
-            `prompt cache: ${ttl} TTL · writes billed at ${CACHE_WRITE_MULTIPLIER[ttl]}× input (cacheTtl in config)`,
-          );
-        }
-        const miss = explainCacheMiss(u, rt.profile);
-        if (miss) lines.push(miss);
-        return this.info(lines.join('\n'));
-      }
-      case 'compact': {
+    return runCommand(this.runtime, text, {
+      write: (s) => this.write(s),
+      busy: async (run) => {
         this.running = new AbortController();
         this.showThinking();
         try {
-          const summary = await rt.agent.compact(this.running.signal);
-          this.clearThinking();
-          this.write(`${dim(summary)}\n`);
-          this.info('Compacted.');
-        } catch (err) {
-          this.clearThinking();
-          this.write(`${red('error:')} ${formatModelError(err, rt.profile)}\n\n`);
+          return await run(this.running.signal);
         } finally {
+          this.clearThinking();
           this.running = null;
-          rt.save();
         }
-        return false;
-      }
-      case 'clear':
-        rt.agent.clear();
-        rt.save();
-        return this.info('Conversation cleared.');
-      case 'yolo':
-        try {
-          rt.setYolo(!rt.permissions.yolo);
-        } catch (err) {
-          return this.info(red((err as Error).message));
-        }
-        return this.info(
-          rt.permissions.yolo
-            ? yellow('yolo ON — no permission prompts')
-            : 'yolo off — prompts enabled',
-        );
-      case 'sessions': {
-        const list = rt.listSessions().slice(0, 20);
-        if (!list.length) return this.info('No sessions yet.');
-        for (const s of list) {
-          const here = s.cwd === rt.cwd ? green('•') : dim('·');
-          this.write(
-            `${here} ${s.id}  ${dim(s.updatedAt.slice(0, 16).replace('T', ' '))}  ${s.title || dim('(empty)')}\n`,
-          );
-        }
-        this.write('\n');
-        return false;
-      }
-      case 'resume': {
-        if (!arg) return this.info('usage: /resume <id>');
-        try {
-          const s = rt.resume(arg);
-          return this.info(`Resumed ${s.meta.id} (${s.messages.length} messages).`);
-        } catch (err) {
-          return this.info(red((err as Error).message));
-        }
-      }
-      case 'mcp':
-        for (const line of rt.mcpReport()) this.write(`${line}\n`);
-        this.write('\n');
-        return false;
-      case 'tools':
-        for (const t of rt.agent.opts.tools)
-          this.write(
-            `${bold(t.name.padEnd(6))} ${t.readOnly ? dim('read-only') : yellow('asks')}  ${dim(t.description.split('. ')[0] ?? '')}\n`,
-          );
-        this.write('\n');
-        return false;
-      case 'memory': {
-        const files = findMemoryFiles(rt.cwd);
-        return this.info(
-          files.length
-            ? files.join('\n')
-            : 'No AGENTS.md / MRIG.md found from here to the git root.',
-        );
-      }
-      default:
-        return this.info(`Unknown command /${cmd}. Try /help.`);
-    }
-  }
-
-  private info(msg: string): false {
-    this.write(`${msg}\n\n`);
-    return false;
-  }
-
-  private trySwitch(provider?: string, model?: string): false {
-    try {
-      this.runtime.switchModel(provider, model);
-      return this.info(`now using ${this.runtime.modelLabel()}`);
-    } catch (err) {
-      return this.info(red((err as Error).message));
-    }
+      },
+    });
   }
 }

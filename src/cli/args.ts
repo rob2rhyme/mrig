@@ -11,6 +11,8 @@ export interface CliArgs {
   listSessions: boolean;
   /** `--offline`: only local profiles, prompts always on (L5). */
   offline: boolean;
+  /** `--tui`: the full-screen terminal UI instead of the readline REPL (L6, experimental). */
+  tui: boolean;
   /** `mrig doctor`: check configured model ids against each provider's /v1/models. */
   doctor: boolean;
   version: boolean;
@@ -35,6 +37,7 @@ Options:
       --cwd <dir>          Working directory
       --list-sessions      List saved sessions
       --offline            Only local models; prompts always on (also: a .mrig-zone file)
+      --tui                Terminal UI with a status line (experimental)
       --doctor             Same as "mrig doctor"
   -v, --version            Print version
   -h, --help               Show this help
@@ -49,6 +52,7 @@ export function parseArgs(argv: string[]): CliArgs {
     continue: false,
     listSessions: false,
     offline: false,
+    tui: false,
     doctor: false,
     version: false,
     help: false,
@@ -101,6 +105,9 @@ export function parseArgs(argv: string[]): CliArgs {
         break;
       case '--offline':
         args.offline = true;
+        break;
+      case '--tui':
+        args.tui = true;
         break;
       case '--doctor':
         args.doctor = true;
