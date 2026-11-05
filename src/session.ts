@@ -167,12 +167,17 @@ export class Session {
   }
 
   /** Persist whatever is new in `messages` (append), or rewrite after a compaction/clear. */
-  sync(messages: ModelMessage[]): void {
+  sync(messages: ModelMessage[], opts: { rewrite?: boolean; titleHint?: string } = {}): void {
     this.messages = messages;
     this.meta.updatedAt = new Date().toISOString();
     if (!this.meta.title) this.meta.title = firstUserText(messages);
+    // Compaction can summarize the first prompt away before the first save; fall back to it.
+    if (!this.meta.title && opts.titleHint) {
+      this.meta.title = firstUserText([{ role: 'user', content: opts.titleHint }]);
+    }
     if (!this.persist) return;
-    if (messages.length < this.savedCount || this.savedCount === 0) {
+    // Rewrite when earlier history changed (compaction, clear), not only when it shrank.
+    if (opts.rewrite || messages.length < this.savedCount || this.savedCount === 0) {
       this.writeAll();
       return;
     }

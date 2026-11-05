@@ -238,6 +238,7 @@ export class Repl {
             `${bold('/provider <name>')}   switch provider profile (keeps the conversation)`,
             `${bold('/providers')}         list configured profiles`,
             `${bold('/cost')}              tokens and estimated spend this session`,
+            `${bold('/context')}           how full the context is, and when it compacts`,
             `${bold('/compact')}           summarize the conversation to free context`,
             `${bold('/clear')}             start a fresh conversation (same session file)`,
             `${bold('/yolo')}              toggle permission prompts`,
@@ -262,6 +263,17 @@ export class Repl {
         }
         this.write('\n');
         return false;
+      case 'context': {
+        const r = rt.agent.contextReport();
+        const pct = Math.round((r.estimate / r.window) * 100);
+        const when =
+          r.threshold !== undefined
+            ? `compacts at ~${r.threshold.toLocaleString()}`
+            : 'auto-compaction off';
+        return this.info(
+          `~${r.estimate.toLocaleString()} of ${r.window.toLocaleString()} tokens (${pct}%) · ${when} · /compact summarizes now`,
+        );
+      }
       case 'cost': {
         const u = rt.agent.usage;
         const cost = rt.agent.cost();

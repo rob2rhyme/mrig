@@ -10,14 +10,15 @@ You are continuing development of **mrig**, my personal, local, model-agnostic t
 
 A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands, works with files, and answers general questions. One provider layer (Vercel AI SDK 7) serves Anthropic (`claude-sonnet-5` default, `claude-opus-5`, `claude-fable-5-1`, `claude-haiku-4-5-20251001`), OpenAI, and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, OpenRouter). It is for me alone: private repo, no telemetry, no analytics, no third-party scripts, ever. It compiles to a single binary per OS with `bun build --compile`.
 
-## Current state — v0.1 plus Track 1 items L0–L3
+## Current state — v0.1 plus Track 1 items L0–L4
 
-Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L3 are built:
+Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L4 are built:
 
 - **L0 prompt caching:** request-level automatic caching plus a system-block breakpoint for Anthropic profiles, cache-write pricing, a minimum-prefix table that `/cost` uses to explain a miss, and `cacheTtl`.
 - **L1 hygiene:** `mrig doctor` checks model ids against each provider's model list, the REPL runs the same check at startup, session meta is rewritten in place, and CI runs macOS and Windows only where it matters.
 - **L2 hardening:** an Ollama context-length warning, `toolMode: "minimal"` (bash only), and one guided retry on empty tool arguments. Model trials wait on Robin; see `docs/LOCAL_MODELS.md`.
 - **L3 eval harness:** `bun run eval` runs ten tasks against profiles and writes `docs/COMPATIBILITY.md`. The real matrix waits on Robin's runs.
+- **L4 compaction:** `src/compaction.ts` plus `Agent.maybeCompact()`. Before each step, past `compaction.threshold` (70% of the window), old tool activity is pruned; if that is not enough, all but the last `compaction.keep` messages are summarized, by `compaction.compactModel` if set. Preserved-thinking Claude models skip pruning. `/context` shows the numbers.
 
 v0.1 in detail:
 
@@ -36,7 +37,7 @@ v0.1 in detail:
 ## Known gaps and caveats (do not "fix" silently — mention them when relevant)
 
 - Prompt caching (L0) is implemented for Anthropic profiles, but the live acceptance check still has to be run against the API by hand: `cacheReadTokens > 0` from the second request on, once the prompt is longer than the model's minimum cacheable prefix.
-- No automatic context compaction yet; only manual `/compact`. Long sessions on 64k-context local models will eventually overflow.
+- Automatic compaction (L4) needs the right context window: set `contextWindow` on local profiles, or let the REPL read it from Ollama. Headless runs on local profiles without one assume 32,768 tokens.
 - No MCP client, no web tools, no reasoning display, no subagents, plain readline UI.
 - No offline guarantee yet (L5): nothing stops a remote profile from being used in a sensitive directory.
 - `openai` profile default model id `gpt-5` is unverified; `lmstudio` model id is a placeholder. `mrig doctor` (L1) checks both against the server's model list instead of guessing.

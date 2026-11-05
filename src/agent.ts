@@ -15,6 +15,20 @@ import {
   streamText,
   type ToolResultPart,
 } from 'ai';
+import { z } from 'zod';
+import {
+  contextWindowFor,
+  estimateMessagesTokens,
+  estimateTextTokens,
+  preferSummaryOnly,
+  pruneOldToolActivity,
+  renderTranscript,
+  SUMMARY_SYSTEM,
+  summaryRequest,
+  tailStart,
+  thresholdTokens,
+  withSummary,
+} from './compaction.ts';
 import type { CacheTtl, ProviderProfile } from './config.ts';
 import type { PermissionManager } from './permissions.ts';
 import {
@@ -70,6 +84,19 @@ export interface AgentOptions {
   messages?: ModelMessage[];
   /** Prompt-cache TTL for Anthropic profiles (default 5m). Ignored for other providers. */
   cacheTtl?: CacheTtl;
+  /** Automatic compaction (L4). Off when absent. */
+  compaction?: CompactionOptions;
+}
+
+export interface CompactionOptions {
+  enabled: boolean;
+  /** Fraction of the context window (0–1], or an absolute token count (> 1). */
+  threshold: number;
+  /** Messages kept verbatim after a summary. */
+  keep: number;
+  /** A separate summarizer (config `compaction.compactModel`); default the main model. */
+  model?: LanguageModel;
+  profile?: ProviderProfile;
 }
 
 export type StopReason = 'done' | 'max-steps' | 'aborted';
@@ -125,6 +152,20 @@ function withoutSdkResults(messages: ModelMessage[], invalidIds: Set<string>): M
     if (content.length > 0) out.push({ ...m, content });
   }
   return out;
+}
+
+/** Tool definitions go out as JSON schemas with every request; estimate what they cost. */
+function estimateToolTokens(tools: AnyTool[]): number {
+  let chars = 0;
+  for (const t of tools) {
+    chars += t.name.length + t.description.length + 40;
+    try {
+      chars += JSON.stringify(z.toJSONSchema(t.inputSchema)).length;
+    } catch {
+      chars += 600; // a typical schema, if one cannot be converted
+    }
+  }
+  return Math.ceil(chars / 4);
 }
 
 function previewFor(tool: AnyTool, input: unknown): string | undefined {
@@ -185,14 +226,28 @@ export class Agent {
   readonly opts: AgentOptions;
   private registry: Map<string, AnyTool>;
   private aiTools: ReturnType<typeof toAiTools>;
+  /** Estimated tokens of the tool definitions sent with every request (their JSON schemas). */
+  private toolTokens: number;
   /** Consecutive tool calls with no arguments; the first one in a row gets a guided retry. */
   private emptyArgStreak = 0;
+  /** Input tokens the provider reported for the last request, and the transcript length then. */
+  private lastRequestTokens: number | undefined;
+  private messagesAtLastRequest = 0;
+  private detectedContextWindow: number | undefined;
+  private historyEdited = false;
+  /** Set once the user has been told there is nothing left to compact, until history changes. */
+  private toldNothingToCompact = false;
+  /** Set once the user has been warned that the window leaves little room after compacting. */
+  private warnedLowHeadroom = false;
+  /** The first prompt this agent ran, kept for the session title after compaction removes it. */
+  firstPrompt: string | undefined;
 
   constructor(opts: AgentOptions) {
     this.opts = opts;
     this.messages = opts.messages ?? [];
     this.registry = toolRegistry(opts.tools);
     this.aiTools = toAiTools(opts.tools);
+    this.toolTokens = estimateToolTokens(opts.tools);
   }
 
   /** Swap the tool set (e.g. after /model to a profile with another toolMode). */
@@ -200,6 +255,7 @@ export class Agent {
     this.opts.tools = tools;
     this.registry = toolRegistry(tools);
     this.aiTools = toAiTools(tools);
+    this.toolTokens = estimateToolTokens(tools);
   }
 
   /** Estimated USD spent this session, or undefined when pricing is unknown. */
@@ -212,7 +268,7 @@ export class Agent {
   }
 
   clear(): void {
-    this.messages = [];
+    this.replaceHistory([]);
     this.usage = emptyUsage();
     this.stats = emptyStats();
   }
@@ -231,10 +287,13 @@ export class Agent {
   }
 
   async run(userText: string, signal?: AbortSignal): Promise<RunResult> {
+    if (this.firstPrompt === undefined) this.firstPrompt = userText;
     this.messages.push({ role: 'user', content: userText });
     this.emptyArgStreak = 0;
     let steps = 0;
     for (let step = 1; step <= this.opts.maxSteps; step++) {
+      if (signal?.aborted) return { stop: 'aborted', steps, text: '' };
+      await this.maybeCompact(signal);
       if (signal?.aborted) return { stop: 'aborted', steps, text: '' };
       steps = step;
       const outcome = await this.step(signal);
@@ -263,6 +322,7 @@ export class Agent {
     // system block. Tools render before system, so that breakpoint keeps tools + system cached
     // for the whole session; the automatic one follows the growing conversation.
     const cache = cacheProviderOptions(this.opts.profile, this.cacheTtl());
+    this.messagesAtLastRequest = this.messages.length;
     const result = streamText({
       model: this.opts.model,
       system: cache
@@ -308,6 +368,7 @@ export class Agent {
             break;
           case 'finish-step':
             this.usage = addUsage(this.usage, part.usage);
+            this.lastRequestTokens = part.usage.inputTokens;
             this.recordPerformance(part.usage.outputTokens, part.performance);
             break;
           case 'error':
@@ -432,26 +493,149 @@ export class Agent {
     }
   }
 
-  /** Replace the transcript with a model-written summary to free context. */
+  /** Replace the transcript with a model-written summary to free context (`/compact`). */
   async compact(signal?: AbortSignal): Promise<string> {
     if (this.messages.length === 0) return 'Nothing to compact.';
-    const cache = cacheProviderOptions(this.opts.profile, this.cacheTtl());
+    const { text } = await this.summarize(0, signal);
+    return text;
+  }
+
+  /** The context window in use: the profile's, else what the server reported, else a default. */
+  contextWindow(): number {
+    return contextWindowFor(this.opts.profile, this.detectedContextWindow);
+  }
+
+  /** Record the context length a local server reported (Ollama's num_ctx), or clear it. */
+  setDetectedContextWindow(tokens: number | undefined): void {
+    this.detectedContextWindow = tokens;
+    this.warnedLowHeadroom = false;
+  }
+
+  /** True once after compaction or clear rewrote earlier history, so the session file is rewritten. */
+  takeHistoryEdited(): boolean {
+    const edited = this.historyEdited;
+    this.historyEdited = false;
+    return edited;
+  }
+
+  /**
+   * Estimated size of the next request: system prompt, tool definitions and transcript, at about
+   * four characters per token. When the provider reported the last request's input tokens, that
+   * figure plus an estimate of what was added since is used if it is larger.
+   */
+  estimateNextRequestTokens(): number {
+    const fixed = estimateTextTokens(this.opts.systemPrompt) + this.toolTokens;
+    const estimate = fixed + estimateMessagesTokens(this.messages);
+    if (this.lastRequestTokens === undefined || this.messagesAtLastRequest > this.messages.length) {
+      return estimate;
+    }
+    const since = estimateMessagesTokens(this.messages.slice(this.messagesAtLastRequest));
+    return Math.max(estimate, this.lastRequestTokens + since);
+  }
+
+  /** For `/context`: the current estimate, the window, and where compaction kicks in. */
+  contextReport(): { estimate: number; window: number; threshold?: number } {
+    const window = this.contextWindow();
+    const c = this.opts.compaction;
+    return {
+      estimate: this.estimateNextRequestTokens(),
+      window,
+      ...(c?.enabled ? { threshold: thresholdTokens(c.threshold, window) } : {}),
+    };
+  }
+
+  private replaceHistory(messages: ModelMessage[]): void {
+    this.messages = messages;
+    this.lastRequestTokens = undefined;
+    this.messagesAtLastRequest = 0;
+    this.historyEdited = true;
+    this.toldNothingToCompact = false;
+  }
+
+  /** L4: run before each step. Tier (a) first where allowed, then tier (b) if still too large. */
+  private async maybeCompact(signal?: AbortSignal): Promise<void> {
+    const c = this.opts.compaction;
+    if (!c?.enabled) return;
+    const window = this.contextWindow();
+    const limit = thresholdTokens(c.threshold, window);
+    const before = this.estimateNextRequestTokens();
+    if (before <= limit) return;
+    const { events } = this.opts;
+    const fmt = (n: number) => n.toLocaleString();
+
+    if (!preferSummaryOnly(this.opts.profile)) {
+      const pruned = pruneOldToolActivity(this.messages);
+      if (estimateMessagesTokens(pruned) < estimateMessagesTokens(this.messages)) {
+        this.replaceHistory(pruned);
+        const after = this.estimateNextRequestTokens();
+        if (after <= limit) {
+          events.onNotice?.(
+            `Context reached ~${fmt(before)} of ${fmt(window)} tokens; dropped old tool output (now ~${fmt(after)}).`,
+          );
+          return;
+        }
+      }
+    }
+
+    try {
+      const { replaced } = await this.summarize(c.keep, signal);
+      if (replaced === 0) {
+        if (this.toldNothingToCompact) return;
+        this.toldNothingToCompact = true;
+        events.onNotice?.(
+          `Context is ~${fmt(before)} of ${fmt(window)} tokens, but only recent messages remain; nothing older to summarize.`,
+        );
+        return;
+      }
+      const after = this.estimateNextRequestTokens();
+      events.onNotice?.(
+        `Context reached ~${fmt(before)} of ${fmt(window)} tokens; summarized ${replaced} earlier messages (now ~${fmt(after)}).`,
+      );
+      // Compaction should be rare (each one invalidates the prompt cache). If the system prompt,
+      // tools and the kept tail already fill most of the allowance, it will run on almost every
+      // step; say so once, with the fix.
+      if (!this.warnedLowHeadroom && after > limit * 0.8) {
+        this.warnedLowHeadroom = true;
+        events.onNotice?.(
+          `Little room left after compacting (~${fmt(after)} of ${fmt(limit)} tokens allowed), so compaction will run often. Give the model a larger context (Ollama: num_ctx), or lower compaction.keep.`,
+        );
+      }
+    } catch (err) {
+      if (signal?.aborted) return;
+      const message = err instanceof Error ? err.message : String(err);
+      events.onNotice?.(`Compaction failed (${message}); continuing with the full context.`);
+    }
+  }
+
+  /**
+   * Tier (b): summarize everything before the last `keep` messages and splice the summary in.
+   * Returns how many messages were replaced (0 when there is nothing older than the tail).
+   */
+  private async summarize(
+    keep: number,
+    signal?: AbortSignal,
+  ): Promise<{ replaced: number; text: string }> {
+    const start = tailStart(this.messages, keep);
+    if (start === 0) return { replaced: 0, text: '' };
+    const separate = this.opts.compaction?.model !== undefined;
+    const model = this.opts.compaction?.model ?? this.opts.model;
+    const profile = this.opts.compaction?.profile ?? this.opts.profile;
+    const window = separate ? contextWindowFor(profile) : this.contextWindow();
+    // Quote at most ~60% of the summarizer's window, leaving room for its instructions and reply.
+    const transcript = renderTranscript(
+      this.messages.slice(0, start),
+      Math.floor(window * 4 * 0.6),
+    );
+    // No prompt caching here: a summary request is a one-off, so a cache write would only cost more.
     const { text, usage } = await generateText({
-      model: this.opts.model,
-      ...(cache ? { providerOptions: cache } : {}),
-      system:
-        "Summarize the conversation for your own future reference. Preserve: the user's goals, decisions made, files changed (with paths), commands run and their outcomes, open problems, and exact identifiers (names, paths, error strings). Omit pleasantries. Use compact prose and short lists. Under 1500 words.",
-      messages: [...this.messages, { role: 'user', content: '[mrig] Write the summary now.' }],
+      model,
+      system: SUMMARY_SYSTEM,
+      messages: [{ role: 'user', content: summaryRequest(transcript) }],
       abortSignal: signal,
     });
-    this.usage = addUsage(this.usage, usage);
-    this.messages = [
-      {
-        role: 'user',
-        content: `[mrig] Context was compacted. Summary of the conversation so far:\n\n${text}`,
-      },
-      { role: 'assistant', content: 'Understood. I have the summary and will continue from here.' },
-    ];
-    return text;
+    // Usage is priced with the main profile, so a separate summarizer is left out of the total.
+    if (!separate) this.usage = addUsage(this.usage, usage);
+    this.replaceHistory(withSummary(text, this.messages.slice(start)));
+    return { replaced: start, text };
   }
 }
