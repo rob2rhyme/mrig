@@ -108,7 +108,8 @@ defaults; env vars (`MRIG_PROVIDER`, `MRIG_YOLO=1`, `MRIG_HOME`) apply last; CLI
   },
   "maxSteps": 40,
   "maxToolOutputChars": 30000,
-  "cacheTtl": "5m"
+  "cacheTtl": "5m",
+  "compaction": { "threshold": 0.7, "keep": 4 }
 }
 ```
 
@@ -130,6 +131,37 @@ local profiles are untouched: nothing is sent, nothing is priced.
   on Haiku 4.5), so a short first turn can show no cache activity at all.
 - Per-profile `pricing` accepts `cacheRead` and `cacheWrite` (USD per million) to override the
   defaults for models mrig does not know.
+
+## Context compaction
+
+Long sessions are compacted automatically before the next step once the request would pass
+70% of the model's context window. Two tiers, cheapest first:
+
+1. **Prune.** Old tool calls, their results and old reasoning are dropped; the last ten
+   messages keep theirs. Often enough on its own.
+2. **Summarize.** If pruning is not enough, everything except the last few messages is replaced
+   by a model-written summary. The cut never separates a tool call from its result.
+
+Claude models that bind thinking blocks to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5)
+skip straight to the summary, because editing earlier turns can be rejected for them. Each
+compaction invalidates the prompt cache, so it is kept rare; if the window is so small that it
+would run on almost every step, mrig says so once and suggests a larger context.
+
+```json
+{
+  "compaction": { "enabled": true, "threshold": 0.7, "keep": 4, "compactModel": "ollama" }
+}
+```
+
+`threshold` is a fraction of the window, or a token count such as `90000`. `keep` is how many
+messages stay verbatim after a summary. `compactModel` is optional: another profile, such as
+a local one, writes the summaries.
+
+The context window comes from the profile's `contextWindow`. For Ollama profiles without one,
+the REPL uses the context length Ollama reports; otherwise local profiles assume 32,768 tokens
+and hosted ones 128,000. Set `contextWindow` to match your server for the best timing.
+`/context` shows how full the context is and where it compacts; `/compact` summarizes now.
+Summaries written by a separate `compactModel` are not added to `/cost`.
 
 ## Tools and permissions
 
@@ -159,7 +191,7 @@ Put project conventions, commands, and rules there.
 
 ## Slash commands
 
-`/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/compact` · `/clear` ·
+`/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/clear` ·
 `/yolo` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
 Ctrl+C aborts a running turn; press it twice at the prompt to quit.
 
@@ -264,5 +296,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools, providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. Next (see `docs/ROADMAP.md`):
-model trials and the first real matrix, compaction, offline guarantee. Licensing is yours to choose before publishing (add a `LICENSE` file).
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. Next (see `docs/ROADMAP.md`):
+model trials and the first real matrix, the offline guarantee. Licensing is yours to choose before publishing (add a `LICENSE` file).

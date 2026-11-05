@@ -63,6 +63,17 @@ export interface PermissionsConfig {
   allow: string[];
 }
 
+export interface CompactionConfig {
+  /** Compact automatically before a step when the context passes the threshold (default true). */
+  enabled: boolean;
+  /** A fraction of the context window (0–1], or an absolute token count (> 1). Default 0.7. */
+  threshold: number;
+  /** Messages kept verbatim after a summary (default 4). */
+  keep: number;
+  /** Profile that writes summaries (default: the active profile). Use a local one offline. */
+  compactModel?: string;
+}
+
 export interface MrigConfig {
   defaultProvider: string;
   providers: Record<string, ProviderProfile>;
@@ -73,6 +84,8 @@ export interface MrigConfig {
   maxToolOutputChars: number;
   /** Prompt-cache TTL for Anthropic profiles: "5m" (default) or "1h". Ignored elsewhere. */
   cacheTtl: CacheTtl;
+  /** Automatic context compaction (L4). */
+  compaction: CompactionConfig;
 }
 
 export const DEFAULT_PROVIDERS: Record<string, ProviderProfile> = {
@@ -141,6 +154,7 @@ export const DEFAULT_CONFIG: MrigConfig = {
   maxSteps: 40,
   maxToolOutputChars: 30_000,
   cacheTtl: '5m',
+  compaction: { enabled: true, threshold: 0.7, keep: 4 },
 };
 
 export function mrigHome(): string {
@@ -153,8 +167,9 @@ export function ensureMrigHome(): string {
   return home;
 }
 
-type PartialConfig = Partial<Omit<MrigConfig, 'permissions'>> & {
+type PartialConfig = Partial<Omit<MrigConfig, 'permissions' | 'compaction'>> & {
   permissions?: Partial<PermissionsConfig>;
+  compaction?: Partial<CompactionConfig>;
 };
 
 function readJson(path: string): PartialConfig | undefined {
@@ -174,6 +189,31 @@ function parseCacheTtl(value: unknown): CacheTtl | undefined {
   throw new Error(`Invalid "cacheTtl": ${JSON.stringify(value)}. Use "5m" or "1h".`);
 }
 
+function parseCompaction(
+  layer: Partial<CompactionConfig> | undefined,
+  base: CompactionConfig,
+): CompactionConfig {
+  if (layer === undefined) return base;
+  if (!layer || typeof layer !== 'object') throw new Error('"compaction" must be an object.');
+  const out: CompactionConfig = { ...base, ...layer };
+  if (typeof out.enabled !== 'boolean')
+    throw new Error('"compaction.enabled" must be true or false.');
+  if (typeof out.threshold !== 'number' || !(out.threshold > 0)) {
+    throw new Error(
+      `Invalid "compaction.threshold": ${JSON.stringify(out.threshold)}. Use a fraction of the context window such as 0.7, or a token count such as 90000.`,
+    );
+  }
+  if (!Number.isInteger(out.keep) || out.keep < 0) {
+    throw new Error(
+      `Invalid "compaction.keep": ${JSON.stringify(out.keep)}. Use a whole number such as 4.`,
+    );
+  }
+  if (out.compactModel !== undefined && typeof out.compactModel !== 'string') {
+    throw new Error('"compaction.compactModel" must be a profile name.');
+  }
+  return out;
+}
+
 function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
   if (!layer) return base;
   return {
@@ -186,6 +226,7 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     maxSteps: layer.maxSteps ?? base.maxSteps,
     maxToolOutputChars: layer.maxToolOutputChars ?? base.maxToolOutputChars,
     cacheTtl: parseCacheTtl(layer.cacheTtl) ?? base.cacheTtl,
+    compaction: parseCompaction(layer.compaction, base.compaction),
   };
 }
 

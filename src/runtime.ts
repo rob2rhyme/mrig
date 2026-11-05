@@ -2,7 +2,7 @@
  * Wires config → provider → permissions → agent → session. Shared by the REPL and headless mode.
  */
 import type { LanguageModel } from 'ai';
-import { Agent, type AgentEvents } from './agent.ts';
+import { Agent, type AgentEvents, type CompactionOptions } from './agent.ts';
 import { loadConfig, type MrigConfig, type ProviderProfile, resolveProfile } from './config.ts';
 import {
   type ContextCheck,
@@ -84,6 +84,7 @@ export class Runtime {
       maxSteps: opts.maxSteps ?? this.config.maxSteps,
       maxToolOutputChars: this.config.maxToolOutputChars,
       cacheTtl: this.config.cacheTtl,
+      compaction: this.compactionOptions(),
       events: opts.events,
       messages: this.session.messages,
     });
@@ -107,8 +108,32 @@ export class Runtime {
   }
 
   /** For Ollama profiles: warn when the model runs with under 32k context (never throws). */
-  checkContext(opts: DoctorOptions = {}): Promise<ContextCheck> {
-    return checkOllamaContext(this.profile, opts);
+  async checkContext(opts: DoctorOptions = {}): Promise<ContextCheck> {
+    const profile = this.profile;
+    const result = await checkOllamaContext(profile, opts);
+    // Use the server's real context length for compaction when the profile does not set one.
+    if (result.contextLength && !profile.contextWindow && this.profile === profile) {
+      this.agent.setDetectedContextWindow(result.contextLength);
+    }
+    return result;
+  }
+
+  private compactionOptions(): CompactionOptions {
+    const { enabled, threshold, keep, compactModel } = this.config.compaction;
+    if (!compactModel) return { enabled, threshold, keep };
+    let resolved: ReturnType<typeof resolveProfile>;
+    try {
+      resolved = resolveProfile(this.config, compactModel);
+    } catch (err) {
+      throw new Error(`Invalid "compaction.compactModel": ${(err as Error).message}`);
+    }
+    return {
+      enabled,
+      threshold,
+      keep,
+      model: createModel(resolved.profile),
+      profile: resolved.profile,
+    };
   }
 
   /** Switch provider and/or model mid-session, keeping the transcript. */
@@ -123,11 +148,15 @@ export class Runtime {
     this.agent.opts.modelLabel = this.modelLabel();
     this.agent.setTools(toolsForMode(this.profile.toolMode));
     this.agent.opts.systemPrompt = this.systemPrompt();
+    this.agent.setDetectedContextWindow(undefined);
     this.session.setModel(this.providerName, this.profile.model);
   }
 
   /** Persist the transcript after a run, compaction, or clear. */
   save(): void {
-    this.session.sync(this.agent.messages);
+    this.session.sync(this.agent.messages, {
+      rewrite: this.agent.takeHistoryEdited(),
+      titleHint: this.agent.firstPrompt,
+    });
   }
 }
