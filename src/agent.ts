@@ -500,6 +500,11 @@ export class Agent {
     return text;
   }
 
+  /** Swap in another transcript (resuming a session); counts as a history edit. */
+  loadTranscript(messages: ModelMessage[]): void {
+    this.replaceHistory(messages);
+  }
+
   /** The context window in use: the profile's, else what the server reported, else a default. */
   contextWindow(): number {
     return contextWindowFor(this.opts.profile, this.detectedContextWindow);

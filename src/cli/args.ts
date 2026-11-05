@@ -9,6 +9,8 @@ export interface CliArgs {
   maxSteps?: number;
   cwd?: string;
   listSessions: boolean;
+  /** `--offline`: only local profiles, prompts always on (L5). */
+  offline: boolean;
   /** `mrig doctor`: check configured model ids against each provider's /v1/models. */
   doctor: boolean;
   version: boolean;
@@ -32,6 +34,7 @@ Options:
       --max-steps <n>      Max model turns per message (default 40)
       --cwd <dir>          Working directory
       --list-sessions      List saved sessions
+      --offline            Only local models; prompts always on (also: a .mrig-zone file)
       --doctor             Same as "mrig doctor"
   -v, --version            Print version
   -h, --help               Show this help
@@ -45,6 +48,7 @@ export function parseArgs(argv: string[]): CliArgs {
     yolo: false,
     continue: false,
     listSessions: false,
+    offline: false,
     doctor: false,
     version: false,
     help: false,
@@ -94,6 +98,9 @@ export function parseArgs(argv: string[]): CliArgs {
         break;
       case '--list-sessions':
         args.listSessions = true;
+        break;
+      case '--offline':
+        args.offline = true;
         break;
       case '--doctor':
         args.doctor = true;

@@ -477,7 +477,7 @@ describe('eval: summarize', () => {
     expect(empty.cost).toBeUndefined();
   });
 
-  test('isLocalProfile: loopback openai-compatible only', () => {
+  test('isLocalProfile: loopback base URL, whatever the provider kind', () => {
     const oc = (baseURL?: string) => ({ kind: 'openai-compatible' as const, model: 'm', baseURL });
     expect(isLocalProfile(oc('http://localhost:11434/v1'))).toBe(true);
     expect(isLocalProfile(oc('http://127.0.0.1:8080/v1'))).toBe(true);
@@ -486,9 +486,11 @@ describe('eval: summarize', () => {
     expect(isLocalProfile(oc('https://openrouter.ai/api/v1'))).toBe(false);
     expect(isLocalProfile(oc(undefined))).toBe(false);
     expect(isLocalProfile(oc('not a url'))).toBe(false);
+    // An Anthropic-compatible server on localhost (Ollama offers one) is local; the cloud API is not.
     expect(isLocalProfile({ kind: 'anthropic', model: 'm', baseURL: 'http://localhost:1' })).toBe(
-      false,
+      true,
     );
+    expect(isLocalProfile({ kind: 'anthropic', model: 'm' })).toBe(false);
   });
 });
 

@@ -163,6 +163,42 @@ and hosted ones 128,000. Set `contextWindow` to match your server for the best t
 `/context` shows how full the context is and where it compacts; `/compact` summarizes now.
 Summaries written by a separate `compactModel` are not added to `/cost`.
 
+## Offline mode and zones
+
+For sensitive work, mrig can guarantee that nothing leaves your machine through it. Turn it on
+for one run with `--offline`, or for a whole project by creating an empty `.mrig-zone` file in
+its root. mrig finds the marker the same way it finds `AGENTS.md`: from the current folder up
+to the git root.
+
+```sh
+touch .mrig-zone           # this project is now an offline zone
+mrig -P ollama             # works: the model runs on this machine
+mrig                       # refused: the default profile is Claude's cloud API
+```
+
+In offline mode:
+
+- **Only local models.** A profile is allowed only if its server is on this machine
+  (`localhost`, `127.x.x.x`, `[::1]`). That covers `/model`, `/provider` and
+  `compaction.compactModel` too. A GPU box on your network is refused.
+- **Prompts stay on.** `--yolo`, `MRIG_YOLO`, `permissions.yolo` and `/yolo` are refused, and
+  bash allow-rules are ignored: every write, edit and shell command asks, and "always" means
+  this once for shell commands.
+- **No network tools.** Tools that reach other hosts, such as web fetch and remote MCP once
+  they exist, are left out.
+- **`mrig doctor`** only contacts local servers.
+
+Inside a zone, also:
+
+- **Transcripts stay in the zone,** under `.mrig/sessions/` in the zone's root, with a
+  `.gitignore` so they are never committed. `--list-sessions`, `/sessions` and `-c` see only
+  the zone's sessions.
+- **No resuming across the boundary.** A zone's session cannot be opened outside it, an outside
+  session cannot be opened inside, and sessions cannot move between zones.
+
+What it does not do: sandbox the shell. A command you approve can still reach the network, so
+read shell commands before you approve them.
+
 ## Tools and permissions
 
 | Tool   | What it does                                            | Prompts? |
@@ -296,5 +332,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools, providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. Next (see `docs/ROADMAP.md`):
-model trials and the first real matrix, the offline guarantee. Licensing is yours to choose before publishing (add a `LICENSE` file).
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. Next (see `docs/ROADMAP.md`):
+model trials and the first real matrix, then L6. Licensing is yours to choose before publishing (add a `LICENSE` file).

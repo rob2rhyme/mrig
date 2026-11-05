@@ -21,13 +21,13 @@ import {
   loadConfig,
   type MrigConfig,
   type ProviderKind,
-  type ProviderProfile,
   resolveProfile,
   type ToolMode,
 } from '../../src/config.ts';
 import { formatModelError } from '../../src/providers.ts';
 import { Runtime } from '../../src/runtime.ts';
 import { VERSION } from '../../src/version.ts';
+import { isLocalProfile } from '../../src/zone.ts';
 import { type Category, type EvalTask, TASK_SET_VERSION, type Verdict } from './tasks.ts';
 
 export interface TaskResult {
@@ -80,22 +80,8 @@ export interface RunOptions {
   modelFor?: (task: EvalTask) => LanguageModel;
 }
 
-/** A profile whose server is on this machine: loopback host, openai-compatible. */
-export function isLocalProfile(profile: ProviderProfile): boolean {
-  if (profile.kind !== 'openai-compatible' || !profile.baseURL) return false;
-  try {
-    const host = new URL(profile.baseURL).hostname.toLowerCase();
-    return (
-      host === 'localhost' ||
-      host.endsWith('.localhost') ||
-      host === '0.0.0.0' ||
-      host === '[::1]' ||
-      /^127\./.test(host)
-    );
-  } catch {
-    return false;
-  }
-}
+/** Shared with the offline guarantee (L5): one definition of "on this machine". */
+export { isLocalProfile };
 
 function writeFixture(dir: string, files: Record<string, string>): void {
   for (const [rel, content] of Object.entries(files)) {

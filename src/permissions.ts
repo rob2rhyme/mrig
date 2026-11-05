@@ -32,6 +32,8 @@ export interface PermissionOptions {
   allow: string[];
   ask: AskFn;
   cwd: string;
+  /** Offline mode: bash never gets an allow rule, so "always" means this once. */
+  noBashRules?: boolean;
 }
 
 interface Rule {
@@ -75,6 +77,7 @@ export class PermissionManager {
   private rules: Rule[];
   private readonly ask: AskFn;
   private readonly cwd: string;
+  private readonly noBashRules: boolean;
   /** Rules added via "always" this session (so they can be persisted or shown). */
   readonly learned: string[] = [];
 
@@ -82,12 +85,15 @@ export class PermissionManager {
     this.yolo = opts.yolo;
     this.ask = opts.ask;
     this.cwd = opts.cwd;
-    this.rules = opts.allow.map(parseRule).filter((r): r is Rule => r !== undefined);
+    this.noBashRules = opts.noBashRules ?? false;
+    this.rules = opts.allow
+      .map(parseRule)
+      .filter((r): r is Rule => r !== undefined && !(this.noBashRules && r.tool === 'bash'));
   }
 
   addRule(raw: string): void {
     const rule = parseRule(raw);
-    if (!rule) return;
+    if (!rule || (this.noBashRules && rule.tool === 'bash')) return;
     this.rules.push(rule);
     this.learned.push(raw);
   }
@@ -113,6 +119,7 @@ export class PermissionManager {
   /** The rule an "always" answer would add for this call. */
   alwaysRuleFor(tool: AnyTool, input: unknown): string {
     if (tool.name === 'bash') {
+      if (this.noBashRules) return 'bash: once (offline mode asks every time)';
       const cmd = inputCommand(input)?.trim() ?? '';
       // First two words is a sensible prefix: "git status", "npm test", "bun run".
       const prefix = cmd.split(/\s+/).slice(0, 2).join(' ');

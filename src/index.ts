@@ -18,6 +18,7 @@ import { Session } from './session.ts';
 import { dim, green, red, yellow } from './ui/ansi.ts';
 import { Repl } from './ui/repl.ts';
 import { VERSION } from './version.ts';
+import { describeOffline, findZone, resolveOffline, zoneSessionsDir } from './zone.ts';
 
 async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promise<number> {
   const interactive = process.stdin.isTTY === true;
@@ -42,7 +43,9 @@ async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promis
     cwd,
     provider: args.provider,
     model: args.model,
-    yolo: args.yolo,
+    // Only an explicit --yolo overrides; otherwise MRIG_YOLO and permissions.yolo apply.
+    yolo: args.yolo ? true : undefined,
+    offline: args.offline,
     maxSteps: args.maxSteps,
     resume: args.continue ? 'latest' : args.resume,
     ask,
@@ -64,6 +67,13 @@ async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promis
       onNotice: (m) => process.stderr.write(`${yellow('!')} ${m}\n`),
     },
   });
+  if (runtime.offline) {
+    process.stderr.write(
+      dim(
+        `${describeOffline(runtime.offline)} · local models only · every write, edit and command asks\n`,
+      ),
+    );
+  }
   const ac = new AbortController();
   process.on('SIGINT', () => ac.abort());
   try {
@@ -93,15 +103,16 @@ async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promis
 /** `mrig doctor`: one line per profile; exit 1 when a checked profile has a real problem. */
 async function runDoctor(args: ReturnType<typeof parseArgs>, cwd: string): Promise<number> {
   const cfg = loadConfig({ cwd });
+  const offline = resolveOffline(cwd, args.offline) !== undefined;
   const checks =
     args.provider || args.model
       ? [
           await (async () => {
             const r = resolveProfile(cfg, args.provider, args.model);
-            return checkProfile(r.name, r.profile);
+            return checkProfile(r.name, r.profile, { offline });
           })(),
         ]
-      : await doctor(cfg);
+      : await doctor(cfg, { offline });
   for (const c of checks) {
     const mark =
       c.status === 'ok' ? green('✓') : PROBLEM_STATUSES.has(c.status) ? red('✗') : dim('·');
@@ -138,7 +149,8 @@ async function main(): Promise<void> {
   }
   const cwd = resolve(args.cwd ?? process.cwd());
   if (args.listSessions) {
-    for (const s of Session.list())
+    const zone = findZone(cwd);
+    for (const s of Session.list(zone ? zoneSessionsDir(zone) : undefined))
       process.stdout.write(`${s.id}  ${s.updatedAt.slice(0, 16)}  ${s.cwd}  ${s.title}\n`);
     return;
   }
@@ -162,7 +174,9 @@ async function main(): Promise<void> {
     cwd,
     provider: args.provider,
     model: args.model,
-    yolo: args.yolo,
+    // Only an explicit --yolo overrides; otherwise MRIG_YOLO and permissions.yolo apply.
+    yolo: args.yolo ? true : undefined,
+    offline: args.offline,
     maxSteps: args.maxSteps,
     resume: args.continue ? 'latest' : args.resume,
   });

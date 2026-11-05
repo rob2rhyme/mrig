@@ -15,6 +15,8 @@ export interface MrigTool<I = unknown> {
   inputSchema: z.ZodType<I>;
   /** Read-only tools never prompt for permission. */
   readOnly: boolean;
+  /** Talks to hosts other than this machine (web fetch, remote MCP). Dropped in offline mode. */
+  remote?: boolean;
   /** One line describing the call, for permission prompts and the transcript. */
   summarize(input: I): string;
   /** Run the tool. Return text for the model; throw for errors (message is sent to the model). */
