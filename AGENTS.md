@@ -32,6 +32,9 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
 - `src/modes.ts` — modes (T1): each is prompt text plus a permission policy (`normal`,
   `ask-every-time`, `read-only`) that `PermissionManager` and `Runtime.currentTools()` apply.
   The session meta stores the mode.
+- `src/vision.ts` — vision input (T3): image paths in a prompt become `file` parts with an
+  image/* type when the profile has `vision`; the transcript keeps a file:// URL, and
+  `resolveImages()` reads the bytes just before each request.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the
