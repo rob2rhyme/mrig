@@ -1,15 +1,21 @@
 /**
  * Sessions are JSONL files in ~/.mrig/sessions/<id>.jsonl:
- *   line 1: {"type":"meta", ...}
+ *   line 1: {"type":"meta", ...}   padded with spaces to META_WIDTH bytes
  *   line n: {"type":"message","message":{...ModelMessage}}
+ *
+ * New messages are appended. The meta line is rewritten in place (same byte width) so
+ * `updatedAt` and `title` stay fresh on long transcripts without rewriting the whole file.
  */
 import {
   appendFileSync,
+  closeSync,
   existsSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
   writeFileSync,
+  writeSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import type { ModelMessage } from 'ai';
@@ -27,6 +33,14 @@ export interface SessionMeta {
 
 type Line = { type: 'meta' } & SessionMeta;
 type MessageLine = { type: 'message'; message: ModelMessage };
+
+/** Reserved byte width of the meta line, so it can be rewritten in place. */
+export const META_WIDTH = 1024;
+
+function padHead(head: string, width: number): string {
+  const len = Buffer.byteLength(head);
+  return len >= width ? head : head + ' '.repeat(width - len);
+}
 
 export function sessionsDir(): string {
   const dir = join(mrigHome(), 'sessions');
@@ -64,11 +78,19 @@ export class Session {
   meta: SessionMeta;
   messages: ModelMessage[];
   private savedCount: number;
+  /** Byte width of the meta line as it sits on disk (without the newline). */
+  private headWidth: number;
 
-  private constructor(meta: SessionMeta, messages: ModelMessage[], savedCount: number) {
+  private constructor(
+    meta: SessionMeta,
+    messages: ModelMessage[],
+    savedCount: number,
+    headWidth: number,
+  ) {
     this.meta = meta;
     this.messages = messages;
     this.savedCount = savedCount;
+    this.headWidth = headWidth;
   }
 
   get filePath(): string {
@@ -86,7 +108,7 @@ export class Session {
       model: opts.model,
       title: '',
     };
-    const s = new Session(meta, [], 0);
+    const s = new Session(meta, [], 0, 0);
     s.writeAll();
     return s;
   }
@@ -94,7 +116,10 @@ export class Session {
   static load(id: string): Session {
     const path = join(sessionsDir(), `${id}.jsonl`);
     if (!existsSync(path)) throw new Error(`No session with id "${id}".`);
-    const lines = readFileSync(path, 'utf8').split('\n').filter(Boolean);
+    const content = readFileSync(path, 'utf8');
+    const firstBreak = content.indexOf('\n');
+    const headWidth = Buffer.byteLength(firstBreak === -1 ? content : content.slice(0, firstBreak));
+    const lines = content.split('\n').filter((l) => l.trim());
     let meta: SessionMeta | undefined;
     const messages: ModelMessage[] = [];
     for (const raw of lines) {
@@ -105,7 +130,7 @@ export class Session {
       } else if (line.type === 'message') messages.push(line.message);
     }
     if (!meta) throw new Error(`Session file ${path} has no meta line.`);
-    return new Session(meta, messages, messages.length);
+    return new Session(meta, messages, messages.length, headWidth);
   }
 
   static list(): SessionMeta[] {
@@ -149,8 +174,7 @@ export class Session {
       appendFileSync(this.filePath, `${lines.join('\n')}\n`);
     }
     this.savedCount = messages.length;
-    // Keep meta (updatedAt/title) fresh without rewriting messages: rewrite only when cheap.
-    if (messages.length <= 4) this.writeAll();
+    this.writeMeta();
   }
 
   setModel(provider: string, model: string): void {
@@ -159,12 +183,32 @@ export class Session {
     this.writeAll();
   }
 
+  private headLine(): string {
+    return JSON.stringify({ type: 'meta', ...this.meta } satisfies Line);
+  }
+
+  /** Rewrite only the meta line, in place, when it fits the reserved width; else everything. */
+  private writeMeta(): void {
+    const head = this.headLine();
+    if (Buffer.byteLength(head) > this.headWidth) {
+      this.writeAll();
+      return;
+    }
+    const fd = openSync(this.filePath, 'r+');
+    try {
+      writeSync(fd, padHead(head, this.headWidth), 0, 'utf8');
+    } finally {
+      closeSync(fd);
+    }
+  }
+
   private writeAll(): void {
-    const head = JSON.stringify({ type: 'meta', ...this.meta } satisfies Line);
+    const head = padHead(this.headLine(), META_WIDTH);
     const body = this.messages.map((m) =>
       JSON.stringify({ type: 'message', message: m } satisfies MessageLine),
     );
     writeFileSync(this.filePath, `${[head, ...body].join('\n')}\n`);
     this.savedCount = this.messages.length;
+    this.headWidth = Buffer.byteLength(head);
   }
 }

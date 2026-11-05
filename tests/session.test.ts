@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { Session } from '../src/session.ts';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { ModelMessage } from 'ai';
+import { META_WIDTH, Session, sessionsDir } from '../src/session.ts';
 import { tempDir } from './helpers.ts';
 
 describe('Session', () => {
@@ -41,6 +44,57 @@ describe('Session', () => {
     expect(Session.load(s.meta.id).messages.length).toBe(1);
     s.sync([]);
     expect(Session.load(s.meta.id).messages.length).toBe(0);
+  });
+
+  test('meta stays fresh on long transcripts: in-place rewrite, messages appended', async () => {
+    const s = Session.create({ cwd: '/proj', provider: 'claude', model: 'm' });
+    const createdAt = s.meta.createdAt;
+    const messages: ModelMessage[] = [];
+    for (let i = 0; i < 30; i++) {
+      messages.push({ role: i % 2 ? 'assistant' : 'user', content: `म्यासेज ${i}` }); // non-ASCII title
+      if (i === 29) await Bun.sleep(5);
+      s.sync([...messages]);
+    }
+    const raw = readFileSync(s.filePath, 'utf8');
+    expect(Buffer.byteLength(raw.slice(0, raw.indexOf('\n')))).toBe(META_WIDTH); // padded head
+    expect(raw.split('\n').filter(Boolean).length).toBe(31); // meta + 30 messages
+    const loaded = Session.load(s.meta.id);
+    expect(loaded.messages.length).toBe(30);
+    expect(loaded.messages[29]?.content).toBe('म्यासेज 29');
+    expect(loaded.meta.title).toBe('म्यासेज 0');
+    expect(loaded.meta.updatedAt).toBe(s.meta.updatedAt);
+    expect(loaded.meta.updatedAt > createdAt).toBe(true);
+    expect(Session.list()[0]?.updatedAt).toBe(s.meta.updatedAt);
+  });
+
+  test('a legacy file with an unpadded meta line is upgraded on the next sync', () => {
+    const meta = {
+      type: 'meta',
+      id: 'legacy-1',
+      cwd: '/old',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      provider: 'p',
+      model: 'm',
+      title: '',
+    };
+    const msgs: ModelMessage[] = Array.from({ length: 6 }, (_, i) => ({
+      role: i % 2 ? 'assistant' : 'user',
+      content: `old ${i}`,
+    }));
+    writeFileSync(
+      join(sessionsDir(), 'legacy-1.jsonl'),
+      `${[meta, ...msgs.map((m) => ({ type: 'message', message: m }))].map((l) => JSON.stringify(l)).join('\n')}\n`,
+    );
+    const s = Session.load('legacy-1');
+    expect(s.messages.length).toBe(6);
+    s.sync([...msgs, { role: 'user', content: 'new 6' }]); // title grows → head no longer fits
+    const loaded = Session.load('legacy-1');
+    expect(loaded.messages.length).toBe(7);
+    expect(loaded.meta.title).toBe('old 0');
+    expect(loaded.meta.updatedAt > meta.updatedAt).toBe(true);
+    s.sync([...loaded.messages, { role: 'assistant', content: 'new 7' }]); // now in place again
+    expect(Session.load('legacy-1').messages.length).toBe(8);
   });
 
   test('list is newest first and latest() filters by cwd', async () => {

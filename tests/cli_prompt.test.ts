@@ -30,6 +30,17 @@ describe('parseArgs', () => {
     expect(parseArgs(['-p', 'hello']).print).toBe('hello');
   });
 
+  test('doctor as a subcommand or flag; not when it is just the first prompt word', () => {
+    expect(parseArgs(['doctor']).doctor).toBe(true);
+    expect(parseArgs(['doctor', '-P', 'ollama']).doctor).toBe(true);
+    expect(parseArgs(['--doctor']).doctor).toBe(true);
+    expect(parseArgs(['doctor']).prompt).toBeUndefined();
+    const p = parseArgs(['-p', 'doctor please']);
+    expect(p.doctor).toBe(false);
+    expect(p.print).toBe('doctor please');
+    expect(parseArgs(['call', 'the', 'doctor']).prompt).toBe('call the doctor');
+  });
+
   test('rejects bad input', () => {
     expect(() => parseArgs(['--max-steps', 'x'])).toThrow(/positive integer/);
     expect(() => parseArgs(['--provider'])).toThrow(/Missing value/);

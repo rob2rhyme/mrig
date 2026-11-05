@@ -129,6 +129,7 @@ export class Repl {
       return;
     }
     this.banner();
+    this.checkModelInBackground();
     if (initialPrompt) await this.send(initialPrompt);
     for (;;) {
       const line = await this.prompt();
@@ -142,6 +143,18 @@ export class Repl {
       await this.send(text);
     }
     this.rl.close();
+  }
+
+  /** Startup model-id check (L1): a short background GET; only a mismatch is reported. */
+  private checkModelInBackground(): void {
+    const rt = this.runtime;
+    void rt
+      .checkModel({ timeoutMs: 3000 })
+      .then((c) => {
+        if (c.status !== 'unknown-model' || this.runtime !== rt) return;
+        this.write(`${yellow('!')} ${c.message} ${dim('· mrig doctor')}\n`);
+      })
+      .catch(() => {});
   }
 
   private banner(): void {
