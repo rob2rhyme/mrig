@@ -1,0 +1,8 @@
+{
+  "name": "react-devtools-core",
+  "version": "0.0.0-mrig-stub",
+  "description": "Stub. Ink loads React DevTools only when DEV=true, which mrig never sets; the real package is not bundled.",
+  "main": "index.js",
+  "type": "module",
+  "private": true
+}

@@ -172,7 +172,7 @@ async function main(): Promise<void> {
       process.exit(1);
     }
   }
-  const repl = new Repl({
+  const options = {
     cwd,
     provider: args.provider,
     model: args.model,
@@ -181,7 +181,16 @@ async function main(): Promise<void> {
     offline: args.offline,
     maxSteps: args.maxSteps,
     resume: args.continue ? 'latest' : args.resume,
-  });
+  };
+  if (args.tui) {
+    if (process.stdin.isTTY && process.stdout.isTTY) {
+      const { startTui } = await import('./ui/tui.tsx');
+      await startTui(options, args.prompt);
+      return;
+    }
+    process.stderr.write(`${dim('--tui needs an interactive terminal; using the plain REPL.')}\n`);
+  }
+  const repl = new Repl(options);
   await repl.start(args.prompt);
 }
 
