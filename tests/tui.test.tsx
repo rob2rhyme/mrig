@@ -5,7 +5,7 @@ import { render } from 'ink-testing-library';
 import { applyChunk, formatStatus, TuiApp } from '../src/ui/tui.tsx';
 import { TuiController } from '../src/ui/tui-controller.ts';
 import { ZONE_MARKER } from '../src/zone.ts';
-import { mockModel, tempDir, textTurn, toolTurn } from './helpers.ts';
+import { mockModel, reasoningTurn, tempDir, textTurn, toolTurn } from './helpers.ts';
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI colour codes
 const plain = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
@@ -159,6 +159,39 @@ describe('tui: the controller (no terminal)', () => {
     );
     expect(await c.submit('/exit')).toBe('exit');
     expect(await c.submit('   ')).toBeUndefined(); // blank lines do nothing
+    await c.close();
+  });
+
+  test('/verbose shows reasoning as a dim item before the answer; off by default', async () => {
+    const c = make([
+      reasoningTurn('The user greets me.', 'Hello!'),
+      reasoningTurn('Again a greeting.', 'Hi again.'),
+    ]);
+    await c.start();
+    await c.submit('hi');
+    const kinds = () =>
+      c
+        .getSnapshot()
+        .items.filter((i) => i.kind === 'reasoning' || i.kind === 'assistant')
+        .map((i) => `${i.kind}:${plain(i.text)}`);
+    expect(kinds()).toEqual(['assistant:Hello!']); // hidden by default
+    await c.submit('/verbose');
+    expect(plain(c.getSnapshot().items.at(-1)?.text ?? '')).toMatch(/^verbose on/);
+    expect(c.runtime?.verbose).toBe(true);
+    const seen: string[] = [];
+    c.subscribe(() => seen.push(c.getSnapshot().reasoning));
+    await c.submit('hi again');
+    expect(seen).toContain('Again a greeting.'); // it streamed live first
+    expect(kinds()).toEqual([
+      'assistant:Hello!',
+      'reasoning:Again a greeting.',
+      'assistant:Hi again.',
+    ]);
+    expect(c.getSnapshot().reasoning).toBe('');
+    await c.submit('/verbose off');
+    expect(c.runtime?.verbose).toBe(false);
+    await c.submit('/verbose loud');
+    expect(plain(c.getSnapshot().items.at(-1)?.text ?? '')).toBe('usage: /verbose [on|off]');
     await c.close();
   });
 

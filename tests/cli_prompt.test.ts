@@ -31,6 +31,20 @@ describe('parseArgs', () => {
     expect(parseArgs(['-p', 'hello']).print).toBe('hello');
   });
 
+  test('L7 flags: --json and --output-last need -p; init alone is the subcommand', () => {
+    expect(parseArgs(['-p', 'hi', '--json']).json).toBe(true);
+    expect(parseArgs(['--output-last', '-p', 'hi']).outputLast).toBe(true);
+    expect(() => parseArgs(['--json'])).toThrow('--json works with -p "prompt"');
+    expect(() => parseArgs(['--output-last', 'fix it'])).toThrow(/--output-last works with -p/);
+    expect(() => parseArgs(['-p', 'hi', '--json', '--output-last'])).toThrow(/not both/);
+    expect(parseArgs(['init']).init).toBe(true);
+    expect(parseArgs(['--init']).init).toBe(true);
+    const prompt = parseArgs(['init', 'a', 'git', 'repo', 'here']);
+    expect(prompt.init).toBe(false);
+    expect(prompt.prompt).toBe('init a git repo here');
+    expect(parseArgs(['-p', 'init']).init).toBe(false);
+  });
+
   test('doctor as a subcommand or flag; not when it is just the first prompt word', () => {
     expect(parseArgs(['doctor']).doctor).toBe(true);
     expect(parseArgs(['doctor', '-P', 'ollama']).doctor).toBe(true);

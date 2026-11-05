@@ -89,3 +89,20 @@ export function mockModel(turns: LanguageModelV4StreamPart[][]): MockLanguageMod
     },
   });
 }
+
+/** A mock turn from a reasoning model: streamed reasoning, then the answer. */
+export function reasoningTurn(
+  reasoning: string,
+  text: string,
+  tokens: MockTokens = { input: 10, output: 5 },
+): LanguageModelV4StreamPart[] {
+  const [start, meta, ...rest] = textTurn(text, tokens);
+  return [
+    start as LanguageModelV4StreamPart,
+    meta as LanguageModelV4StreamPart,
+    { type: 'reasoning-start', id: 'r1' },
+    { type: 'reasoning-delta', id: 'r1', delta: reasoning },
+    { type: 'reasoning-end', id: 'r1' },
+    ...rest,
+  ];
+}
