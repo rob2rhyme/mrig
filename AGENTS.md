@@ -19,6 +19,8 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
 - `src/providers.ts` + `src/config.ts` — named profiles; add providers here, never in the loop.
 - `src/session.ts` — JSONL under `~/.mrig/sessions`; `sync()` appends, rewrites on shrink.
 - `src/ui/repl.ts` — readline REPL and slash commands. `src/index.ts` — CLI + headless `-p`.
+- `src/mcp.ts` — MCP client: servers from the global config only, tools named
+  `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the
   binary. Changing a task or verifier means bumping `TASK_SET_VERSION`; every task needs a
   `reference` solution (the tests prove the verifier fails before it and passes after it).

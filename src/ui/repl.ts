@@ -128,6 +128,7 @@ export class Repl {
       process.exitCode = 1;
       return;
     }
+    await this.runtime.startMcp();
     this.banner();
     this.checkModelInBackground();
     if (initialPrompt) await this.send(initialPrompt);
@@ -143,6 +144,7 @@ export class Repl {
       await this.send(text);
     }
     this.rl.close();
+    await this.runtime.close();
   }
 
   /**
@@ -181,6 +183,15 @@ export class Repl {
     this.write(
       `${dim(`${rt.cwd}${memory.length ? ` · memory: ${memory.map((m) => m.split('/').pop()).join(', ')}` : ''}`)}\n`,
     );
+    const mcp = rt.mcpStatus();
+    if (mcp.length > 0) {
+      const up = mcp.filter((x) => x.state === 'connected');
+      const tools = up.reduce((n, x) => n + x.tools.length, 0);
+      const failed = mcp.filter((x) => x.state === 'failed').length;
+      this.write(
+        `${dim(`mcp: ${up.length} of ${mcp.length} server${mcp.length === 1 ? '' : 's'} · ${tools} tool${tools === 1 ? '' : 's'}`)}${failed ? ` ${yellow(`· ${failed} failed, see /mcp`)}` : ''}\n`,
+      );
+    }
     if (rt.agent.messages.length)
       this.write(
         `${dim(`resumed session ${rt.session.meta.id} (${rt.agent.messages.length} messages)`)}\n`,
@@ -249,6 +260,7 @@ export class Repl {
             `${bold('/yolo')}              toggle permission prompts`,
             `${bold('/sessions')}          list saved sessions · ${bold('/resume <id>')} to load one`,
             `${bold('/tools')}             list tools · ${bold('/memory')} show loaded AGENTS.md files`,
+            `${bold('/mcp')}               MCP servers and the tools they added`,
             `${bold('/exit')}              quit`,
           ].join('\n')}\n\n`,
         );
@@ -348,6 +360,10 @@ export class Repl {
           return this.info(red((err as Error).message));
         }
       }
+      case 'mcp':
+        for (const line of rt.mcpReport()) this.write(`${line}\n`);
+        this.write('\n');
+        return false;
       case 'tools':
         for (const t of rt.agent.opts.tools)
           this.write(

@@ -148,7 +148,7 @@ describe('doctor: model-id check against /v1/models', () => {
     });
     expect(one.length).toBe(1);
     expect(one[0]?.status).toBe('ok');
-    expect(doctor(DEFAULT_CONFIG, { fetch, env: {}, only: 'nope' })).rejects.toThrow(
+    await expect(doctor(DEFAULT_CONFIG, { fetch, env: {}, only: 'nope' })).rejects.toThrow(
       /Unknown provider "nope"/,
     );
   });

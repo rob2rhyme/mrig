@@ -11,6 +11,7 @@ import {
   type DoctorOptions,
   type ModelCheck,
 } from './doctor.ts';
+import { formatMcpStatus, type McpConnect, McpManager, type McpServerStatus } from './mcp.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
 import { buildSystemPrompt } from './prompt.ts';
 import { createModel } from './providers.ts';
@@ -62,10 +63,14 @@ export class Runtime {
   readonly offline: Offline | undefined;
   /** The sessions folder: the zone's inside an offline zone, else undefined (~/.mrig/sessions). */
   readonly sessionsDir: string | undefined;
+  /** Connected MCP servers, once startMcp() ran. */
+  private mcp: McpManager | undefined;
+  private readonly events: AgentEvents;
 
   constructor(opts: RuntimeOptions) {
     this.cwd = opts.cwd;
     this.offline = resolveOffline(opts.cwd, opts.offline);
+    this.events = opts.events;
     this.config = opts.config ?? loadConfig({ cwd: opts.cwd });
     const resolved = resolveProfile(this.config, opts.provider, opts.model);
     assertProfileAllowed(resolved.name, resolved.profile, this.offline);
@@ -114,7 +119,7 @@ export class Runtime {
       model: this.model,
       modelLabel: this.modelLabel(),
       profile: this.profile,
-      tools: offlineTools(toolsForMode(this.profile.toolMode), this.offline),
+      tools: this.currentTools(),
       permissions: this.permissions,
       cwd: opts.cwd,
       systemPrompt: this.systemPrompt(),
@@ -185,10 +190,54 @@ export class Runtime {
     this.agent.opts.model = nextModel;
     this.agent.opts.profile = resolved.profile;
     this.agent.opts.modelLabel = this.modelLabel();
-    this.agent.setTools(offlineTools(toolsForMode(this.profile.toolMode), this.offline));
+    this.agent.setTools(this.currentTools());
     this.agent.opts.systemPrompt = this.systemPrompt();
     this.agent.setDetectedContextWindow(undefined);
     this.session.setModel(this.providerName, this.profile.model);
+  }
+
+  /**
+   * The tools for the current profile: the built-ins for its tool mode, plus MCP tools (except
+   * in bash-only mode), minus anything that reaches other hosts when offline.
+   */
+  private currentTools() {
+    const mcp = this.profile.toolMode === 'minimal' ? [] : (this.mcp?.tools() ?? []);
+    return offlineTools([...toolsForMode(this.profile.toolMode), ...mcp], this.offline);
+  }
+
+  /**
+   * Connect the MCP servers from the global config (L6) and add their tools. Call once after
+   * construction; failures become notices. The eval harness never calls it.
+   */
+  async startMcp(opts: { connect?: McpConnect } = {}): Promise<void> {
+    const ignored = this.config.projectMcpIgnored ?? [];
+    if (ignored.length > 0) {
+      this.events.onNotice?.(
+        `Ignored MCP server${ignored.length === 1 ? '' : 's'} ${ignored.map((n) => `"${n}"`).join(', ')} from this project's .mrig/config.json: only ~/.mrig/config.json can start servers.`,
+      );
+    }
+    if (this.mcp || Object.keys(this.config.mcpServers).length === 0) return;
+    this.mcp = new McpManager(this.config.mcpServers, {
+      offline: this.offline !== undefined,
+      onNotice: (m) => this.events.onNotice?.(m),
+      ...(opts.connect ? { connect: opts.connect } : {}),
+    });
+    await this.mcp.start();
+    this.agent.setTools(this.currentTools());
+  }
+
+  mcpStatus(): McpServerStatus[] {
+    return this.mcp?.status() ?? [];
+  }
+
+  /** Lines for `/mcp`. */
+  mcpReport(): string[] {
+    return formatMcpStatus(this.mcpStatus());
+  }
+
+  /** Stop MCP servers. Safe to call more than once. */
+  async close(): Promise<void> {
+    await this.mcp?.close();
   }
 
   /** Turn permission prompts off or on (`/yolo`). Offline mode refuses to turn them off. */

@@ -67,6 +67,7 @@ async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promis
       onNotice: (m) => process.stderr.write(`${yellow('!')} ${m}\n`),
     },
   });
+  await runtime.startMcp();
   if (runtime.offline) {
     process.stderr.write(
       dim(
@@ -97,6 +98,7 @@ async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promis
   } finally {
     runtime.save();
     rl?.close();
+    await runtime.close();
   }
 }
 
