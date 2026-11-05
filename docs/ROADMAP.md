@@ -108,7 +108,7 @@ Two build notes:
 | # | Item | Effort | Depends on |
 |---|---|---|---|
 | A1 | **Font spike**: the GurbachhanAkkhaRik font re-encoded to Brahmi, `brah` script tag, `hb-shape` → Safari / Word / Chrome (font repo) | S | — |
-| A2 | **Transliteration tool in mrig**: Devanagari (NFC) hub ↔ Akkha-Brahmi + romanization; lossy-set report; round-trip tests | S/M | A1 |
+| A2 | **Transliteration tool in mrig**: Devanagari (NFC) hub ↔ Akkha-Brahmi + romanization; lossy-set report; round-trip tests. ✅ Built 2026-11-05 (`feat/A2-transliteration`), ahead of A1 by Robin's choice: `src/lang/`, the read-only `translit` tool, seeded round-trip property tests, lossy and unmapped reports. ⏳ The Brahmi table stays provisional until A1 passes; chandrabindu, visarga and nukta defaults await Robin | S/M | A1 |
 | A3 | **Language memory**: `lang/*.md`, variety tags, `/lang`; font commands in `AGENTS.md`; `hb-shape` golden tests | S | A2 |
 | A4 | **Corpus search over the CLDF export** + retrieval for the local LLM | S→M | L4, A3 |
 | A5 | **Akkha-Rik app data fixes**: `lang` tag on all 269 vocabulary items; `ak` generated from `deva`; then real Unicode rendering via the web font | S/M | A1, A2 |
