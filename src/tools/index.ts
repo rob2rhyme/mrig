@@ -2,6 +2,7 @@ import { jsonSchema, type Tool, tool } from 'ai';
 import type { ToolMode } from '../config.ts';
 import { bashTool } from './bash.ts';
 import { editTool } from './edit.ts';
+import { fetchTool } from './fetch.ts';
 import { globTool } from './glob.ts';
 import { grepTool } from './grep.ts';
 import { readTool } from './read.ts';
@@ -22,6 +23,7 @@ export const DEFAULT_TOOLS: AnyTool[] = [
   bashTool,
   globTool,
   grepTool,
+  fetchTool,
 ];
 
 /** The tool set for a profile's `toolMode`: everything, or bash alone for weak local models. */

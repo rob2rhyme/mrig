@@ -261,7 +261,7 @@ describe('local-model hardening (L2)', () => {
     else throw new Error('expected error-text');
     expect(text.join('')).toBe('no read tool here');
     agent.setTools(DEFAULT_TOOLS);
-    expect(agent.opts.tools.length).toBe(6);
+    expect(agent.opts.tools.length).toBe(DEFAULT_TOOLS.length);
   });
 });
 

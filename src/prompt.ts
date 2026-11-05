@@ -94,6 +94,7 @@ export function buildSystemPrompt(opts: PromptOptions): string {
           '- Prefer edit (exact string replacement) over write for existing files. Keep old_string unique.',
           '- After changing code, verify: run the tests, linter, or build with bash when the project has them.',
           '- Use bash for git, package managers, tests, and anything the other tools do not cover. Never run interactive commands. Never run destructive git commands (reset --hard, push --force, clean -f) unless the user explicitly asks.',
+          '- Use fetch to read a web page or API when the answer depends on something online.',
         ]),
     '- Do not invent file contents or command output. If a tool fails, say so and adapt.',
     '- Be concise. Lead with the answer or the change; skip preamble. Use plain prose; use code blocks for code.',

@@ -2,7 +2,7 @@
 
 mrig is a personal, local, model-agnostic terminal agent (think Claude Code, but yours):
 one provider layer (Vercel AI SDK) over Anthropic, OpenAI, and any OpenAI-compatible server
-(Ollama, LM Studio, llama.cpp, vLLM), six tools, a permission gate, JSONL sessions, and a
+(Ollama, LM Studio, llama.cpp, vLLM), seven tools, a permission gate, JSONL sessions, and a
 plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows, Linux.
 
 ## Architecture (keep it this shape)

@@ -127,7 +127,7 @@ describe('offline rules: zones and the other checks', () => {
 
   test('tools that reach other hosts are dropped offline', () => {
     const fetchTool = defineTool({
-      name: 'fetch',
+      name: 'webpage',
       description: 'Fetch a URL',
       inputSchema: z.object({ url: z.string() }),
       readOnly: true,
@@ -136,10 +136,11 @@ describe('offline rules: zones and the other checks', () => {
       execute: async () => '',
     }) as AnyTool;
     const tools = [...DEFAULT_TOOLS, fetchTool];
-    expect(offlineTools(tools, undefined).map((x) => x.name)).toContain('fetch');
-    expect(offlineTools(tools, { source: 'flag' }).map((x) => x.name)).toEqual(
-      DEFAULT_TOOLS.map((x) => x.name),
-    );
+    expect(offlineTools(tools, undefined).map((x) => x.name)).toContain('webpage');
+    const offline = offlineTools(tools, { source: 'flag' }).map((x) => x.name);
+    expect(offline).not.toContain('webpage');
+    expect(offline).not.toContain('fetch'); // the built-in fetch tool is remote too
+    expect(offline).toEqual(['read', 'edit', 'write', 'bash', 'glob', 'grep']);
   });
 
   test('resume never crosses a zone boundary', () => {
@@ -253,7 +254,8 @@ describe('offline mode in the runtime', () => {
     expect(() => start({ provider: undefined })).toThrow(/"claude" uses the anthropic cloud API/); // the default
     const { rt } = start();
     expect(rt.offline).toEqual({ source: 'zone', zone: project });
-    expect(rt.agent.opts.tools.length).toBe(DEFAULT_TOOLS.length);
+    expect(rt.agent.opts.tools.map((x) => x.name)).not.toContain('fetch'); // remote: dropped offline
+    expect(rt.agent.opts.tools.length).toBe(DEFAULT_TOOLS.length - 1);
   });
 
   test('inside a zone: transcripts stay in the zone and are git-ignored', () => {
