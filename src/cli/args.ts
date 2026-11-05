@@ -1,3 +1,5 @@
+import { MODE_NAMES, type ModeName, parseMode } from '../modes.ts';
+
 export interface CliArgs {
   prompt?: string;
   print?: string;
@@ -21,6 +23,8 @@ export interface CliArgs {
   outputLast: boolean;
   /** `mrig init` / `--init`: write a starter ~/.mrig/config.json (L7). */
   init: boolean;
+  /** `--mode <name>` (T1). */
+  mode?: ModeName;
   version: boolean;
   help: boolean;
 }
@@ -46,6 +50,7 @@ Options:
       --cwd <dir>          Working directory
       --list-sessions      List saved sessions
       --offline            Only local models; prompts always on (also: a .mrig-zone file)
+      --mode <name>        Start in a mode: ${MODE_NAMES.join(', ')} (or /mode in a session)
       --tui                Terminal UI with a status line (experimental)
       --doctor             Same as "mrig doctor"
       --init               Same as "mrig init"
@@ -134,6 +139,9 @@ export function parseArgs(argv: string[]): CliArgs {
         break;
       case '--init':
         args.init = true;
+        break;
+      case '--mode':
+        args.mode = parseMode(take(a, i++));
         break;
       case '-v':
       case '--version':

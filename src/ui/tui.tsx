@@ -52,6 +52,7 @@ export function formatStatus(s: StatusInfo): string {
     `${s.tokensIn.toLocaleString()} in / ${s.tokensOut.toLocaleString()} out`,
     ...(s.cost !== undefined ? [`~$${s.cost.toFixed(4)}`] : []),
     `context ${s.contextPct}%`,
+    ...(s.mode ? [`${s.mode} mode`] : []),
     ...(s.mcp ? [`mcp ${s.mcp}`] : []),
     ...(s.offline ? [s.offline.toLowerCase()] : []),
     ...(s.yolo ? ['yolo'] : []),

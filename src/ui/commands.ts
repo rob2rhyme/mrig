@@ -3,6 +3,7 @@
  * plain text (with ANSI colour) through `io`; neither UI holds command logic of its own.
  */
 import { langReport } from '../lang/memory.ts';
+import { isModeName, MODE_NAMES, MODES } from '../modes.ts';
 import { findMemoryFiles } from '../prompt.ts';
 import { CACHE_WRITE_MULTIPLIER, explainCacheMiss, formatModelError } from '../providers.ts';
 import type { Runtime } from '../runtime.ts';
@@ -49,6 +50,7 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           `${bold('/compact')}           summarize the conversation to free context`,
           `${bold('/clear')}             start a fresh conversation (same session file)`,
           `${bold('/yolo')}              toggle permission prompts`,
+          `${bold('/mode <name>')}       ${MODE_NAMES.join(' | ')}: how mrig works with you`,
           `${bold('/verbose')}           show or hide the model's reasoning`,
           `${bold('/sessions')}          list saved sessions · ${bold('/resume <id>')} to load one`,
           `${bold('/tools')}             list tools · ${bold('/memory')} show loaded AGENTS.md files`,
@@ -127,6 +129,20 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           ? yellow('yolo ON — no permission prompts')
           : 'yolo off — prompts enabled',
       );
+    case 'mode': {
+      if (!arg) {
+        return info(
+          MODE_NAMES.map(
+            (n) =>
+              `${n === rt.mode ? green('●') : dim('○')} ${bold(n.padEnd(8))} ${MODES[n].summary}`,
+          ).join('\n'),
+        );
+      }
+      if (!isModeName(arg))
+        return info(red(`Unknown mode "${arg}". Modes: ${MODE_NAMES.join(', ')}.`));
+      rt.setMode(arg);
+      return info(`now in ${bold(arg)} mode: ${MODES[arg].summary}`);
+    }
     case 'verbose': {
       if (arg && arg !== 'on' && arg !== 'off') return info('usage: /verbose [on|off]');
       rt.verbose = arg ? arg === 'on' : !rt.verbose;
@@ -200,7 +216,7 @@ export function bannerLines(rt: Runtime): string[] {
   const lines: string[] = [];
   const memory = findMemoryFiles(rt.cwd);
   lines.push(
-    `${bold(magenta('mrig'))} ${dim(`v${VERSION}`)} · ${rt.modelLabel()}${rt.permissions.yolo ? ` · ${yellow('yolo')}` : ''}`,
+    `${bold(magenta('mrig'))} ${dim(`v${VERSION}`)} · ${rt.modelLabel()}${rt.mode !== 'default' ? ` · ${magenta(`${rt.mode} mode`)}` : ''}${rt.permissions.promptsSkipped ? ` · ${yellow('yolo')}` : ''}`,
   );
   if (rt.offline) {
     lines.push(

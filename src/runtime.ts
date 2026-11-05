@@ -19,6 +19,7 @@ import {
 } from './doctor.ts';
 import { type LangMemory, loadLangMemory } from './lang/memory.ts';
 import { formatMcpStatus, type McpConnect, McpManager, type McpServerStatus } from './mcp.ts';
+import { isModeName, MODES, type ModeName } from './modes.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
 import { buildSystemPrompt } from './prompt.ts';
 import { createModel } from './providers.ts';
@@ -49,6 +50,8 @@ export interface RuntimeOptions {
   offline?: boolean;
   /** Keep the session in memory only (eval harness): no file under ~/.mrig/sessions. */
   ephemeral?: boolean;
+  /** `--mode` (T1). Without it: the resumed session's mode, else default. */
+  mode?: ModeName;
   /** Use this model instead of building one from the profile (tests, the eval harness). */
   languageModel?: LanguageModel;
   /** Use this config instead of loading it from cwd (the eval harness runs in temp dirs). */
@@ -70,6 +73,8 @@ export class Runtime {
   readonly offline: Offline | undefined;
   /** The sessions folder: the zone's inside an offline zone, else undefined (~/.mrig/sessions). */
   readonly sessionsDir: string | undefined;
+  /** The mode (T1): its prompt text and permission policy are in force. */
+  mode: ModeName = 'default';
   /**
    * Language memory (A3), read once here and on reloadLang(). Kept fixed in between, so the
    * system prompt, and with it the cached prefix, does not change from turn to turn.
@@ -129,6 +134,10 @@ export class Runtime {
       });
     }
 
+    // An explicit --mode wins; a resumed session keeps the mode it was saved with.
+    const saved = this.session.meta.mode;
+    this.applyMode(opts.mode ?? (saved && isModeName(saved) ? saved : 'default'));
+    if (opts.mode && opts.mode !== (saved ?? 'default')) this.session.setMode(opts.mode);
     this.lang = loadLangMemory(opts.cwd);
     this.agent = new Agent({
       model: this.model,
@@ -158,7 +167,21 @@ export class Runtime {
       modelLabel: this.modelLabel(),
       toolMode: this.profile.toolMode,
       lang: this.lang.block,
+      mode: this.mode,
     });
+  }
+
+  private applyMode(name: ModeName): void {
+    this.mode = name;
+    this.permissions.policy = MODES[name].permissions;
+  }
+
+  /** `/mode <name>`: switch the prompt, the tools on offer and the permission policy. */
+  setMode(name: ModeName): void {
+    this.applyMode(name);
+    this.session.setMode(name);
+    this.agent.setTools(this.currentTools());
+    this.agent.opts.systemPrompt = this.systemPrompt();
   }
 
   /** `/lang reload`: read the lang/ files again. The next request re-caches the prompt. */
@@ -226,7 +249,9 @@ export class Runtime {
    */
   private currentTools() {
     const mcp = this.profile.toolMode === 'minimal' ? [] : (this.mcp?.tools() ?? []);
-    return offlineTools([...toolsForMode(this.profile.toolMode), ...mcp], this.offline);
+    const tools = offlineTools([...toolsForMode(this.profile.toolMode), ...mcp], this.offline);
+    // learn mode offers read-only tools only.
+    return MODES[this.mode].permissions === 'read-only' ? tools.filter((t) => t.readOnly) : tools;
   }
 
   /**
@@ -264,6 +289,11 @@ export class Runtime {
   /** Turn permission prompts off or on (`/yolo`). Offline mode refuses to turn them off. */
   setYolo(on: boolean): void {
     if (on) assertNoYolo(true, this.offline);
+    if (on && this.mode !== 'default') {
+      throw new Error(
+        `${this.mode} mode ${this.mode === 'teach' ? 'asks before every change' : 'only reads'}; /mode default first to skip prompts.`,
+      );
+    }
     this.permissions.yolo = on;
   }
 
@@ -277,6 +307,13 @@ export class Runtime {
     const session = this.loadSession(id);
     this.session = session;
     this.agent.loadTranscript(session.messages);
+    const saved = session.meta.mode;
+    const mode = saved && isModeName(saved) ? saved : 'default';
+    if (mode !== this.mode) {
+      this.applyMode(mode);
+      this.agent.setTools(this.currentTools());
+      this.agent.opts.systemPrompt = this.systemPrompt();
+    }
     return session;
   }
 

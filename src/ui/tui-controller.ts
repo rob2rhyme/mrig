@@ -40,6 +40,8 @@ export interface StatusInfo {
   contextPct: number;
   offline?: string;
   yolo: boolean;
+  /** The mode, when not default (T1). */
+  mode?: string;
   /** "2/3" when MCP servers are configured: connected / configured. */
   mcp?: string;
 }
@@ -141,7 +143,8 @@ export class TuiController {
       cost: rt.agent.cost(),
       contextPct: Math.min(100, Math.round((report.estimate / report.window) * 100)),
       ...(rt.offline ? { offline: describeOffline(rt.offline) } : {}),
-      yolo: rt.permissions.yolo,
+      yolo: rt.permissions.promptsSkipped,
+      ...(rt.mode !== 'default' ? { mode: rt.mode } : {}),
       ...(mcp.length > 0 ? { mcp: `${connected}/${mcp.length}` } : {}),
     };
   }

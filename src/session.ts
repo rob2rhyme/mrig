@@ -31,6 +31,8 @@ export interface SessionMeta {
   title: string;
   /** The offline zone this session belongs to (L5); absent outside zones. */
   zone?: string;
+  /** The mode (T1), when not default; `-c` and `/resume` restore it. */
+  mode?: string;
 }
 
 type Line = { type: 'meta' } & SessionMeta;
@@ -207,6 +209,12 @@ export class Session {
   setModel(provider: string, model: string): void {
     this.meta.provider = provider;
     this.meta.model = model;
+    this.writeAll();
+  }
+
+  setMode(mode: string): void {
+    if (mode === 'default') delete this.meta.mode;
+    else this.meta.mode = mode;
     this.writeAll();
   }
 
