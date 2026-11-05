@@ -70,7 +70,7 @@ The source of truth for order is `docs/ROADMAP.md`. It has three tracks: **local
   - Models to trial on the M4 Pro: first wave at 24 GB: Qwen3.5-9B (Q4/Q6), Gemma 4 12B (Q4/Q6), Gemma 4 26B-A4B (Q4, tight). Second wave at 64 GB, the backup size: the largest Qwen3.5 and Gemma 4 variants at Q6/Q8, and one 70B-class model at Q4 as a ceiling test. Third wave at 128 GB, the target: 100B-class mixture-of-experts and 70B-class dense models, and pairs of a fast routine model with a large hard-task model. Memory, speed, machine choice and backup plans are in ROADMAP "Hardware plan and backups".
   - Set the context length to fit the GPU memory budget, and record tokens/s.
   - Hardening:
-    - with an Ollama profile, query `GET /api/show` at startup and warn when the context is under 32k;
+    - with an Ollama profile, query `POST /api/show` at startup and warn when the context is under 32k;
     - add `toolMode: "minimal"` (bash-only) for models that can't do multi-tool calling;
     - retry once on empty tool arguments.
   - **Acceptance:** each candidate model completes a read → edit → bash task, and the hardening behaviours have tests.
@@ -78,6 +78,7 @@ The source of truth for order is `docs/ROADMAP.md`. It has three tracks: **local
   - A mini-SWE-agent-style script that runs about 10 repo tasks headless (`-p`) against every profile: read, edit, write, grep/glob, bash, and a multi-step fix.
   - Report per profile: pass rate, tool-call validity, how often `repairJson` was used, tokens/s, and cost.
   - **Acceptance:** a compatibility matrix is committed, and the default `local` profile is chosen from it. Track 2 later adds chrF + human review for language tasks.
+  - **Follow-up (S):** no `local` profile exists yet. Add it to the built-in profiles once Robin's first matrix exists, plus `local-hard` at 128 GB. This waits on Robin's run; do L4 and L5 meanwhile.
 - **L4. Two-tier compaction (M).**
   - **Tier (a):** cheap pruning of old tool results and reasoning (AI SDK 7 `pruneMessages`).
   - **Tier (b):** an LLM summary when the estimated transcript tokens exceed a threshold.
@@ -85,6 +86,8 @@ The source of truth for order is `docs/ROADMAP.md`. It has three tracks: **local
     - The threshold defaults to 70% of `profile.contextWindow`, or of 128k if unset, and is configurable as `compaction.threshold`.
     - It runs before the next step, through the existing `Agent.compact()`, with a configurable `compactModel` (the local model when offline).
     - It keeps the last 4 messages verbatim after the summary, and emits `onNotice`.
+    - Cut at a turn boundary: the kept tail must never start with a tool result whose call was summarized away.
+  - **Preserved thinking:** for Claude models that keep thinking blocks (Fable 5.1, Opus 5.5, Sonnet 5.5), tier (a) edits history ahead of kept thinking blocks, which newer accounts can see rejected. Check Anthropic's current docs; for those profiles prefer tier (b), which replaces the whole history.
   - Trigger rarely, because every compaction invalidates the prompt cache.
   - **Tests:** the threshold triggers with the mock model; below it nothing happens; the transcript after compaction still round-trips through `Session`. A 100-step local session never overflows.
 - **L5. Offline guarantee (M).**
@@ -97,6 +100,8 @@ The source of truth for order is `docs/ROADMAP.md`. It has three tracks: **local
     - refuse cross-zone resume.
   - Pure config logic with unit tests.
   - **Acceptance:** the L3 harness passes with networking disabled.
+  - **Keep the harness working:** the harness runs with permissions off in temp folders that carry no zone marker and does not pass `--offline`, so the `--yolo` refusal must not apply to it.
+  - **One loopback check:** move the harness's `isLocalProfile` into `src/config.ts` and use it for the zone rule too.
 - **L6. MCP → fetch → TUI (S / S / M).**
   - **MCP:**
     - Library: `@modelcontextprotocol/sdk` or `@ai-sdk/mcp` (`createMCPClient`). Choose by reading both `.d.ts` files.
@@ -119,7 +124,7 @@ The source of truth for order is `docs/ROADMAP.md`. It has three tracks: **local
 
 Language rules: `docs/LANGUAGE.md`. Details: `docs/ROADMAP.md` and `docs/related/`.
 
-- **A1. Font spike (S, font repo, not mrig).** Brahmi re-encode, `brah` script tag, `hb-shape` → Safari / Word / Chrome. It may run earlier, because it touches no mrig code.
+- **A1. Font spike (S, font repo, not mrig).** Brahmi re-encode, `brah` script tag, `hb-shape` → Safari / Word / Chrome. Run it during v1.0: it touches no mrig code, and A2 waits for it, because a failed Brahmi spike moves the encoding to the PUA fallback.
 - **A2. Transliteration (S/M, after A1).**
   - A Devanagari (NFC) hub ↔ Akkha-Brahmi and ISO 15919-style romanization.
   - A table-driven character map, as pure functions.

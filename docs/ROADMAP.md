@@ -1,8 +1,33 @@
-# Roadmap: Local AI first, Akkha second
+# Roadmap: local AI first, Akkha second, modes and media third
 
 Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.**
 
 Labels: **[V]** verified · **[S]** secondary · **[I]** inference or recommendation. Effort: S = under a day, M = a few days, L = a week+ of evenings.
+
+## Build order and status
+
+Reviewed on November 5, 2026 for accuracy and order, so that building never stalls.
+
+**Status marks.** ✅ means the code is built and in a reviewed pull request or merged. ⏳ means the rest waits on Robin: a hardware run, an API key or a decision. **To pick the next item, take the first item in the agent's queue that has no ✅, and skip ⏳ parts.** Nothing in Robin's queue blocks the agent's queue.
+
+**Agent's queue, in order:**
+
+1. **L4**, two-tier compaction.
+2. **L5**, the offline guarantee. With L4 this completes the code for Local AI v1.0.
+3. **Default local profile** (S): add `local`, and `local-hard` once the machine has 128 GB, chosen from Robin's first matrix (see L3 notes). If no matrix exists yet, go on to item 4 and come back.
+4. **L6**: MCP, then fetch, then the TUI. L7 only when asked.
+5. **Track 2** (A2 to A4; A2 needs A1), then **Track 3** (T1, T3, T4, T5, T6, T8; T2 only after its decision note), unless Robin reorders the tracks.
+
+**Robin's queue, in parallel:**
+
+1. Merge the open pull requests in this order: #8 (L1), #9 (L2), #10 (L3), #12 (L0). #11 (docs) can merge at any point. Close #7: #12 replaces it.
+2. Run the L0 live check with an Anthropic API key.
+3. Run the first wave of models on the 24 GB Mac and commit the matrix. This feeds the agent's item 3.
+4. Run the A1 font spike in the font repo before v1.0 ends, so A2 is not blocked.
+5. Confirm whether January 14, 2027 applies to Local AI v1.0.
+6. Later: the T2 decision note, and the machine purchase when a buying signal appears.
+
+**Local AI v1.0 is done** when the L0 to L5 code is merged and Robin's items 2 and 3 are done.
 
 ## Track 1 — Local AI (mrig)
 
@@ -26,17 +51,17 @@ Goal: a dependable agent that runs **fully offline** on Robin's Mac, with Claude
   - It documents no tool-calling API.
   - Its docs say it is "not recommended for production" [V].
   - Keep MLX for fine-tuning.
-- **Models to trial, first wave at 24 GB** (all Apache 2.0 [V]):
+- **Models to trial, first wave at 24 GB** (Apache 2.0 [S]; Gemma moved to Apache 2.0 with Gemma 4):
   - Qwen3.5-9B at Q4/Q6
-  - Gemma 4 12B at Q4/Q6
-  - Gemma 4 26B-A4B at Q4 (tight fit at 24 GB, comfortable from 64 GB)
-- **Second wave at 64 GB [I]:** the largest Qwen3.5 and Gemma 4 dense variants at Q6/Q8, Gemma 4 26B-A4B at Q8, and one 70B-class model at Q4 as a ceiling test.
+  - Gemma 4 12B at Q4/Q6. Some sources list a 12B and launch coverage does not [S]: confirm it on the model card, and if it does not exist, trial Gemma 4 E4B instead.
+  - Gemma 4 26B-A4B at Q4, a mixture-of-experts model with about 4B parameters active per token (tight fit at 24 GB, comfortable from 64 GB)
+- **Second wave at 64 GB [I]:** the largest Qwen3.5 dense variant and Gemma 4 31B dense at Q6/Q8, Gemma 4 26B-A4B at Q8, and one 70B-class model at Q4 as a ceiling test.
 - **Third wave at 128 GB, the target [I]:** 100B-class mixture-of-experts models at Q4–Q6, 70B-class dense models at Q6/Q8, and **pairs** of models loaded together (a fast routine model plus a large hard-task model), evaluated as a pair.
 - Confirm exact tags on ollama.com before pulling any wave; the names here are families, not tags.
-- **Memory budget [I]:** leave 6–8 GB for macOS and apps at 24–64 GB, and 10–12 GB at 128 GB. That gives roughly 16–18 GB for models at 24 GB, 48–52 GB at 64 GB and 105–115 GB at 128 GB. macOS limits how much memory the GPU may use by default; the `iogpu.wired_limit_mb` sysctl raises it [I, verify on the machine before relying on it]. Context grows memory use too: default to 64k and go to 128k where the model supports it.
+- **Memory budget.** By default macOS lets the GPU use only part of memory: about two-thirds on smaller machines and about three-quarters on larger ones [S]. That is roughly 16 GB for models at 24 GB, 48 GB at 64 GB and 96 GB at 128 GB. The `iogpu.wired_limit_mb` sysctl raises the cap [S]; it is undocumented by Apple, resets on reboot unless set in `/etc/sysctl.conf`, and its name has changed before. With it raised, leave 8–16 GB for macOS and apps: about 48–56 GB for models at 64 GB and 112–120 GB at 128 GB [I]. Context grows memory use too: default to 64k and go to 128k where the model supports it.
 - **Speed, not memory, is the ceiling from 64 GB up [I].** Decode speed is bounded by memory bandwidth divided by the model's size in memory. For a 40 GB model that is about 7 tok/s on the M4 Pro (about 273 GB/s), 15 on an M5 Max (614 GB/s [S]) and 30 on an M5 Ultra (up to 1.2 TB/s [V]). Mixture-of-experts models read only their active experts per token, so they stay fast while knowing more: the sweet spot at every size. The eval harness records real tokens/s; treat these as upper bounds.
 - **Hardening** (carried over from the JUMPSTART "local-model hardening" item):
-  - with an Ollama profile, query `GET /api/show` at startup and warn when the context is under 32k;
+  - with an Ollama profile, query `POST /api/show` (Ollama's endpoint is POST) at startup and warn when the context is under 32k;
   - add `toolMode: "minimal"` (bash-only) for models that can't do multi-tool calling;
   - retry once on empty tool arguments.
 
@@ -45,6 +70,13 @@ Goal: a dependable agent that runs **fully offline** on Robin's Mac, with Claude
 - **Tasks:** read, edit, write, grep/glob, bash, and a multi-step fix.
 - **Metrics:** pass rate, tool-call validity, how often `repairJson` was needed, tokens/s, and cost.
 - **Reuse:** track 2 later adds chrF scoring plus human review for language tasks.
+- **Default profile.** No profile called `local` exists yet; the built-ins are `ollama`, `lmstudio` and `llamacpp`. Once Robin's first matrix exists, add a `local` profile pointing at the recommended one, and `local-hard` at 128 GB. Until then the default stays `claude`, and Robin can set `defaultProvider` in config.
+- **Permissions.** The harness runs tasks with permissions off in temp folders. L5 must keep it working (see L5 notes).
+
+**L4 notes:**
+
+- **Cut at a turn boundary.** The verbatim tail kept after a summary must never start with a tool result whose call was summarized away; that transcript is invalid for every provider.
+- **Pruning edits history.** Tier (a) changes earlier turns, which invalidates the prompt cache from that point (L0). For Claude models with preserved thinking (Fable 5.1, Opus 5.5, Sonnet 5.5), edited history ahead of kept thinking blocks can be rejected for accounts created from late August 2026 on [S]. The built-in `fable` profile is Fable 5.1. Check Anthropic's current docs when building, and for those profiles prefer tier (b), which replaces the whole history.
 
 **L5 notes.** With `--offline`, or a zone marker file, mrig must:
 
@@ -52,6 +84,11 @@ Goal: a dependable agent that runs **fully offline** on Robin's Mac, with Claude
 - disable web and remote MCP tools;
 - keep transcripts inside the zone;
 - forbid `--yolo`.
+
+Two build notes:
+
+- **Keep the harness working.** L5's acceptance runs the L3 harness with networking disabled at the OS level. The harness works in temp folders that carry no zone marker and does not pass `--offline`, so the `--yolo` refusal does not apply to it. Changing that would break the acceptance.
+- **One loopback check.** The harness has its own `isLocalProfile`. L5 should move it into `src/config.ts` and use the same function for the zone rule.
 
 **L6 notes:**
 
@@ -66,7 +103,7 @@ Goal: a dependable agent that runs **fully offline** on Robin's Mac, with Claude
 
 **Order:** starts after Local AI v1.0.
 
-**Exception:** the font spike (A1) lives in the font repo and touches no mrig code. It may run earlier if there's spare time, but nothing in track 1 waits for it.
+**Exception:** the font spike (A1) lives in the font repo and touches no mrig code. Run it during v1.0, so A2 is ready to start when v1.0 lands; nothing in track 1 waits for it. A2 does wait for it, because a failed Brahmi spike moves the encoding to the PUA fallback (`docs/LANGUAGE.md`).
 
 | # | Item | Effort | Depends on |
 |---|---|---|---|
@@ -127,7 +164,7 @@ Robin's direction (November 5, 2026): plan for abundance, **target 128 GB**, and
 
 | Option | Memory | Bandwidth | Fit for mrig |
 |---|---|---|---|
-| **Mac Studio, M5 Max, 128 GB** (recommended) | 128 GB | 614 GB/s [S] | macOS is where mrig is developed and hand-tested; MLX for fine-tuning; quiet |
+| **Mac Studio, M5 Max, 128 GB** (recommended; 128 GB needs the 40-core GPU model [S]) | 128 GB | 614 GB/s [S] | macOS is where mrig is developed and hand-tested; MLX for fine-tuning; quiet |
 | Mac Studio, M5 Ultra | 96–512 GB [V] | up to 1.2 TB/s [V] | Twice the speed for big models; much higher price |
 | NVIDIA DGX Spark | 128 GB [S] | 273 GB/s [S] | Linux and CUDA: strongest for fine-tuning and image or video generation; mrig not hand-tested on Linux |
 | AMD Ryzen AI Max+ 395 box | 128 GB, about 96–120 GB usable by the GPU [S] | about 256 GB/s [S] | Cheapest 128 GB; Linux preferred; mrig not hand-tested |
@@ -147,7 +184,7 @@ Loaded at the same time:
 | Context for both models | 64k–128k each | about 10–20 GB |
 | macOS and apps | — | about 10–12 GB |
 
-The upper ends do not all fit at once; trim the hard-task model or its context to stay under 128 GB.
+The upper ends do not all fit at once. This budget assumes the GPU cap has been raised (L2 notes); at the default cap of about 96 GB, trim the hard-task model or its context further.
 
 What this setup gives:
 
@@ -197,5 +234,8 @@ These are decisions or paperwork, not engineering.
 - LM Studio OpenAI compatibility: https://lmstudio.ai/docs/developer/openai-compat
 - mlx-lm server: https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/SERVER.md
 - Gemma 4 model card: https://ai.google.dev/gemma/docs/core/model_card_4
-- Qwen: https://github.com/QwenLM/Qwen3.6
+- Qwen: https://github.com/QwenLM/Qwen3.6 (no open-weight Qwen3.6 9B is confirmed [S]; the trial uses Qwen3.5-9B, Apache 2.0 per its model card [S])
+- Gemma 4 licence and lineup: https://the-decoder.com/googles-gemma-4-is-now-available-with-apache-2-0-licensing-for-the-first-time/
+- Mac Studio M5 Max and M5 Ultra: https://www.apple.com/newsroom/2026/08/apple-introduces-new-mac-studio-with-m5-max-and-m5-ultra/
+- macOS GPU memory cap: https://llmconfigurator.com/en/guides/troubleshooting/increase-metal-vram-limit-apple-silicon
 - AI SDK MCP package: https://registry.npmjs.org/@ai-sdk/mcp
