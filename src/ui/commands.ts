@@ -2,6 +2,7 @@
  * Slash commands, shared by the readline REPL and the TUI so both behave the same. They write
  * plain text (with ANSI colour) through `io`; neither UI holds command logic of its own.
  */
+import { langReport } from '../lang/memory.ts';
 import { findMemoryFiles } from '../prompt.ts';
 import { CACHE_WRITE_MULTIPLIER, explainCacheMiss, formatModelError } from '../providers.ts';
 import type { Runtime } from '../runtime.ts';
@@ -52,6 +53,7 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           `${bold('/sessions')}          list saved sessions · ${bold('/resume <id>')} to load one`,
           `${bold('/tools')}             list tools · ${bold('/memory')} show loaded AGENTS.md files`,
           `${bold('/mcp')}               MCP servers and the tools they added`,
+          `${bold('/lang')}              language memory loaded from lang/*.md · ${bold('/lang reload')} to reread`,
           `${bold('/exit')}              quit`,
         ].join('\n')}\n\n`,
       );
@@ -155,6 +157,22 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
         return info(red((err as Error).message));
       }
     }
+    case 'lang': {
+      if (arg && arg !== 'reload') return info('usage: /lang [reload]');
+      const before = rt.lang.block;
+      const mem = arg === 'reload' ? rt.reloadLang() : rt.lang;
+      const lines = langReport(mem, rt.cwd);
+      if (arg === 'reload') {
+        lines.push(
+          dim(
+            mem.block === before
+              ? 'Unchanged; the cached prompt stays as it is.'
+              : 'Reloaded. The system prompt changed, so the next request writes it to the cache again.',
+          ),
+        );
+      }
+      return info(lines.join('\n'));
+    }
     case 'mcp':
       for (const line of rt.mcpReport()) io.write(`${line}\n`);
       io.write('\n');
@@ -194,6 +212,14 @@ export function bannerLines(rt: Runtime): string[] {
       `${rt.cwd}${memory.length ? ` · memory: ${memory.map((m) => m.split('/').pop()).join(', ')}` : ''}`,
     ),
   );
+  if (rt.lang.files.length > 0) {
+    const tags = [...new Set(rt.lang.files.map((f) => f.tag))].join(', ');
+    lines.push(
+      dim(
+        `lang: ${rt.lang.files.length} file${rt.lang.files.length === 1 ? '' : 's'} (${tags}) · ~${rt.lang.tokens.toLocaleString()} tokens · /lang`,
+      ),
+    );
+  }
   const mcp = rt.mcpStatus();
   if (mcp.length > 0) {
     const up = mcp.filter((x) => x.state === 'connected');

@@ -332,6 +332,25 @@ asks and works offline. The rules are in [`docs/LANGUAGE.md`](docs/LANGUAGE.md).
   caveats: the Kaike table isn't frozen yet, and Kham spelling doesn't show the glottal stop or
   breathy vowels, so keep audio and IPA with each entry.
 
+### Language memory
+
+Notes about each variety, in Markdown, go into the model's system prompt:
+
+```
+~/.mrig/lang/shared.md          rules for every variety
+~/.mrig/lang/mgp-lexicon.md     Eastern Magar
+.mrig/lang/kgj-grammar.md       Gamal Kham, for this project only
+```
+
+The name starts with a variety tag (`mgp`, `mrd`, `kgj`, `kip`, `kif`, `kjl`, `kzq`) or `shared`,
+optionally followed by `-<topic>`. Each file is labelled with its variety in the prompt so the
+model keeps them apart. The files are read once per session, so the cached prompt stays the
+same from turn to turn. `/lang` lists what is loaded and roughly how many tokens it costs;
+`/lang reload` reads the files again after you edit them. The total is capped at 32,000
+characters, and a file that doesn't fit is skipped, not cut. Conventions are in
+[`docs/LANGUAGE.md`](docs/LANGUAGE.md#language-memory-files-langmd). The files go to whichever
+model is active, so keep consent-bound material out of them or work in an offline zone.
+
 ## Sessions and memory
 
 Every conversation is saved to `~/.mrig/sessions/<id>.jsonl`. `mrig -c` resumes the latest
@@ -362,7 +381,7 @@ stays the default until the TUI has had more real use.
 ## Slash commands
 
 `/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/mcp` · `/clear` ·
-`/yolo` · `/verbose` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
+`/yolo` · `/verbose` · `/lang` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
 Ctrl+C aborts a running turn; press it twice at the prompt to quit.
 
 `/verbose` (or `/verbose on`, `/verbose off`) shows the model's reasoning, dim, before each answer.
@@ -471,5 +490,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now eight, with fetch and translit), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

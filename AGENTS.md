@@ -25,7 +25,8 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   `src/headless.ts` — `-p` with `--json` / `--output-last`; `src/init.ts` — `mrig init`.
 - `src/lang/tables.ts` + `src/lang/translit.ts` — Akkha transliteration (A2): pure,
   table-driven, Devanagari (NFC) hub; the `translit` tool wraps it. Change mappings in the
-  tables only, and keep the lossy set reported.
+  tables only, and keep the lossy set reported. `src/lang/memory.ts` — language memory (A3):
+  `lang/*.md` read once per session into the system prompt; `/lang` reports it.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the
@@ -38,6 +39,33 @@ Language rules live in `docs/LANGUAGE.md`: Devanagari is canonical, the display 
 is Unicode Brahmi, and transliteration is hub-and-spoke. The decision behind them is
 `docs/decisions/2026-09-23-akkha-encoding.md`. Read both before touching language or
 transliteration code.
+
+## Akkha font tools
+
+The font work (A1, the `hb-shape` golden tests) lives in the GurbachhanAkkhaRik font repo, not
+here. Copy this section into that repo's `AGENTS.md`, which mrig loads when it runs there. Get
+test strings from the `translit` tool rather than typing Brahmi by hand. Check each tool's
+`--help` before using a flag not shown here.
+
+- **fontTools** (`pip install fonttools`): `fonttools ttx -l Font.ttf` lists the tables;
+  `fonttools ttx -t cmap -t GSUB -o - Font.ttf` dumps the cmap and GSUB as XML to stdout.
+- **fontmake** (`pip install fontmake`): builds binaries from the sources, for example
+  `fontmake -g Source.glyphs -o ttf` or `fontmake -u Source.ufo -o ttf`. It writes into
+  `master_ttf/`, so it stays behind a prompt.
+- **HarfBuzz** `hb-shape` shows the glyphs and positions a string shapes to:
+  `hb-shape --script=brah Font.ttf '𑀓𑁆𑀬𑀸'`. Use `--script=brah` so the Brahmi lookups (the
+  `brah` script tag) are the ones tested. `hb-view Font.ttf '𑀓𑁆𑀬𑀸' -o word.png` draws it.
+- **fontspector** (the Rust successor to Font Bakery): `fontspector Font.ttf` runs the
+  quality checks; `fontspector --help` lists the profiles.
+
+Suggested allow rules for `~/.mrig/config.json`, read-only commands only:
+
+```json
+{ "permissions": { "allow": ["bash:hb-shape ", "bash:fonttools ttx -l ", "bash:fontspector "] } }
+```
+
+A `bash:` rule matches the start of the command, so it also allows anything chained after it
+(`hb-shape … && rm …`). Use these rules only in folders you trust.
 
 ## Rules
 

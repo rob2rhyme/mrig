@@ -67,6 +67,8 @@ export interface PromptOptions {
   now?: Date;
   /** `minimal` describes the bash-only workflow instead of the file tools. */
   toolMode?: ToolMode;
+  /** The language memory block (A3), read once per session by the Runtime. */
+  lang?: string;
 }
 
 export function buildSystemPrompt(opts: PromptOptions): string {
@@ -104,5 +106,6 @@ export function buildSystemPrompt(opts: PromptOptions): string {
   if (memory) {
     lines.push('', '## Project memory (from AGENTS.md files — follow these instructions)', memory);
   }
+  if (opts.lang) lines.push('', opts.lang);
   return lines.join('\n');
 }
