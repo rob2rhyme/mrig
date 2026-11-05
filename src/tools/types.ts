@@ -8,6 +8,8 @@ export interface ToolContext {
   signal?: AbortSignal;
   /** Cap on tool output returned to the model */
   maxOutputChars: number;
+  /** The configured corpus folder (config `corpus`), for the corpus tool. */
+  corpus?: string;
 }
 
 export interface MrigTool<I = unknown> {

@@ -98,6 +98,12 @@ export interface MrigConfig {
    * ~/.mrig/config.json only. Absolute paths; a leading `~/` means the home folder.
    */
   trustedProjects: string[];
+  /**
+   * The corpus folder for the `corpus` tool (A4): a CLDF dataset, or any folder of text files.
+   * Relative paths are relative to the working directory; `~/` is the home folder. When unset,
+   * the tool looks for a `cldf/` folder from cwd up to the git root.
+   */
+  corpus?: string;
   /** Keys an untrusted project config tried to set and that were dropped (set by loadConfig). */
   projectIgnored?: string[];
 }
@@ -180,6 +186,7 @@ export const PROJECT_KEYS: readonly string[] = [
   'maxToolOutputChars',
   'cacheTtl',
   'compaction',
+  'corpus',
 ];
 
 export function mrigHome(): string {
@@ -303,7 +310,16 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     compaction: parseCompaction(layer.compaction, base.compaction),
     mcpServers: { ...base.mcpServers, ...parseMcpServers(layer.mcpServers) },
     trustedProjects: base.trustedProjects,
+    ...parseCorpus(layer.corpus, base.corpus),
   };
+}
+
+function parseCorpus(value: unknown, base: string | undefined): { corpus?: string } {
+  if (value === undefined) return base === undefined ? {} : { corpus: base };
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error('"corpus" must be a folder path.');
+  }
+  return { corpus: value };
 }
 
 export interface LoadOptions {

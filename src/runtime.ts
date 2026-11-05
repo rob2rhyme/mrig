@@ -142,6 +142,7 @@ export class Runtime {
       maxToolOutputChars: this.config.maxToolOutputChars,
       cacheTtl: this.config.cacheTtl,
       compaction: this.compactionOptions(),
+      ...(this.config.corpus ? { corpus: this.config.corpus } : {}),
       events: opts.events,
       messages: this.session.messages,
     });
