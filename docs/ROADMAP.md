@@ -109,6 +109,20 @@ Robin's direction (November 5, 2026): plan for abundance, **target 128 GB**, and
 
 **Memory cannot be added later** on Apple silicon, the DGX Spark or the Ryzen AI Max boxes [I]: buy the final size once.
 
+### When to buy
+
+**Robin's plan (November 5, 2026):** keep building on the current 24 GB Mac, and buy a new Mac with **128 GB or more** when one of the signals below appears. 64 GB is a fallback only if 128 GB is unavailable or too expensive at that time. Building mrig itself needs little local memory, because the coding happens through Claude or cloud sessions; only running local models needs more.
+
+**Buying signals.** Any one is enough. Check them after each eval run.
+
+1. **The eval says local is not good enough.** No first-wave profile passes 70% of the full task set (L3), and Robin wants local-first coding rather than Claude for it.
+2. **Hard tasks must run offline.** Robin wants T7 routing local-to-local, which needs a large hard-task model loaded next to the fast one. That does not fit in 24 GB.
+3. **Context runs out.** The L2 context warning, or L4 compaction once it exists, fires so often that work suffers, because 32k is the most context that fits.
+4. **Speed is unusable.** The best model that fits runs too slowly for interactive work in the eval's tok/s column, or macOS starts swapping under load. Record the rate Robin finds usable next to the matrix, so the signal is a number, not a feeling.
+5. **Local media or fine-tuning starts.** Track 3 speech or image generation runs locally (T4, T5), or fine-tuning (A8) moves to bases larger than about 9 billion parameters.
+
+**At purchase time:** re-check the machine table below, because prices, chips and supply change, and the 2026 memory shortage pulled some configurations for months [S]. Then migrate (clone the repo, copy `~/.mrig`, pull or copy the models) and run the next wave of the eval.
+
 ### The 128 GB machine
 
 | Option | Memory | Bandwidth | Fit for mrig |
