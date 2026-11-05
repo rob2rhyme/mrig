@@ -18,8 +18,11 @@ ollama pull <model>
 mrig doctor -P ollama                           # model listed? context ≥32k?
 ```
 
-Set the context to fit the memory budget: about 16–18 GB for models at 24 GB, 48–52 GB at
-64 GB and 105–115 GB at 128 GB, leaving 6–12 GB for macOS and apps. Default to 64k context;
+Set the context to fit the memory budget. By default macOS lets the GPU use about two-thirds
+to three-quarters of memory: roughly 16 GB for models at 24 GB, 48 GB at 64 GB and 96 GB at
+128 GB. Raising the cap with the `iogpu.wired_limit_mb` sysctl, which is undocumented and
+resets on reboot, gives about 48–56 GB at 64 GB and 112–120 GB at 128 GB, leaving 8–16 GB
+for macOS and apps. Default to 64k context;
 use 128k where the model supports it. From 64 GB up the limit is speed, not memory: decode
 speed is roughly memory bandwidth divided by the model's size in memory, so a 40 GB model
 tops out near 7 tok/s on the M4 Pro, 15 on an M5 Max and 30 on an M5 Ultra, while a
