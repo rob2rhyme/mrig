@@ -80,6 +80,8 @@ export class Session {
   private savedCount: number;
   /** Byte width of the meta line as it sits on disk (without the newline). */
   private headWidth: number;
+  /** False for in-memory sessions (the eval harness): nothing is ever written to disk. */
+  private persist = true;
 
   private constructor(
     meta: SessionMeta,
@@ -97,7 +99,13 @@ export class Session {
     return join(sessionsDir(), `${this.meta.id}.jsonl`);
   }
 
-  static create(opts: { cwd: string; provider: string; model: string }): Session {
+  static create(opts: {
+    cwd: string;
+    provider: string;
+    model: string;
+    /** Keep the session in memory only; nothing touches ~/.mrig/sessions. */
+    ephemeral?: boolean;
+  }): Session {
     const now = new Date().toISOString();
     const meta: SessionMeta = {
       id: newId(),
@@ -109,6 +117,7 @@ export class Session {
       title: '',
     };
     const s = new Session(meta, [], 0, 0);
+    if (opts.ephemeral) s.persist = false;
     s.writeAll();
     return s;
   }
@@ -162,6 +171,7 @@ export class Session {
     this.messages = messages;
     this.meta.updatedAt = new Date().toISOString();
     if (!this.meta.title) this.meta.title = firstUserText(messages);
+    if (!this.persist) return;
     if (messages.length < this.savedCount || this.savedCount === 0) {
       this.writeAll();
       return;
@@ -203,6 +213,7 @@ export class Session {
   }
 
   private writeAll(): void {
+    if (!this.persist) return;
     const head = padHead(this.headLine(), META_WIDTH);
     const body = this.messages.map((m) =>
       JSON.stringify({ type: 'message', message: m } satisfies MessageLine),

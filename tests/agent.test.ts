@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { Agent, type AgentEvents, isEmptyInput, repairJson } from '../src/agent.ts';
+import { simulateReadableStream } from 'ai';
+import { MockLanguageModelV4 } from 'ai/test';
+import { Agent, type AgentEvents, emptyStats, isEmptyInput, repairJson } from '../src/agent.ts';
 import { PermissionManager } from '../src/permissions.ts';
 import { DEFAULT_TOOLS, toolsForMode } from '../src/tools/index.ts';
 import { mockModel, tempDir, textTurn, toolTurn } from './helpers.ts';
@@ -248,6 +250,65 @@ describe('local-model hardening (L2)', () => {
     expect(text.join('')).toBe('no read tool here');
     agent.setTools(DEFAULT_TOOLS);
     expect(agent.opts.tools.length).toBe(6);
+  });
+});
+
+describe('agent stats (L3)', () => {
+  let t: ReturnType<typeof tempDir>;
+  beforeEach(async () => {
+    t = tempDir();
+    await Bun.write(join(t.dir, 'notes.txt'), 'hello from notes\n');
+  });
+  afterEach(() => t.cleanup());
+
+  test('counts calls, invalid calls, repairs and the tools that ran', async () => {
+    const fenced = '```json\n{"path":"notes.txt",}\n```';
+    const { agent } = makeAgent(
+      [
+        toolTurn('read', '{"path":"notes.txt"}', 'c1'),
+        toolTurn('read', '{"nope":1}', 'c2'),
+        toolTurn('teleport', '{}', 'c3'),
+        toolTurn('read', fenced, 'c4'),
+        textTurn('done'),
+      ],
+      t.dir,
+    );
+    await agent.run('go');
+    expect(agent.stats.toolCalls).toBe(4);
+    expect(agent.stats.invalidCalls).toBe(2);
+    expect(agent.stats.repairedCalls).toBe(1);
+    expect(agent.stats.toolsUsed).toEqual({ read: 2 });
+    agent.clear();
+    expect(agent.stats).toEqual(emptyStats());
+  });
+
+  test('a denied call is counted as made but not as run', async () => {
+    const { agent } = makeAgent(
+      [toolTurn('write', '{"path":"x.txt","content":"x"}'), textTurn('ok')],
+      t.dir,
+      { yolo: false, answer: 'no' },
+    );
+    await agent.run('write it');
+    expect(agent.stats.toolCalls).toBe(1);
+    expect(agent.stats.invalidCalls).toBe(0);
+    expect(agent.stats.toolsUsed).toEqual({});
+  });
+
+  test('records time waiting on the model from the SDK performance data', async () => {
+    const slow = new MockLanguageModelV4({
+      doStream: async () => ({
+        stream: simulateReadableStream({
+          chunks: textTurn('hello there', { input: 10, output: 20 }),
+          initialDelayInMs: 20,
+          chunkDelayInMs: 20,
+        }),
+      }),
+    });
+    const { agent } = makeAgent([], t.dir);
+    agent.opts.model = slow;
+    await agent.run('hi');
+    expect(agent.stats.responseMs).toBeGreaterThan(20);
+    if (agent.stats.decodeMs > 0) expect(agent.stats.decodeTokens).toBe(20);
   });
 });
 

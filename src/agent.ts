@@ -140,9 +140,39 @@ function previewFor(tool: AnyTool, input: unknown): string | undefined {
   return undefined;
 }
 
+/** Per-session counters read by the eval harness (and handy for debugging). Reset by clear(). */
+export interface AgentStats {
+  /** Tool calls the model made, valid or not. */
+  toolCalls: number;
+  /** Calls refused before running: unknown tool, schema failure, or empty arguments. */
+  invalidCalls: number;
+  /** Calls whose malformed JSON `repairJson` salvaged. */
+  repairedCalls: number;
+  /** Calls that actually ran (past the permission gate), by tool name. */
+  toolsUsed: Record<string, number>;
+  /** Output tokens and milliseconds measured after the first token: decode speed. */
+  decodeTokens: number;
+  decodeMs: number;
+  /** Total time waiting on the model; the fallback for an effective tokens/s. */
+  responseMs: number;
+}
+
+export function emptyStats(): AgentStats {
+  return {
+    toolCalls: 0,
+    invalidCalls: 0,
+    repairedCalls: 0,
+    toolsUsed: {},
+    decodeTokens: 0,
+    decodeMs: 0,
+    responseMs: 0,
+  };
+}
+
 export class Agent {
   messages: ModelMessage[];
   usage: UsageTotals = emptyUsage();
+  stats: AgentStats = emptyStats();
   readonly opts: AgentOptions;
   private registry: Map<string, AnyTool>;
   private aiTools: ReturnType<typeof toAiTools>;
@@ -171,6 +201,20 @@ export class Agent {
   clear(): void {
     this.messages = [];
     this.usage = emptyUsage();
+    this.stats = emptyStats();
+  }
+
+  private recordPerformance(
+    outputTokens: number | undefined,
+    perf: { outputTokensPerSecond: number | undefined; responseTimeMs: number },
+  ): void {
+    const out = outputTokens ?? 0;
+    const rate = perf.outputTokensPerSecond;
+    if (out > 0 && rate !== undefined && Number.isFinite(rate) && rate > 0) {
+      this.stats.decodeTokens += out;
+      this.stats.decodeMs += (out / rate) * 1000;
+    }
+    if (Number.isFinite(perf.responseTimeMs)) this.stats.responseMs += perf.responseTimeMs;
   }
 
   async run(userText: string, signal?: AbortSignal): Promise<RunResult> {
@@ -214,7 +258,11 @@ export class Agent {
       repairToolCall: async ({ toolCall, error }) => {
         if (NoSuchToolError.isInstance(error)) return null;
         const fixed = repairJson(toolCall.input);
-        return fixed ? { ...toolCall, input: fixed } : null;
+        if (!fixed) return null;
+        // repairJson also returns JSON that was already valid (the call failed the schema, not
+        // the syntax). Only a changed string counts as a repair.
+        if (fixed !== toolCall.input.trim()) this.stats.repairedCalls++;
+        return { ...toolCall, input: fixed };
       },
     });
 
@@ -240,6 +288,7 @@ export class Agent {
             break;
           case 'finish-step':
             this.usage = addUsage(this.usage, part.usage);
+            this.recordPerformance(part.usage.outputTokens, part.performance);
             break;
           case 'error':
             throw part.error;
@@ -260,6 +309,8 @@ export class Agent {
           role: 'user',
           content: `[mrig] Your last tool call was invalid: ${err.message}. Available tools: ${[...this.registry.keys()].join(', ')}. Retry with a valid call, or answer without tools.`,
         });
+        this.stats.toolCalls++;
+        this.stats.invalidCalls++;
         events.onNotice?.(`Invalid tool call from model (${err.message}); asked it to retry.`);
         return { kind: 'continue', text };
       }
@@ -291,8 +342,10 @@ export class Agent {
       toolCallId: call.toolCallId,
       toolName: call.toolName,
     };
+    this.stats.toolCalls++;
     const tool = this.registry.get(call.toolName);
     if (!tool) {
+      this.stats.invalidCalls++;
       return { ...base, output: { type: 'error-text', value: `Unknown tool "${call.toolName}".` } };
     }
     // Weak local models often emit `{}` on a first attempt. Guide one retry with the field list;
@@ -300,6 +353,7 @@ export class Agent {
     if (isEmptyInput(call.input)) {
       this.emptyArgStreak++;
       if (this.emptyArgStreak === 1) {
+        this.stats.invalidCalls++;
         events.onNotice?.(`Model called ${tool.name} with no arguments; asked it to retry.`);
         return {
           ...base,
@@ -314,6 +368,7 @@ export class Agent {
     }
     const parsed = tool.inputSchema.safeParse(call.input);
     if (!parsed.success) {
+      this.stats.invalidCalls++;
       const issues = parsed.error.issues.map(
         (i) => `${i.path.join('.') || '(root)'}: ${i.message}`,
       );
@@ -345,6 +400,7 @@ export class Agent {
       signal,
       maxOutputChars: this.opts.maxToolOutputChars,
     };
+    this.stats.toolsUsed[tool.name] = (this.stats.toolsUsed[tool.name] ?? 0) + 1;
     try {
       const value = await tool.execute(parsed.data, ctx);
       events.onToolEnd?.(info, { status: 'ok', text: value, ms: Date.now() - started });
