@@ -174,6 +174,8 @@ export interface McpManagerOptions {
   offline?: boolean;
   connectTimeoutMs?: number;
   callTimeoutMs?: number;
+  /** How long close() waits for each server before giving up on it (default 3 s). */
+  closeTimeoutMs?: number;
   onNotice?: (message: string) => void;
   /** Test seam. */
   connect?: McpConnect;
@@ -310,10 +312,15 @@ export class McpManager {
     return this.statuses.map((s) => ({ ...s, tools: [...s.tools] }));
   }
 
-  /** Close every connection; stdio servers are stopped. */
+  /**
+   * Close every connection; stdio servers are stopped. Each server gets a few seconds: closing
+   * with a call still in flight can stall (seen on Windows), and quitting mrig must not hang.
+   */
   async close(): Promise<void> {
-    await Promise.all([...this.clients.values()].map((c) => c.close().catch(() => {})));
+    const wait = this.opts.closeTimeoutMs ?? 3000;
+    const clients = [...this.clients.values()];
     this.clients.clear();
+    await Promise.all(clients.map((c) => withTimeout(c.close(), wait).catch(() => {})));
   }
 }
 
