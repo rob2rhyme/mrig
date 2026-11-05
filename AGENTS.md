@@ -2,7 +2,7 @@
 
 mrig is a personal, local, model-agnostic terminal agent (think Claude Code, but yours):
 one provider layer (Vercel AI SDK) over Anthropic, OpenAI, and any OpenAI-compatible server
-(Ollama, LM Studio, llama.cpp, vLLM), eight tools, a permission gate, JSONL sessions, and a
+(Ollama, LM Studio, llama.cpp, vLLM), nine tools, a permission gate, JSONL sessions, and a
 plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows, Linux.
 
 ## Architecture (keep it this shape)
@@ -27,6 +27,8 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   table-driven, Devanagari (NFC) hub; the `translit` tool wraps it. Change mappings in the
   tables only, and keep the lossy set reported. `src/lang/memory.ts` — language memory (A3):
   `lang/*.md` read once per session into the system prompt; `/lang` reports it.
+  `src/lang/corpus.ts` + `src/lang/csv.ts` — corpus search (A4) over a CLDF Wordlist and text
+  files; the `corpus` tool wraps it. Plain search only; embeddings need a decision first.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the
