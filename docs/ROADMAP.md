@@ -6,7 +6,7 @@ Labels: **[V]** verified · **[S]** secondary · **[I]** inference or recommenda
 
 ## Track 1 — Local AI (mrig)
 
-Goal: a dependable agent that runs **fully offline** on the M4 Pro (24 GB), with Claude as an optional online profile.
+Goal: a dependable agent that runs **fully offline** on the M4 Pro (24 GB today, **64 GB planned**; Robin, November 5, 2026: "plan for abundance"), with Claude as an optional online profile.
 
 | # | Item | Effort | Done when |
 |---|---|---|---|
@@ -26,11 +26,14 @@ Goal: a dependable agent that runs **fully offline** on the M4 Pro (24 GB), with
   - It documents no tool-calling API.
   - Its docs say it is "not recommended for production" [V].
   - Keep MLX for fine-tuning.
-- **Models to trial** (all Apache 2.0 [V]):
+- **Models to trial, first wave at 24 GB** (all Apache 2.0 [V]):
   - Qwen3.5-9B at Q4/Q6
   - Gemma 4 12B at Q4/Q6
-  - Gemma 4 26B-A4B at Q4 (tight fit)
-- **Context:** set the context length to fit the GPU memory budget (about 16–18 GB by default [I]), and record tokens/s for each model.
+  - Gemma 4 26B-A4B at Q4 (tight fit at 24 GB, comfortable at 64 GB)
+- **Second wave at 64 GB [I]:** the largest Qwen3.5 and Gemma 4 dense variants at Q6/Q8, Gemma 4 26B-A4B at Q8, and one 70B-class model at Q4 as a ceiling test. Confirm exact tags on ollama.com before pulling; the names here are families, not tags.
+- **Memory budget [I]:** leave about 6–8 GB for macOS and apps. That is roughly 16–18 GB for models at 24 GB and 48–52 GB at 64 GB. Context grows memory use too: default to 64k and go to 128k where the model supports it.
+- **Speed, not memory, is the ceiling at 64 GB [I].** Decode speed is bounded by memory bandwidth (about 273 GB/s on the M4 Pro) divided by the model's size in memory: a 5 GB model tops out near 50 tok/s, 20 GB near 13, 40 GB near 7. Mixture-of-experts models such as Gemma 4 26B-A4B read only their active experts per token, so they stay fast while knowing more: the sweet spot. The eval harness records real tokens/s; treat these as upper bounds.
+- **What 64 GB unlocks:** two models resident at once (a small fast one for routine work, a large one for hard tasks), so T7 routing can be local-to-local and fully offline; a local embedding model alongside for A4 corpus search; local speech models for T5; and headroom for MLX fine-tunes (A8) on larger bases.
 - **Hardening** (carried over from the JUMPSTART "local-model hardening" item):
   - with an Ollama profile, query `GET /api/show` at startup and warn when the context is under 32k;
   - add `toolMode: "minimal"` (bash-only) for models that can't do multi-tool calling;
@@ -89,7 +92,7 @@ Robin's request: teaching and learning modes, a path to image, sound and eventua
 | T4 | **Image generation**: an `image` tool with a configurable provider. It saves a file, returns the path, asks permission and prices each image | S–M | Mock tests for the tool and the price math; one live check with a real provider |
 | T5 | **Speech**: `speak` (text to speech) and `transcribe` (speech to text), with a local option for offline use | M | As T4, plus a local round trip with networking disabled |
 | T6 | **Video**: a `video` tool that starts a job, polls it and downloads the result, with a cost cap per job | M–L | A short clip is generated end to end; the cap stops an over-budget job |
-| T7 | **Model routing** (unranked; only when asked): send easy work to a local model and hard work to a frontier model by rule | S–M | — |
+| T7 | **Model routing** (unranked; only when asked): send easy work to a local model and hard work to a frontier model by rule. At 64 GB the hard-task model can be a large local one, so routing works fully offline | S–M | — |
 | T8 | **Akkha tutor mode**: the language tutor, built on `learn` mode, language memory and corpus search | S–M | T1, T2, A3, A4 |
 
 **Notes:**
