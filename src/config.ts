@@ -177,6 +177,8 @@ export interface MrigConfig {
   transcription?: TranscriptionConfig;
   /** Video generation (T6); the `video` tool exists only when this is set. */
   video?: VideoConfig;
+  /** Learner memory (T2). Global only: whether the summary may go to cloud models too. */
+  learner?: { shareWithCloud: boolean };
   /** Keys an untrusted project config tried to set and that were dropped (set by loadConfig). */
   projectIgnored?: string[];
 }
@@ -393,6 +395,7 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     ...parseSpeech(layer.speech, base.speech),
     ...parseTranscription(layer.transcription, base.transcription),
     ...parseVideo(layer.video, base.video),
+    ...parseLearner(layer.learner, base.learner),
   };
 }
 
@@ -454,6 +457,20 @@ function parseTranscription(
       ...(price !== undefined ? { pricePerMinute: price } : {}),
     },
   };
+}
+
+function parseLearner(
+  value: unknown,
+  base: MrigConfig['learner'],
+): { learner?: { shareWithCloud: boolean } } {
+  if (value === undefined) return base ? { learner: base } : {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('"learner" must be an object, e.g. { "shareWithCloud": false }.');
+  }
+  const share = (value as Record<string, unknown>).shareWithCloud ?? base?.shareWithCloud ?? false;
+  if (typeof share !== 'boolean')
+    throw new Error('"learner.shareWithCloud" must be true or false.');
+  return { learner: { shareWithCloud: share } };
 }
 
 function parseVideo(value: unknown, base: VideoConfig | undefined): { video?: VideoConfig } {

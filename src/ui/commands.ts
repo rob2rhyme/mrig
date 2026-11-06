@@ -3,6 +3,14 @@
  * plain text (with ANSI colour) through `io`; neither UI holds command logic of its own.
  */
 import { langReport } from '../lang/memory.ts';
+import {
+  deleteLearnerFile,
+  forget,
+  learnerReport,
+  loadLearner,
+  saveLearner,
+  today,
+} from '../learner.ts';
 import { isModeName, MODE_NAMES, MODES } from '../modes.ts';
 import { findMemoryFiles } from '../prompt.ts';
 import { CACHE_WRITE_MULTIPLIER, explainCacheMiss, formatModelError } from '../providers.ts';
@@ -64,6 +72,8 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           `${bold('/tools')}             list tools · ${bold('/memory')} show loaded AGENTS.md files`,
           `${bold('/mcp')}               MCP servers and the tools they added`,
           `${bold('/lang')}              language memory loaded from lang/*.md · ${bold('/lang reload')} to reread`,
+          `${bold('/learned')}           what you have practised · ${bold('due')} · ${bold('where')} · or words to search`,
+          `${bold('/forget <topic>')}    remove from learner memory · ${bold('--variety <tag>')} · ${bold('all')}`,
           `${bold('/exit')}              quit`,
         ].join('\n')}\n\n`,
       );
@@ -144,6 +154,50 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           ? yellow('yolo ON — no permission prompts')
           : 'yolo off — prompts enabled',
       );
+    case 'learned': {
+      try {
+        if (arg === 'where') return info(rt.learnerFile);
+        const file = loadLearner(rt.learnerFile);
+        return info(learnerReport(file, today(), arg || undefined).join('\n'));
+      } catch (err) {
+        return info(red((err as Error).message));
+      }
+    }
+    case 'forget': {
+      const usage = 'usage: /forget <topic> · /forget --variety <tag> · /forget all';
+      if (!arg) return info(usage);
+      const outside = dim(
+        'Session transcripts and your own backups of ~/.mrig still hold what was said; /forget does not touch them.',
+      );
+      try {
+        const path = rt.learnerFile;
+        const file = loadLearner(path);
+        if (arg === 'all' || arg === 'all --yes') {
+          const n = file.topics.length;
+          if (n === 0) return info('Learner memory is already empty.');
+          if (arg === 'all') {
+            return info(
+              `This deletes all ${n} topic${n === 1 ? '' : 's'} in ${path}. Type /forget all --yes to confirm.`,
+            );
+          }
+          deleteLearnerFile(path);
+          return info(`Deleted learner memory (${n} topic${n === 1 ? '' : 's'}).\n${outside}`);
+        }
+        const variety = /^--variety\s+(\S+)$/.exec(arg)?.[1];
+        const removed = forget(file, variety ? { variety } : { topic: arg });
+        if (removed === 0) {
+          return info(
+            variety
+              ? `No topics for variety ${variety}.`
+              : `No topic named "${arg}". /learned lists them.`,
+          );
+        }
+        saveLearner(path, file);
+        return info(`Forgot ${removed} topic${removed === 1 ? '' : 's'}.\n${outside}`);
+      } catch (err) {
+        return info(red((err as Error).message));
+      }
+    }
     case 'mode': {
       if (!arg) {
         return info(

@@ -526,16 +526,42 @@ A mode changes how mrig works with you. Switch with `/mode <name>`, or start in 
 |------|--------------|-------------|
 | `default` | Does the work. | As usual: allow rules and `--yolo` apply. |
 | `teach` | Explains before acting, works one small step at a time, and asks you to try each next step first, then reviews your attempt. | Every change asks, even with `--yolo` or a matching allow rule; "always" counts once. |
-| `learn` | Quizzes you one question at a time, adjusts the difficulty, and keeps a running list of what you covered. | Only read-only tools are offered: it reads and searches to make questions, and changes nothing. |
+| `learn` | Quizzes you one question at a time, adjusts the difficulty, keeps a running list of what you covered, and remembers it between sessions (learner memory, below). | Only read-only tools are offered: it reads and searches to make questions, and changes nothing. |
 
-`learn` keeps its list in the conversation. Remembering what you've learned across sessions is a
-later item (learner memory), which needs a design note first. The banner and the TUI status line
-show the mode when it isn't `default`.
+The banner and the TUI status line show the mode when it isn't `default`.
+
+### Learner memory
+
+In `learn` and `teach` mode, mrig remembers what you've practised between sessions, so the next
+quiz picks up where the last one stopped. The design is in
+[`docs/decisions/2026-11-06-learner-memory.md`](docs/decisions/2026-11-06-learner-memory.md).
+
+- **What's kept:** one line per topic. It records the variety for language topics, a status
+  (introduced, practising, known), how many you got right, when it's due for review, and an
+  optional short note such as "mixes up 7 and 8". Your answers, the questions and the
+  conversation are not kept here.
+- **Reviews** follow a simple schedule: a right answer pushes the next review further out (1, 2,
+  4, 8, then 16 days), and a miss brings it back to tomorrow.
+- **Where:** `~/.mrig/learner.json`, a plain JSON file you can open. Inside an offline zone, the
+  zone keeps its own (`<zone>/.mrig/learner/`, never committed).
+- **Recording:** the model records each answer with the `learned` tool as you go. You see a line
+  for each, such as `⚙ learned "Magar numerals 1-10" (mgp) missed`, and it never asks first. It
+  only writes this file. `teach` mode records what it taught as "introduced".
+- **What the model sees:** at the start of a learn or teach session, a short summary of what's due
+  and what's weak (at most 30 topics). By default **only local models** get it, so it never
+  leaves your machine. With a cloud model, mrig says once that the session starts without it.
+  To share it with cloud models too, set `"learner": { "shareWithCloud": true }` in
+  `~/.mrig/config.json`; a project's config can't.
+- **`/learned`** lists everything, by variety. `/learned due` shows what's due today,
+  `/learned <words>` searches, and `/learned where` prints the file's path.
+- **`/forget <topic>`**, `/forget --variety mgp`, or `/forget all` (which asks you to confirm with
+  `/forget all --yes`). Forgetting removes it from the file. Session transcripts and your own
+  backups of `~/.mrig` still hold what was said; delete those yourself if you need to.
 
 ## Slash commands
 
 `/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/mcp` · `/clear` ·
-`/yolo` · `/mode <name>` · `/verbose` · `/lang` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
+`/yolo` · `/mode <name>` · `/learned` · `/forget <topic>` · `/verbose` · `/lang` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
 Ctrl+C aborts a running turn; press it twice at the prompt to quit.
 
 `/verbose` (or `/verbose on`, `/verbose off`) shows the model's reasoning, dim, before each answer.
@@ -644,5 +670,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap. Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

@@ -19,6 +19,7 @@ import {
   type ModelCheck,
 } from './doctor.ts';
 import { type LangMemory, loadLangMemory } from './lang/memory.ts';
+import { learnerPath, learnerSummary, loadLearner, today } from './learner.ts';
 import { formatMcpStatus, type McpConnect, McpManager, type McpServerStatus } from './mcp.ts';
 import { isModeName, MODES, type ModeName } from './modes.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
@@ -33,6 +34,7 @@ import {
 import { Session, type SessionMeta } from './session.ts';
 import { createImageTool } from './tools/image.ts';
 import { type AnyTool, toolsForMode } from './tools/index.ts';
+import { createLearnedTool } from './tools/learned.ts';
 import { createSpeakTool, createTranscribeTool } from './tools/speech.ts';
 import { createVideoTool } from './tools/video.ts';
 import {
@@ -189,10 +191,45 @@ export class Runtime {
       toolMode: this.profile.toolMode,
       lang: this.lang.block,
       mode: this.mode,
+      learner: this.learnerBlock(),
     });
   }
 
-  /** The image tool, when configured. A provider that can't be set up is a notice, not a crash. */
+  /** Where learner memory lives here: the offline zone's own file, else ~/.mrig/learner.json. */
+  get learnerFile(): string {
+    return learnerPath(this.offline?.zone);
+  }
+
+  /** The learner summary, read once per session the first time learn or teach mode needs it. */
+  private learnerSnapshot: string | undefined;
+  private learnerNoticeShown = false;
+
+  /**
+   * Learner memory for the prompt (T2): only in learn and teach mode, and only to local models
+   * unless the global `learner.shareWithCloud` is on (RT, November 6, 2026).
+   */
+  private learnerBlock(): string {
+    if (this.mode === 'default') return '';
+    if (!isLocalProfile(this.profile) && !this.config.learner?.shareWithCloud) {
+      if (!this.learnerNoticeShown) {
+        this.learnerNoticeShown = true;
+        this.events.onNotice?.(
+          `Learner memory isn't sent to cloud models like ${this.modelLabel()}, so this session starts without it. Results are still recorded locally; set "learner": { "shareWithCloud": true } in ~/.mrig/config.json to share the summary.`,
+        );
+      }
+      return '';
+    }
+    if (this.learnerSnapshot === undefined) {
+      try {
+        this.learnerSnapshot = learnerSummary(loadLearner(this.learnerFile), today());
+      } catch (err) {
+        this.events.onNotice?.((err as Error).message);
+        this.learnerSnapshot = '';
+      }
+    }
+    return this.learnerSnapshot;
+  }
+
   /**
    * The media tools the config asks for: image (T4), speak and transcribe (T5). Each one is
    * built on its own; a provider that can't be set up is a notice, not a crash.
@@ -323,6 +360,9 @@ export class Runtime {
     const extra =
       this.profile.toolMode === 'minimal' ? [] : [...(this.mcp?.tools() ?? []), ...this.mediaTools];
     const tools = offlineTools([...toolsForMode(this.profile.toolMode), ...extra], this.offline);
+    // learn and teach mode can record results in learner memory (T2).
+    if (this.mode !== 'default')
+      tools.push(createLearnedTool({ path: this.learnerFile }) as AnyTool);
     // learn mode offers read-only tools only.
     return MODES[this.mode].permissions === 'read-only' ? tools.filter((t) => t.readOnly) : tools;
   }

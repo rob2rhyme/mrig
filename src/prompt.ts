@@ -72,6 +72,8 @@ export interface PromptOptions {
   lang?: string;
   /** The mode (T1); its text follows "How to work". */
   mode?: ModeName;
+  /** The learner memory summary (T2), in learn and teach mode only. */
+  learner?: string;
 }
 
 export function buildSystemPrompt(opts: PromptOptions): string {
@@ -112,5 +114,6 @@ export function buildSystemPrompt(opts: PromptOptions): string {
     lines.push('', '## Project memory (from AGENTS.md files — follow these instructions)', memory);
   }
   if (opts.lang) lines.push('', opts.lang);
+  if (opts.learner) lines.push('', opts.learner);
   return lines.join('\n');
 }
