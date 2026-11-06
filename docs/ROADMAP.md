@@ -20,14 +20,12 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 
 **Robin's queue, in parallel:**
 
-1. Merge the open pull requests in this order: #8 (L1), #9 (L2), #10 (L3), #12 (L0). #11 (docs) can merge at any point. Close #7: #12 replaces it.
-2. Run the L0 live check with an Anthropic API key.
-3. Run the first wave of models on the 24 GB Mac and commit the matrix. This feeds the agent's item 3.
-4. Run the A1 font spike in the font repo before v1.0 ends, so A2 is not blocked.
-5. Confirm whether January 14, 2027 applies to Local AI v1.0.
-6. Later: the T2 decision note, and the machine purchase when a buying signal appears.
+1. Work through [`LIVE_CHECKS.md`](LIVE_CHECKS.md), the step-by-step checklist: prompt caching (L0), vision (T3), image, speech and video with real providers (T4–T6), the local speech round trip, and the first local model wave with the eval matrix (L2, L3). The matrix feeds the agent's item 3.
+2. Run the A1 font spike in the font repo, so the Akkha-Brahmi table can stop being provisional.
+3. Confirm whether January 14, 2027 applies to Local AI v1.0.
+4. Later: the machine purchase when a buying signal appears.
 
-**Local AI v1.0 is done** when the L0 to L5 code is merged and Robin's items 2 and 3 are done.
+**Local AI v1.0 is done** when the L0 to L5 code is merged (it is) and the L0 and model-wave checks in `LIVE_CHECKS.md` pass.
 
 ## Track 1 — Local AI (mrig)
 
