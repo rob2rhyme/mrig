@@ -125,6 +125,9 @@ Priorities and backlog live in `docs/ROADMAP.md`. It has three tracks:
   mrig after v1.0.
 - **Track 3, modes and media** (teach and learn modes, learner memory, vision input, image,
   speech and video generation), after v1.0.
+- **Track 4, app front ends** (a web app, a desktop app and a VS Code extension on one local
+  server and one front end), in parallel with the live checks. The plan and its security rules
+  are in `docs/decisions/2026-11-06-app-front-ends.md`; no front-end code until Robin approves it.
 
 `docs/JUMPSTART.md` carries the acceptance criteria. Later ideas, unranked: per-model edit
 formats for weak local models, subagents, auto-update.

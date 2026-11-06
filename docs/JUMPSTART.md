@@ -216,6 +216,21 @@ Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, no
 
 Shared rules for T3–T6: files on disk, sessions store paths not bytes; every call asks permission unless a rule allows it; costs use the same pricing table; only local generators are allowed under L5; no telemetry. Read the `.d.ts` files for each media function before using it.
 
+### Track 4 — App front ends (alongside the live checks)
+
+Added November 6, 2026 at Robin's request. The design, protocol, security rules and per-item acceptance are in `docs/decisions/2026-11-06-app-front-ends.md`; read it in full before any Track 4 work.
+
+- **Gate.** Robin answers or approves the note's open questions before any code, as with T2.
+- **U1. Local app server (M).** `mrig serve`: loopback only, a new token per launch (in the URL fragment), `Host` and `Origin` checks, zod-validated protocol v1 shared with the front end, structured tool `display`, one `Runtime` per conversation.
+  - **Acceptance:** mock-model tests over a real loopback server for streaming, permissions, abort, reconnect and two conversations; a refusing test for every security rule; the REPL and TUI tests unchanged.
+- **U2. Web app v1 (L).** `mrig app`; the React front end built into the binary with Bun's HTML imports; the scope is the note's "What feels like an app" list, minus notifications and editor features.
+  - **Acceptance:** a `ChatViewModel` tested without a browser; one Playwright smoke test; no remote assets (CSP); Robin's fixes after one real session.
+- **U3. Desktop app for macOS (M).** Tauri v2 with `mrig serve` as a sidecar. **Acceptance:** as in the note.
+- **U4. VS Code extension (M).** A webview panel, not a chat participant. **Acceptance:** as in the note.
+- **U5. Desktop for Windows and Linux (M).** **Acceptance:** as in the note.
+
+Rules for Track 4: business logic stays in the core; the terminal stays the default; no telemetry and no remote assets; the GurbachhanAkkhaRik font is never bundled (Noto Sans Brahmi is the fallback).
+
 ## Start now
 
 Run the checks and confirm green. Then read **Build order and status** at the top of `docs/ROADMAP.md` and implement the first item in the agent's queue that is not marked ✅, end to end: code, tests, README section if user-facing, the roadmap mark, `bun run check`. Skip parts marked ⏳: they wait on Robin and never block the next item. Stop for review after one item.

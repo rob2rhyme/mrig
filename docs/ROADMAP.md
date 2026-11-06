@@ -1,6 +1,6 @@
-# Roadmap: local AI first, Akkha second, modes and media third
+# Roadmap: local AI first, Akkha second, modes and media third, app front ends fourth
 
-Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.**
+Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.** **Track 4, app front ends (web, desktop and VS Code), was added on November 6, 2026 at Robin's request; it runs in parallel with the live checks.**
 
 Labels: **[V]** verified · **[S]** secondary · **[I]** inference or recommendation. Effort: S = under a day, M = a few days, L = a week+ of evenings.
 
@@ -17,13 +17,15 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 3. **After the font spike (A1)**: on a pass, mark A1 ✅ and drop the "provisional" label from `AKKHA_BRAHMI` (`src/lang/tables.ts`, `docs/LANGUAGE.md`, the README). On a failure in one engine, decide with Robin as the encoding decision says; never switch to the PUA fallback automatically. The `hb-shape` golden tests (A3) go in the font repo. Waits on Robin's item 2.
 4. **A5** (the Akkha-Rik app's own repo): the `lang` tags are done; generating `ak` from `deva` and the web-font rendering wait for A1. Waits on Robin's item 2.
 5. **A6 to A8** wait on the BAMA agreement (A6), then on A7's data. The later ideas (edit formats, subagents, auto-update) only when asked.
+6. **Track 4, app front ends** (U1 → U2 → U3 → U4 → U5): build in order once Robin approves [the decision note](decisions/2026-11-06-app-front-ends.md). No front-end code before that. Waits on Robin's item 3.
 
 **Robin's queue, in parallel:**
 
 1. Work through [`LIVE_CHECKS.md`](LIVE_CHECKS.md), the step-by-step checklist: prompt caching (L0), vision (T3), image, speech and video with real providers (T4–T6), the local speech round trip, and the first local model wave with the eval matrix (L2, L3). The matrix feeds the agent's item 1.
 2. Run the A1 font spike in the font repo, so the Akkha-Brahmi table can stop being provisional.
-3. Confirm whether January 14, 2027 applies to Local AI v1.0.
-4. Later: the machine purchase when a buying signal appears.
+3. Answer the seven open questions in [the app front ends note](decisions/2026-11-06-app-front-ends.md) (Track 4), or approve the recommended answers.
+4. Confirm whether January 14, 2027 applies to Local AI v1.0.
+5. Later: the machine purchase when a buying signal appears.
 
 **Local AI v1.0 is done** when the L0 to L5 code is merged (it is) and the L0 and model-wave checks in `LIVE_CHECKS.md` pass. L0's passed on November 6, 2026; the model wave (L2, L3) is what remains.
 
@@ -137,6 +139,21 @@ Robin's request: teaching and learning modes, a path to image, sound and eventua
 - **Media tools.** The installed `ai` package exports image, speech, transcription and experimental video functions [V]. Read their `.d.ts` files before building, per the repo rule. Whether Claude models can generate images, audio or video is to be confirmed when building; assume not, so these tools need other providers [I].
 - **Shared rules for T3–T6.** Files go on disk and sessions store paths, not bytes. Each call asks permission unless an allow rule such as `image:*` matches. Costs go through the same pricing table. Under the L5 offline guarantee only local generators are allowed. No telemetry.
 - **T2 is the one that needs design first.** Do not write code until the decision note exists.
+
+## Track 4 — App front ends
+
+Robin's request (November 6, 2026): a real app feel, in three forms: a web app, a desktop app (macOS first, then Windows and Linux) and a VS Code extension. The plan is [the decision note](decisions/2026-11-06-app-front-ends.md): one local server (`mrig serve`, loopback only, a token per launch) speaking one protocol, one web front end built into the `mrig` binary, and three thin shells around it. The terminal stays the default. Sizes are estimates [I].
+
+**Order:** the note first (Robin approves it), then U1 → U2 → U3 → U4 → U5. U3 and U4 are independent once U2 lands. Runs in parallel with the live checks; a live-check fix comes first.
+
+| # | Item | Effort | Done when |
+|---|---|---|---|
+| U1 | **Local app server**: `mrig serve`, protocol v1, the security rules, structured tool `display` in the core, one `Runtime` per conversation, reconnect snapshots | M | Mock-model tests drive a real server on loopback (streaming, permission round trip, abort, reconnect, two conversations); every security rule has a test that it refuses; REPL and TUI tests unchanged |
+| U2 | **Web app v1**: `mrig app` opens the browser on the front end built into the binary: sidebar, streaming markdown, tool cards with diffs, permission panel, Stop, model and mode pickers, status bar, images in and media out, command palette, light and dark | L | `ChatViewModel` tested without a browser; a Playwright smoke test against `mrig serve` with the mock model; nothing loads from the internet; Robin uses it for a real session and the fixes he lists are in |
+| U3 | **Desktop app for macOS**: Tauri v2 shell with `mrig serve` as a sidecar; menus, notifications, dock badge, drag and drop, remembered window; an unsigned `.dmg` from CI | M | The `.dmg` installs on Robin's Mac and opens a project; quitting leaves no `mrig serve` behind; a background turn sends a notification; the crash path is tested |
+| U4 | **VS Code extension**: the same front end in a webview panel; selection and active-file context, clickable `file:line`, edits in VS Code's diff editor, a status bar item; a `.vsix` from CI | M | The `.vsix` installs on Robin's Mac; a selection reaches the message box; Allow in the diff editor applies an edit; a `file:line` link opens the line |
+| U5 | **Desktop for Windows and Linux**, plus signing and auto-update as Robin decides | M | Installers built in CI and opened on each OS |
+| U6 | Later, only when asked: settings editor, MCP panel, learner and tutor view, push-to-talk, several projects in one window | — | — |
 
 ## Hardware plan and backups
 
