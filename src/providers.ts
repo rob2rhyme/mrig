@@ -4,7 +4,13 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import type { ImageModel, LanguageModel, LanguageModelUsage } from 'ai';
+import type {
+  ImageModel,
+  LanguageModel,
+  LanguageModelUsage,
+  SpeechModel,
+  TranscriptionModel,
+} from 'ai';
 import { type CacheTtl, type Pricing, type ProviderProfile, resolveApiKey } from './config.ts';
 
 /** USD per million tokens for known hosted models. Local/openai-compatible default to free. */
@@ -238,4 +244,44 @@ export function createImageModel(
       throw new ProviderError(`Unsupported provider kind: ${String(kind)}`);
     }
   }
+}
+
+/**
+ * The OpenAI client for audio (T5). OpenAI's speech and transcription APIs are also served by
+ * local OpenAI-compatible audio servers, so an `openai-compatible` profile points the same
+ * client at its own base URL; that is the local, offline option. Anthropic has no audio models.
+ */
+function audioClient(profile: ProviderProfile, what: string, env: NodeJS.ProcessEnv) {
+  const apiKey = resolveApiKey(profile, env);
+  if (profile.kind === 'anthropic') {
+    throw new ProviderError(
+      `Anthropic has no ${what} models. Point the ${what} profile at an openai or openai-compatible profile.`,
+    );
+  }
+  if (profile.kind === 'openai-compatible') {
+    if (!profile.baseURL) throw new ProviderError('openai-compatible profiles need a "baseURL".');
+    return createOpenAI({ apiKey: apiKey ?? 'none', baseURL: profile.baseURL });
+  }
+  if (!apiKey) {
+    throw new ProviderError(
+      `No API key for OpenAI ${what}. Set ${profile.apiKeyEnv ?? 'OPENAI_API_KEY'} or add "apiKey" to the profile.`,
+    );
+  }
+  return createOpenAI({ apiKey, ...(profile.baseURL ? { baseURL: profile.baseURL } : {}) });
+}
+
+export function createSpeechModel(
+  profile: ProviderProfile,
+  modelId: string,
+  env: NodeJS.ProcessEnv = process.env,
+): SpeechModel {
+  return audioClient(profile, 'speech', env).speech(modelId);
+}
+
+export function createTranscriptionModel(
+  profile: ProviderProfile,
+  modelId: string,
+  env: NodeJS.ProcessEnv = process.env,
+): TranscriptionModel {
+  return audioClient(profile, 'transcription', env).transcription(modelId);
 }

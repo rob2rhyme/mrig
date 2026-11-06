@@ -1,9 +1,7 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { generateImage, type ImageModel } from 'ai';
 import { z } from 'zod';
 import type { ImageConfig } from '../config.ts';
-import { displayPath } from '../util/paths.ts';
+import { describeWarning, mediaFileName, money, saveMedia } from './media.ts';
 import { defineTool, type MrigTool, ToolError } from './types.ts';
 
 const EXT: Record<string, string> = {
@@ -28,45 +26,13 @@ const inputSchema = z.object({
 });
 type Input = z.infer<typeof inputSchema>;
 
-/** One line for a provider warning (an unsupported size, for example). */
-function describeWarning(w: object): string {
-  const r = w as { type?: string; message?: string; feature?: string; details?: string };
-  if (r.message) return r.message;
-  if (r.feature) return `${r.type ?? 'note'}: ${r.feature}${r.details ? ` (${r.details})` : ''}`;
-  return JSON.stringify(w);
-}
-
 /** USD for `n` images, or undefined when the config sets no price. */
 export function imagePrice(config: ImageConfig, n: number): number | undefined {
   return config.pricePerImage === undefined ? undefined : config.pricePerImage * n;
 }
 
-const money = (usd: number | undefined) =>
-  usd === undefined ? 'price unknown' : `~$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(2)}`;
-
 /** A file name from the prompt: 20261106-091500-a-red-fox.png. */
-export function defaultImageName(prompt: string, now: Date, ext: string): string {
-  const stamp = now.toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
-  const slug = prompt
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40)
-    .replace(/-+$/, '');
-  return `${stamp}${slug ? `-${slug}` : ''}${ext}`;
-}
-
-/** `base.png`, or `base-2.png`, `base-3.png`… so an existing file is never overwritten. */
-function freePath(path: string): string {
-  if (!existsSync(path)) return path;
-  const ext = extname(path);
-  const stem = path.slice(0, path.length - ext.length);
-  for (let i = 2; ; i++) {
-    const p = `${stem}-${i}${ext}`;
-    if (!existsSync(p)) return p;
-  }
-}
+export const defaultImageName = mediaFileName;
 
 export interface ImageToolOptions {
   config: ImageConfig;
@@ -117,20 +83,17 @@ export function createImageTool(opts: ImageToolOptions): MrigTool<Input> {
       const price = imagePrice(config, images.length);
       ctx.recordMedia?.('image', images.length, price);
       const now = (opts.now ?? (() => new Date()))();
-      const saved: string[] = [];
-      images.forEach((img, i) => {
-        const ext = EXT[img.mediaType] ?? '.png';
-        const requested = input.path && i === 0 ? input.path : undefined;
-        const base = requested
-          ? isAbsolute(requested)
-            ? requested
-            : resolve(ctx.cwd, requested)
-          : join(resolve(ctx.cwd, config.dir), defaultImageName(input.prompt, now, ext));
-        const path = freePath(base);
-        mkdirSync(dirname(path), { recursive: true });
-        writeFileSync(path, img.uint8Array);
-        saved.push(displayPath(ctx.cwd, path));
-      });
+      const saved = images.map((img, i) =>
+        saveMedia({
+          cwd: ctx.cwd,
+          dir: config.dir,
+          ...(input.path && i === 0 ? { requested: input.path } : {}),
+          text: input.prompt,
+          ext: EXT[img.mediaType] ?? '.png',
+          now,
+          bytes: img.uint8Array,
+        }),
+      );
       const warnings = result.warnings.map((w) => `warning: ${describeWarning(w)}`);
       return [
         `Saved ${saved.length} image${saved.length === 1 ? '' : 's'} (${config.model}${size ? `, ${size}` : ''}, ${money(price)}):`,

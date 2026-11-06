@@ -35,8 +35,10 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
 - `src/vision.ts` — vision input (T3): image paths in a prompt become `file` parts with an
   image/* type when the profile has `vision`; the transcript keeps a file:// URL, and
   `resolveImages()` reads the bytes just before each request.
-- `src/tools/image.ts` — image generation (T4): built per runtime from the global `image`
-  config by `Runtime.buildMediaTools()`; never read-only; remote unless its profile is local.
+- `src/tools/image.ts` — image generation (T4); `src/tools/speech.ts` — `speak` and
+  `transcribe` (T5). Built per runtime from the global `image`, `speech` and `transcription`
+  config by `Runtime.buildMediaTools()`; never read-only; remote unless the profile is local.
+  `src/tools/media.ts` holds the shared file naming, saving and price display.
   Tools report media cost through `ctx.recordMedia`, which `Agent.cost()` adds in.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).

@@ -95,6 +95,31 @@ export interface ImageConfig {
   dir: string;
 }
 
+/** Text to speech (T5): the `speak` tool. */
+export interface SpeechConfig {
+  /** A profile name (openai, or openai-compatible for a local audio server). Default "openai". */
+  profile: string;
+  /** The speech model id, e.g. "gpt-4o-mini-tts". */
+  model: string;
+  voice?: string;
+  /** Audio format, e.g. "mp3" (default) or "wav". */
+  format: string;
+  /** USD per million characters of text, for the prompt and /cost. */
+  pricePerMillionChars?: number;
+  /** Where audio is saved, relative to the working directory. Default "audio". */
+  dir: string;
+}
+
+/** Speech to text (T5): the `transcribe` tool. */
+export interface TranscriptionConfig {
+  /** A profile name (openai, or openai-compatible for a local audio server). Default "openai". */
+  profile: string;
+  /** The transcription model id, e.g. "whisper-1". */
+  model: string;
+  /** USD per minute of audio, for /cost. */
+  pricePerMinute?: number;
+}
+
 export interface MrigConfig {
   defaultProvider: string;
   providers: Record<string, ProviderProfile>;
@@ -122,6 +147,10 @@ export interface MrigConfig {
   corpus?: string;
   /** Image generation (T4); the `image` tool exists only when this is set. */
   image?: ImageConfig;
+  /** Text to speech (T5); the `speak` tool exists only when this is set. */
+  speech?: SpeechConfig;
+  /** Speech to text (T5); the `transcribe` tool exists only when this is set. */
+  transcription?: TranscriptionConfig;
   /** Keys an untrusted project config tried to set and that were dropped (set by loadConfig). */
   projectIgnored?: string[];
 }
@@ -335,10 +364,70 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     trustedProjects: base.trustedProjects,
     ...parseCorpus(layer.corpus, base.corpus),
     ...parseImage(layer.image, base.image),
+    ...parseSpeech(layer.speech, base.speech),
+    ...parseTranscription(layer.transcription, base.transcription),
   };
 }
 
 const SIZE = /^\d+x\d+$/;
+
+/** The shared part of a media block: an object with a model id and an optional profile name. */
+function mediaBlock(key: string, value: unknown, base: object | undefined, example: string) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`"${key}" must be an object, e.g. ${example}.`);
+  }
+  const v: Record<string, unknown> = { ...base, ...(value as Record<string, unknown>) };
+  if (typeof v.model !== 'string' || !v.model)
+    throw new Error(`"${key}.model" must be a model id.`);
+  if (v.profile !== undefined && typeof v.profile !== 'string') {
+    throw new Error(`"${key}.profile" must be a profile name.`);
+  }
+  return v;
+}
+
+function optionalPrice(key: string, value: unknown): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || value < 0)
+    throw new Error(`"${key}" must be a number of US dollars.`);
+  return value;
+}
+
+function parseSpeech(value: unknown, base: SpeechConfig | undefined): { speech?: SpeechConfig } {
+  if (value === undefined) return base ? { speech: base } : {};
+  const v = mediaBlock('speech', value, base, '{ "model": "gpt-4o-mini-tts" }');
+  for (const k of ['voice', 'format', 'dir'] as const) {
+    if (v[k] !== undefined && (typeof v[k] !== 'string' || !(v[k] as string).trim())) {
+      throw new Error(`"speech.${k}" must be a string.`);
+    }
+  }
+  const price = optionalPrice('speech.pricePerMillionChars', v.pricePerMillionChars);
+  return {
+    speech: {
+      profile: (v.profile as string | undefined) ?? 'openai',
+      model: v.model as string,
+      ...(v.voice ? { voice: v.voice as string } : {}),
+      format: (v.format as string | undefined) ?? 'mp3',
+      ...(price !== undefined ? { pricePerMillionChars: price } : {}),
+      dir: (v.dir as string | undefined) ?? 'audio',
+    },
+  };
+}
+
+function parseTranscription(
+  value: unknown,
+  base: TranscriptionConfig | undefined,
+): { transcription?: TranscriptionConfig } {
+  if (value === undefined) return base ? { transcription: base } : {};
+  const v = mediaBlock('transcription', value, base, '{ "model": "whisper-1" }');
+  const price = optionalPrice('transcription.pricePerMinute', v.pricePerMinute);
+  return {
+    transcription: {
+      profile: (v.profile as string | undefined) ?? 'openai',
+      model: v.model as string,
+      ...(price !== undefined ? { pricePerMinute: price } : {}),
+    },
+  };
+}
 
 function parseImage(value: unknown, base: ImageConfig | undefined): { image?: ImageConfig } {
   if (value === undefined) return base ? { image: base } : {};

@@ -455,6 +455,34 @@ Add an `image` block to `~/.mrig/config.json` and the model gets an `image` tool
 - **Offline mode** drops the tool unless the image server is on this machine.
 - Only your global config can set `image`. A project's config can't, since it spends money.
 
+### Speech
+
+Two more blocks give the model `speak` (text to speech) and `transcribe` (speech to text):
+
+```json
+{
+  "speech": { "profile": "openai", "model": "gpt-4o-mini-tts", "voice": "alloy", "pricePerMillionChars": 15 },
+  "transcription": { "profile": "openai", "model": "whisper-1", "pricePerMinute": 0.006 }
+}
+```
+
+- **`speak`** saves an audio file under `audio/` (set `"dir"`; `"format"` is `mp3` by default,
+  or `wav`) and returns the path. Up to 4,096 characters per call.
+- **`transcribe`** sends an audio file (up to 25 MB) and returns the text, with the duration and
+  language when the provider reports them.
+- **Local and offline:** point `profile` at an `openai-compatible` profile whose `baseURL` is a
+  local server that serves OpenAI's `/v1/audio/speech` and `/v1/audio/transcriptions` (several
+  open-source servers do, with Whisper for transcription and a local voice model for speech).
+  Such a profile counts as local, so both tools keep working in offline mode. Cloud ones are
+  dropped there.
+- **Both ask first**, with the price: `speak "Hello" (5 characters, voice alloy, ~$0.0001)` and
+  `transcribe note.wav (whisper-1, ~$0.006/min)`. Allow them with `"speak:*"` and
+  `"transcribe:*"`. Transcription is priced once the provider reports the duration.
+- **Prices** come from your config, as for images. `/cost` lists speech and transcriptions.
+- Recordings can be personal or consent-bound (Kaike recordings especially). Transcribe those
+  with a local server, or in an offline zone, so the audio never leaves the machine.
+- Only your global config can set `speech` and `transcription`.
+
 ## Modes
 
 A mode changes how mrig works with you. Switch with `/mode <name>`, or start in one with
@@ -582,5 +610,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).
