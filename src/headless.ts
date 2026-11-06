@@ -28,6 +28,8 @@ export interface HeadlessJson {
   usage: UsageTotals;
   /** Estimated USD, or null when the profile has no pricing. */
   cost: number | null;
+  /** Generated media by kind (T4+), when any: count and known cost. */
+  media?: Record<string, { count: number; usd: number; unpriced: number }>;
   /** Set when the run failed: config, connection or model errors. */
   error?: string;
 }
@@ -97,6 +99,7 @@ export async function runHeadless(opts: HeadlessOptions, io: HeadlessIO): Promis
     model: runtime.profile.model,
     usage: { ...runtime.agent.usage },
     cost: runtime.agent.cost() ?? null,
+    ...(Object.keys(runtime.agent.media).length > 0 ? { media: { ...runtime.agent.media } } : {}),
   });
   try {
     await runtime.startMcp();

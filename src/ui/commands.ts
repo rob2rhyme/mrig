@@ -100,6 +100,12 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
       }
       const miss = explainCacheMiss(u, rt.profile);
       if (miss) lines.push(miss);
+      for (const [kind, m] of Object.entries(rt.agent.media)) {
+        const known = m.count - m.unpriced;
+        lines.push(
+          `${kind}s: ${m.count}${known > 0 ? ` · ~$${m.usd.toFixed(4)}` : ''}${m.unpriced > 0 ? ` · ${m.unpriced} without a price (set ${kind}.pricePerImage)` : ''}`,
+        );
+      }
       return info(lines.join('\n'));
     }
     case 'compact': {

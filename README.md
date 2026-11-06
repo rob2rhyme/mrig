@@ -429,6 +429,32 @@ Put an image's path in a prompt and models that can see get the image itself:
 - **Sessions keep paths, not bytes.** The file is read again for each request. If it has been
   deleted, the model is told it's gone.
 
+### Generating images
+
+Add an `image` block to `~/.mrig/config.json` and the model gets an `image` tool:
+
+```json
+{
+  "image": { "profile": "openai", "model": "gpt-image-1", "size": "1024x1024", "pricePerImage": 0.04 }
+}
+```
+
+- **`profile`** names the profile whose provider makes the images (default `openai`): OpenAI's
+  image API, or any OpenAI-compatible server with `/images/generations`. Anthropic models don't
+  make images. **`model`** is the image model id. **`size`** is the default `WIDTHxHEIGHT`.
+- **`pricePerImage`** is what you pay per image, in US dollars. Image prices depend on the model,
+  size and quality and change often, so mrig has no built-in table: set it from your provider's
+  price page. Without it, the cost shows as unknown.
+- **It asks first**, showing the prompt, the count, the size and the price:
+  `image "a red fox" (1 × 1024x1024, ~$0.04)`. Allow it permanently with `"image:*"`.
+- **Files:** images are saved under `images/` (set `"dir"` to change it), named from the date and
+  the prompt, and never overwrite an existing file. The tool answers with the paths, so the
+  session stores paths, not image data.
+- **Cost:** `/cost` lists the images and their cost, and `--json` includes them in `cost` and
+  `media`.
+- **Offline mode** drops the tool unless the image server is on this machine.
+- Only your global config can set `image`. A project's config can't, since it spends money.
+
 ## Modes
 
 A mode changes how mrig works with you. Switch with `/mode <name>`, or start in one with
@@ -556,5 +582,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

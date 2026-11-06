@@ -4,7 +4,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import type { LanguageModel, LanguageModelUsage } from 'ai';
+import type { ImageModel, LanguageModel, LanguageModelUsage } from 'ai';
 import { type CacheTtl, type Pricing, type ProviderProfile, resolveApiKey } from './config.ts';
 
 /** USD per million tokens for known hosted models. Local/openai-compatible default to free. */
@@ -192,6 +192,47 @@ export function createModel(
       });
       return provider(profile.model);
     }
+    default: {
+      const kind: never = profile.kind;
+      throw new ProviderError(`Unsupported provider kind: ${String(kind)}`);
+    }
+  }
+}
+
+/**
+ * An image model (T4) from a profile: OpenAI's image API, or any OpenAI-compatible server that
+ * serves /images/generations (a local one works offline). Anthropic models don't make images.
+ */
+export function createImageModel(
+  profile: ProviderProfile,
+  modelId: string,
+  env: NodeJS.ProcessEnv = process.env,
+): ImageModel {
+  const apiKey = resolveApiKey(profile, env);
+  switch (profile.kind) {
+    case 'openai': {
+      if (!apiKey) {
+        throw new ProviderError(
+          `No API key for OpenAI images. Set ${profile.apiKeyEnv ?? 'OPENAI_API_KEY'} or add "apiKey" to the profile.`,
+        );
+      }
+      return createOpenAI({
+        apiKey,
+        ...(profile.baseURL ? { baseURL: profile.baseURL } : {}),
+      }).image(modelId);
+    }
+    case 'openai-compatible': {
+      if (!profile.baseURL) throw new ProviderError('openai-compatible profiles need a "baseURL".');
+      return createOpenAICompatible({
+        name: profile.name ?? 'openai-compatible',
+        baseURL: profile.baseURL,
+        apiKey: apiKey ?? 'none',
+      }).imageModel(modelId);
+    }
+    case 'anthropic':
+      throw new ProviderError(
+        'Anthropic models do not generate images. Point "image.profile" at an openai or openai-compatible profile.',
+      );
     default: {
       const kind: never = profile.kind;
       throw new ProviderError(`Unsupported provider kind: ${String(kind)}`);

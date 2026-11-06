@@ -1,7 +1,7 @@
 /**
  * Wires config → provider → permissions → agent → session. Shared by the REPL and headless mode.
  */
-import type { LanguageModel } from 'ai';
+import type { ImageModel, LanguageModel } from 'ai';
 import { Agent, type AgentEvents, type CompactionOptions } from './agent.ts';
 import {
   loadConfig,
@@ -22,14 +22,16 @@ import { formatMcpStatus, type McpConnect, McpManager, type McpServerStatus } fr
 import { isModeName, MODES, type ModeName } from './modes.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
 import { buildSystemPrompt } from './prompt.ts';
-import { createModel } from './providers.ts';
+import { createImageModel, createModel } from './providers.ts';
 import { Session, type SessionMeta } from './session.ts';
-import { toolsForMode } from './tools/index.ts';
+import { createImageTool } from './tools/image.ts';
+import { type AnyTool, toolsForMode } from './tools/index.ts';
 import {
   assertNoYolo,
   assertProfileAllowed,
   assertResumeAllowed,
   describeOffline,
+  isLocalProfile,
   type Offline,
   OfflineError,
   offlineTools,
@@ -52,6 +54,8 @@ export interface RuntimeOptions {
   ephemeral?: boolean;
   /** `--mode` (T1). Without it: the resumed session's mode, else default. */
   mode?: ModeName;
+  /** Use this image model instead of building one from `image.profile` (tests). */
+  imageModel?: ImageModel;
   /** Use this model instead of building one from the profile (tests, the eval harness). */
   languageModel?: LanguageModel;
   /** Use this config instead of loading it from cwd (the eval harness runs in temp dirs). */
@@ -75,6 +79,8 @@ export class Runtime {
   readonly sessionsDir: string | undefined;
   /** The mode (T1): its prompt text and permission policy are in force. */
   mode: ModeName = 'default';
+  /** Media tools built from the config (T4+): `image` when `image` is configured. */
+  private mediaTools: AnyTool[] = [];
   /**
    * Language memory (A3), read once here and on reloadLang(). Kept fixed in between, so the
    * system prompt, and with it the cached prefix, does not change from turn to turn.
@@ -134,6 +140,7 @@ export class Runtime {
       });
     }
 
+    this.mediaTools = this.buildMediaTools(opts);
     // An explicit --mode wins; a resumed session keeps the mode it was saved with.
     const saved = this.session.meta.mode;
     this.applyMode(opts.mode ?? (saved && isModeName(saved) ? saved : 'default'));
@@ -169,6 +176,22 @@ export class Runtime {
       lang: this.lang.block,
       mode: this.mode,
     });
+  }
+
+  /** The image tool, when configured. A provider that can't be set up is a notice, not a crash. */
+  private buildMediaTools(opts: RuntimeOptions): AnyTool[] {
+    const image = this.config.image;
+    if (!image) return [];
+    try {
+      const { profile } = resolveProfile(this.config, image.profile);
+      const model = opts.imageModel ?? createImageModel(profile, image.model);
+      return [
+        createImageTool({ config: image, model, remote: !isLocalProfile(profile) }) as AnyTool,
+      ];
+    } catch (err) {
+      opts.events.onNotice?.(`The image tool is off: ${(err as Error).message}`);
+      return [];
+    }
   }
 
   private applyMode(name: ModeName): void {
@@ -248,8 +271,9 @@ export class Runtime {
    * in bash-only mode), minus anything that reaches other hosts when offline.
    */
   private currentTools() {
-    const mcp = this.profile.toolMode === 'minimal' ? [] : (this.mcp?.tools() ?? []);
-    const tools = offlineTools([...toolsForMode(this.profile.toolMode), ...mcp], this.offline);
+    const extra =
+      this.profile.toolMode === 'minimal' ? [] : [...(this.mcp?.tools() ?? []), ...this.mediaTools];
+    const tools = offlineTools([...toolsForMode(this.profile.toolMode), ...extra], this.offline);
     // learn mode offers read-only tools only.
     return MODES[this.mode].permissions === 'read-only' ? tools.filter((t) => t.readOnly) : tools;
   }
