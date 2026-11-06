@@ -97,6 +97,7 @@ export function createSpeakTool(opts: SpeakToolOptions): MrigTool<SpeakInput> {
         ext: `.${format}`,
         now: (opts.now ?? (() => new Date()))(),
         bytes: result.audio.uint8Array,
+        onSaved: (p) => ctx.recordFile?.(p, 'audio'),
       });
       return [
         `Saved ${saved} (${config.model}${voice ? `, voice ${voice}` : ''}, ${input.text.length} characters, ${money(price)})`,

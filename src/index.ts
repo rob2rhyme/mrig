@@ -101,6 +101,46 @@ async function runDoctor(args: ReturnType<typeof parseArgs>, cwd: string): Promi
   return hasProblems(checks) ? 1 : 0;
 }
 
+/**
+ * `mrig serve` (Track 4, U1): start the app server, print one JSON line with its address and
+ * launch token (the app that started it reads that), and run until Ctrl+C, SIGTERM, or, when
+ * stdin is a pipe, until the parent closes it.
+ */
+async function serve(args: ReturnType<typeof parseArgs>): Promise<void> {
+  const { startServer } = await import('./server/serve.ts');
+  const server = startServer({
+    port: args.port ?? 0,
+    version: VERSION,
+    runtime: {
+      provider: args.provider,
+      model: args.model,
+      yolo: args.yolo ? true : undefined,
+      offline: args.offline,
+      maxSteps: args.maxSteps,
+      mode: args.mode,
+      variety: args.variety,
+      routing: !args.provider && !args.model,
+    },
+  });
+  process.stdout.write(
+    `${JSON.stringify({ protocol: 1, url: server.url, ws: server.ws, token: server.token })}\n`,
+  );
+  await new Promise<void>((done) => {
+    let stopping = false;
+    const stop = () => {
+      if (stopping) return;
+      stopping = true;
+      void server.stop().then(done);
+    };
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
+    if (!process.stdin.isTTY) {
+      process.stdin.on('end', stop);
+      process.stdin.resume();
+    }
+  });
+}
+
 async function main(): Promise<void> {
   let args: ReturnType<typeof parseArgs>;
   try {
@@ -131,6 +171,15 @@ async function main(): Promise<void> {
     const zone = findZone(cwd);
     for (const s of Session.list(zone ? zoneSessionsDir(zone) : undefined))
       process.stdout.write(`${s.id}  ${s.updatedAt.slice(0, 16)}  ${s.cwd}  ${s.title}\n`);
+    return;
+  }
+  if (args.serve) {
+    try {
+      await serve(args);
+    } catch (err) {
+      process.stderr.write(`${red('error:')} ${(err as Error).message}\n`);
+      process.exit(1);
+    }
     return;
   }
   if (args.doctor) {

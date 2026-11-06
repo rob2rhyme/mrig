@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
 import { displayPath, resolvePath } from '../util/paths.ts';
-import { defineTool, ToolError } from './types.ts';
+import { truncateMiddle } from '../util/text.ts';
+import { DISPLAY_MAX_CHARS, defineTool, ToolError } from './types.ts';
 
 const schema = z.object({
   path: z.string().describe('File to edit'),
@@ -47,6 +48,12 @@ export const editTool = defineTool<z.infer<typeof schema>>({
   readOnly: false,
   summarize: (i) =>
     `edit ${i.path} (${i.replace_all ? 'replace all' : 'replace'} ${i.old_string.split('\n').length} → ${i.new_string.split('\n').length} lines)`,
+  display: (i) => ({
+    kind: 'diff',
+    path: i.path,
+    before: truncateMiddle(i.old_string, DISPLAY_MAX_CHARS),
+    after: truncateMiddle(i.new_string, DISPLAY_MAX_CHARS),
+  }),
   async execute(input, ctx) {
     const abs = resolvePath(ctx.cwd, input.path);
     if (!existsSync(abs)) throw new ToolError(`File not found: ${displayPath(ctx.cwd, abs)}`);

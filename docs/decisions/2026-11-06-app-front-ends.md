@@ -60,28 +60,30 @@ The plan adds one more adapter of the same kind, over a network connection inste
 
 JSON messages over one WebSocket at `/ws`. Every message is validated with zod on arrival, as tool inputs already are. Both ends import the types from one file (`src/server/protocol.ts`), so they cannot drift. A `protocol: 1` field lets a newer front end refuse an older server politely.
 
-**Front end → server:**
+**Front end → server** (as built in U1; `conversation` is the id the server gives each open conversation, which stays the same when `/resume` or `/clear` changes the session underneath):
 
 | Message | What it does |
 |---|---|
-| `hello {protocol}` | The first message, on a connection that is already authenticated (§3) |
+| `hello {protocol}` | The first message, on a connection that is already authenticated (§3); anything else first closes the connection |
 | `projects.list`, `sessions.list {cwd}` | The project picker and the sidebar (`Session.list()` already exists [V]) |
-| `session.open {cwd, resume?}` | Start or resume a conversation; the server answers with a full `snapshot` |
-| `turn.send {session, text, images[]}` | Send a message (images are uploaded to the session's folder, then passed as paths, as in T3) |
-| `turn.abort {session}` | The Stop button |
-| `ask.answer {askId, answer: yes/no/always}` | Answer a permission request; `always` is refused from other devices (§5) |
-| `command.run {session, text}` | Any slash command (`/mode learn`, `/cost`); output comes back as text |
+| `session.open {cwd, resume?}` | Start or resume a conversation; the server answers with a full `snapshot`. Resuming a session that is already open joins it |
+| `turn.send {conversation, text}` | Send a message (image uploads come with U2) |
+| `turn.abort {conversation}` | The Stop button: denies any open question, then aborts |
+| `ask.answer {askId, answer: yes/no/always}` | Answer a permission request; the first answer wins; `always` is refused from other devices (§5, U3) |
+| `command.run {conversation, text}` | Any slash command (`/mode learn`, `/cost`); output comes back as plain text |
 | `model.set`, `mode.set` | The header pickers; the same code paths as `/model` and `/mode` |
+| `session.close {conversation}` | Leave it; the last client to leave closes it |
 
 **Server → front end:**
 
 | Message | When |
 |---|---|
-| `snapshot {session, items[], status}` | On open and on reconnect, so a reloaded or reopened app picks up exactly where it was |
-| `text.delta`, `reasoning.delta` | As the reply streams |
-| `tool.start {id, name, summary, display}`, `tool.end {id, status, output, ms}` | Tool cards |
-| `ask {askId, summary, preview, alwaysRule, alwaysAllowed}` | A permission request (today's `AskRequest` fields [V], plus whether this device may choose Always) |
-| `notice`, `status`, `turn.end {result: ok/error/aborted}`, `error` | Everything else |
+| `hello.ok`, `projects`, `sessions` | Answers to the requests above |
+| `snapshot {info, items[], running, live, asks[], status}` | On open, on reconnect, and after a command or a mode change, so a reloaded or reopened app picks up exactly where it was |
+| `turn.start {text}`, `text.delta`, `reasoning.delta` (with `/verbose`), `turn.end {result: ok/error/aborted}` | A turn, as it streams; every client on the conversation sees it |
+| `tool.start {id, name, summary, display}`, `tool.end {id, status, output, ms, media[]}` | Tool cards; `media` holds signed links to generated images, audio and video |
+| `ask {askId, summary, preview, alwaysRule}`, `ask.closed {askId, answer}` | A permission request (today's `AskRequest` fields [V]) and how it ended: answered, timed out or stopped |
+| `notice`, `status`, `command.output`, `error` | Everything else |
 
 **One core change is needed first:** tool events carry only a one-line summary today [V]. A card wants structure, so `ToolCallInfo` gains an optional `display`:
 - `diff` for `edit` and `write`;

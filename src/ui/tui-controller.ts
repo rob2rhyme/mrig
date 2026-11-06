@@ -10,8 +10,10 @@ import type { AgentEvents, ToolCallInfo, ToolCallOutcome } from '../agent.ts';
 import type { Answer, AskRequest } from '../permissions.ts';
 import { formatModelError } from '../providers.ts';
 import { Runtime, type RuntimeOptions } from '../runtime.ts';
-import { describeOffline } from '../zone.ts';
-import { bannerLines, modeLabel, runCommand, startupChecks } from './commands.ts';
+import { bannerLines, runCommand, startupChecks } from './commands.ts';
+import { EMPTY_STATUS, runtimeStatus, type StatusInfo } from './status.ts';
+
+export type { StatusInfo } from './status.ts';
 
 export type ItemKind =
   | 'banner'
@@ -30,22 +32,6 @@ export interface Item {
   text: string;
 }
 
-export interface StatusInfo {
-  model: string;
-  tokensIn: number;
-  tokensOut: number;
-  /** Estimated USD; undefined when pricing is unknown. */
-  cost?: number;
-  /** Estimated share of the context window in use, 0–100. */
-  contextPct: number;
-  offline?: string;
-  yolo: boolean;
-  /** The mode, when not default (T1). */
-  mode?: string;
-  /** "2/3" when MCP servers are configured: connected / configured. */
-  mcp?: string;
-}
-
 export interface TuiSnapshot {
   items: Item[];
   /** Assistant text streaming in right now. */
@@ -62,14 +48,6 @@ export interface TuiSnapshot {
 }
 
 export type InterruptResult = 'aborted' | 'denied' | 'armed' | 'exit';
-
-const EMPTY_STATUS: StatusInfo = {
-  model: '',
-  tokensIn: 0,
-  tokensOut: 0,
-  contextPct: 0,
-  yolo: false,
-};
 
 export class TuiController {
   runtime: Runtime | undefined;
@@ -131,22 +109,7 @@ export class TuiController {
   }
 
   private computeStatus(): StatusInfo {
-    const rt = this.runtime;
-    if (!rt) return EMPTY_STATUS;
-    const report = rt.agent.contextReport();
-    const mcp = rt.mcpStatus();
-    const connected = mcp.filter((s) => s.state === 'connected').length;
-    return {
-      model: rt.modelLabel(),
-      tokensIn: rt.agent.usage.inputTokens,
-      tokensOut: rt.agent.usage.outputTokens,
-      cost: rt.agent.cost(),
-      contextPct: Math.min(100, Math.round((report.estimate / report.window) * 100)),
-      ...(rt.offline ? { offline: describeOffline(rt.offline) } : {}),
-      yolo: rt.permissions.promptsSkipped,
-      ...(rt.mode !== 'default' ? { mode: modeLabel(rt) } : {}),
-      ...(mcp.length > 0 ? { mcp: `${connected}/${mcp.length}` } : {}),
-    };
+    return runtimeStatus(this.runtime);
   }
 
   // ---- runtime wiring ----

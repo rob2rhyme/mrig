@@ -92,6 +92,7 @@ export function createImageTool(opts: ImageToolOptions): MrigTool<Input> {
           ext: EXT[img.mediaType] ?? '.png',
           now,
           bytes: img.uint8Array,
+          onSaved: (p) => ctx.recordFile?.(p, 'image'),
         }),
       );
       const warnings = result.warnings.map((w) => `warning: ${describeWarning(w)}`);

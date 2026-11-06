@@ -159,6 +159,7 @@ export function createVideoTool(opts: VideoToolOptions): MrigTool<Input> {
             ext: EXT[video.mediaType] ?? '.mp4',
             now: new Date(now()),
             bytes,
+            onSaved: (p) => ctx.recordFile?.(p, 'video'),
           });
           return [
             `Saved ${saved} (${config.model}, ${seconds} s, ${money(cost)}, the job took ${elapsed(now() - started)})`,
