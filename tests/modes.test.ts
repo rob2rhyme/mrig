@@ -147,7 +147,7 @@ describe('modes: behaviour through the runtime', () => {
       mode: 'learn',
     });
     await rt.agent.run('quiz me on the shell');
-    expect(offered(model, 0)).toEqual(['read', 'glob', 'grep', 'translit', 'corpus']);
+    expect(offered(model, 0)).toEqual(['read', 'glob', 'grep', 'translit', 'corpus', 'learned']);
     expect(asked).toEqual([]);
     const write = rt.agent.opts.tools.find((t) => t.name === 'write');
     expect(write).toBeUndefined();

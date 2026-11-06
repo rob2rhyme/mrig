@@ -1,6 +1,6 @@
 # Learner memory (T2) decision
 
-Date: November 6, 2026. Status: **proposed, awaiting RT's approval.** No T2 code is written until RT approves this note (`docs/ROADMAP.md`, T2).
+Date: November 6, 2026. Status: **decided by RT, November 6, 2026**, with the recommended answer to each open question (see **Answers** below).
 
 Labels: **[V]** verified against the code or a primary source · **[I]** inference or recommendation.
 
@@ -38,7 +38,7 @@ The transcript already lives in the session file. Learner memory is the small su
 ### 2. Where: one local file, inside the offline zone when there is one
 
 - **Normally:** `~/.mrig/learner.json` [I]. It's one human-readable JSON file with a `version` field, so you can open it in an editor and diff it. A wordlist of a few hundred topics is a few tens of kilobytes. SQLite or embeddings would add a dependency and hide the data.
-- **Inside an offline zone:** `<zone>/.mrig/learner.json`, next to that zone's sessions, git-ignored like them. It never mixes with the global file. That's the same rule L5 already applies to zone transcripts [V: `zoneSessionsDir()` in `src/zone.ts`].
+- **Inside an offline zone:** `<zone>/.mrig/learner/learner.json`, next to that zone's sessions, in a folder with a `.gitignore` like theirs. It never mixes with the global file. That's the same rule L5 already applies to zone transcripts [V: `zoneSessionsDir()` in `src/zone.ts`].
 - **Written atomically:** a temporary file is renamed over the old one, so a crash never leaves half a file.
 - **No sync, upload or telemetry.** mrig never sends the file anywhere.
 
@@ -95,12 +95,22 @@ Until you forget it [I]. Topics don't expire, and status never decays on its own
 
 ## Open questions for RT
 
+Answered below; kept as asked.
+
+
 1. **Cloud models (§3).** Keep the default "local models only" and allow the global `shareWithCloud` opt-in? Or never send the summary to cloud models at all?
 2. **Confirmation (§4).** Record each result as it happens, with a visible tool line and no prompt (recommended)? Or ask once at the end of a learning session, "Save 6 updates to learner memory?"
 3. **Teach mode (§4).** Should `teach` mode record what it taught as `introduced`, or should only `learn` mode write?
 4. **Review spacing (§1).** Is a simple 5-box Leitner schedule (1, 2, 4, 8, 16 days) enough, or do you want a different rhythm for language practice?
 
-## If approved: the build (T2)
+## Answers (RT, November 6, 2026)
+
+1. **Cloud models:** local models only by default; the global `learner.shareWithCloud` opt-in sends the summary to cloud models too.
+2. **Confirmation:** each result is recorded as it happens, with a visible tool line and no prompt.
+3. **Teach mode:** `teach` records what it taught as `introduced`; `learn` records right and missed answers.
+4. **Review spacing:** the 5-box Leitner schedule, 1, 2, 4, 8 and 16 days.
+
+## The build (T2)
 
 - `src/learner.ts`: load, save (atomic), record, forget, the summary block, and the zone-aware path.
 - `src/tools/learned.ts`: the recording tool, offered in `learn` and `teach` mode only.

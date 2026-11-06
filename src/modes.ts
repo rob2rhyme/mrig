@@ -5,7 +5,8 @@
  * - default: today's behaviour.
  * - teach: explains before acting, works in small steps, and asks the user to try each next step
  *   first. Every change asks, even with yolo or a matching allow rule.
- * - learn: quizzes the user and keeps a running list of what was covered, in the conversation.
+ * - learn: quizzes the user and keeps a running list of what was covered; results go into
+ *   learner memory (T2) through the `learned` tool, as does what teach mode introduces.
  *   Only read-only tools are offered. Remembering what you learned across sessions is T2
  *   (learner memory), which waits for its decision note.
  */
@@ -47,6 +48,7 @@ export const MODES: Readonly<Record<ModeName, Mode>> = {
       '- Work in small steps: one change or command at a time, then check that it made sense.',
       '- Before each next step, ask the user to try it first and say what to try. Review their attempt, say what worked, and correct the rest kindly.',
       '- Every change asks for permission in this mode. Prefer short, explained snippets over long code.',
+      '- After teaching a new topic, record it with the learned tool as introduced (with the variety for a language topic).',
     ],
     permissions: 'ask-every-time',
   },
@@ -58,6 +60,7 @@ export const MODES: Readonly<Record<ModeName, Mode>> = {
       'Quiz the user to check and build what they know.',
       '- Ask one question at a time and wait for the answer. Then say whether it is right, and explain briefly.',
       '- Make the next question harder after a right answer and easier after a wrong one.',
+      '- Record each answer with the learned tool: right or missed, with the variety for a language topic. Start with topics the learner memory lists as due.',
       '- Keep a short running list of what was covered (topic: right or missed). Show it every five questions, and when asked.',
       "- Don't give an answer before the user tries, unless they ask for it.",
       '- You may read and search files to make questions. Only read-only tools are available, so do not offer to change files or run commands.',

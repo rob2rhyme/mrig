@@ -41,6 +41,10 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   config by `Runtime.buildMediaTools()`; never read-only; remote unless the profile is local.
   `src/tools/media.ts` holds the shared file naming, saving and price display.
   Tools report media cost through `ctx.recordMedia`, which `Agent.cost()` adds in.
+- `src/learner.ts` — learner memory (T2): one local JSON file (the zone's own in an offline
+  zone), atomic writes, a Leitner schedule, the summary for learn and teach mode (local models
+  only unless the global `learner.shareWithCloud`); `src/tools/learned.ts` records results and
+  is offered only in learn and teach mode. `/learned` and `/forget` read and delete it.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the

@@ -10,9 +10,9 @@ You are continuing development of **mrig**, my personal, local, model-agnostic t
 
 A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands, works with files, and answers general questions. One provider layer (Vercel AI SDK 7) serves Anthropic (`claude-sonnet-5` default, `claude-opus-5`, `claude-fable-5-1`, `claude-haiku-4-5-20251001`), OpenAI, and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, OpenRouter). It is for me alone: private repo, no telemetry, no analytics, no third-party scripts, ever. It compiles to a single binary per OS with `bun build --compile`.
 
-## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1, T3–T6
+## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1–T6
 
-Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4, T1 and T3–T6 are built:
+Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4 and T1–T6 are built:
 
 - **L0 prompt caching:** request-level automatic caching plus a system-block breakpoint for Anthropic profiles, cache-write pricing, a minimum-prefix table that `/cost` uses to explain a miss, and `cacheTtl`.
 - **L1 hygiene:** `mrig doctor` checks model ids against each provider's model list, the REPL runs the same check at startup, session meta is rewritten in place, and CI runs macOS and Windows only where it matters.
@@ -32,6 +32,7 @@ Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4, T1 and T
 - **Track 3, T4 image generation:** `src/tools/image.ts` (`createImageTool`), built by `Runtime.buildMediaTools()` only when the global config has `image` (a project config can't set it). `createImageModel()` in `src/providers.ts` covers `openai` and `openai-compatible`; Anthropic is refused with a notice. The tool asks with the price unless `image:*` allows it, saves under `image.dir` without overwriting, and reports cost through `ctx.recordMedia`; `Agent.media` feeds `/cost` and the `--json` `media` field. No built-in price table: `image.pricePerImage` sets it.
 - **Track 3, T5 speech:** `src/tools/speech.ts` (`createSpeakTool`, `createTranscribeTool`), built by `Runtime.buildMediaTools()` from the global `speech` and `transcription` blocks. `createSpeechModel()` and `createTranscriptionModel()` use the OpenAI client for both `openai` and `openai-compatible` profiles (a local audio server is the offline option); Anthropic is refused. Prices: `speech.pricePerMillionChars`, `transcription.pricePerMinute` (needs the reported duration). Shared helpers in `src/tools/media.ts`.
 - **Track 3, T6 video:** `src/tools/video.ts` (`createVideoTool`, `videoCost`, `overBudget`) over `experimental_startVideo` and `experimental_getVideoStatus`, with mrig's own polling (`pollSeconds`, `timeoutMinutes`) and download of URL results. Provider: the Vercel AI Gateway (`createVideoModel()` in `src/providers.ts`, key in `AI_GATEWAY_API_KEY`), always remote. The global `video` block requires `pricePerSecond`; a job whose estimate passes `maxCostPerJob` is refused before it starts.
+- **Track 3, T2 learner memory:** `src/learner.ts` (load, atomic save, `recordResult` with the 1/2/4/8/16-day Leitner boxes, `forget`, `learnerSummary`, `learnerReport`, `learnerPath` for zones). `Runtime.learnerBlock()` adds the summary in learn and teach mode, read once per session, to local models only unless the global `learner.shareWithCloud`. `src/tools/learned.ts` is read-only (it writes only mrig's file) and offered only in learn and teach mode. `/learned` and `/forget` in `src/ui/commands.ts`.
 
 v0.1 in detail:
 
@@ -176,7 +177,7 @@ Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, no
   - A mode is a named preset of system-prompt text and permission defaults, defined in code.
   - `teach` explains before acting, works in small steps, and asks the user to try the next step first. `learn` quizzes the user and records what was covered.
   - **Acceptance:** mock-model tests show the prompt and the permission behaviour change per mode; the mode is saved in the session meta and survives `-c`; each mode's prompt stays under ~1,000 tokens before memory.
-- **T2. Learner memory (S–M).** 📝 Decision note drafted 2026-11-06 (`docs/decisions/2026-11-06-learner-memory.md`); awaiting Robin's approval.
+- **T2. Learner memory (S–M).** ✅ Decided by Robin and built 2026-11-06 (`docs/decisions/2026-11-06-learner-memory.md`).
   - Write a decision note in `docs/decisions/` first: what is stored, where (local only), how the user inspects it (`/learned`) and deletes it (`/forget`).
   - **Acceptance:** Robin approves the note before any code; then read, write and delete are tested; nothing is sent over the network; the offline guarantee (L5) is respected.
 - **T3. Vision input (S).** ✅ Built 2026-11-05.
