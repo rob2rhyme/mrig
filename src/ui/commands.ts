@@ -72,6 +72,7 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           `${bold('/clear')}             start a fresh conversation (same session file)`,
           `${bold('/yolo')}              toggle permission prompts`,
           `${bold('/mode <name>')}       ${MODE_NAMES.join(' | ')}: how mrig works with you (${bold('/mode tutor mgp')} for the Akkha tutor)`,
+          `${bold('/route')}             model routing: ${bold('on')} · ${bold('off')} · ${bold('easy')} · ${bold('hard')} · ${bold('why')}`,
           `${bold('/verbose')}           show or hide the model's reasoning`,
           `${bold('/sessions')}          list saved sessions · ${bold('/resume <id>')} to load one`,
           `${bold('/tools')}             list tools · ${bold('/memory')} show loaded AGENTS.md files`,
@@ -221,6 +222,40 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
         return info(red((err as Error).message));
       }
       return info(`now in ${bold(modeLabel(rt))} mode: ${MODES[name].summary}`);
+    }
+    case 'route': {
+      const r = rt.config.routing;
+      if (!r) {
+        return info(
+          'Routing is not set up. Add "routing": { "easy": "<profile>", "hard": "<profile>" } to ~/.mrig/config.json (see README).',
+        );
+      }
+      if (arg === 'on' || arg === 'off' || arg === 'easy' || arg === 'hard') {
+        rt.setRouting(arg);
+      } else if (arg && arg !== 'why') {
+        return info('usage: /route [on|off|easy|hard|why]');
+      }
+      const state = !rt.route.active
+        ? 'off'
+        : rt.route.pinned
+          ? `pinned to ${rt.route.pinned} (/route on to route again)`
+          : 'on';
+      const last = rt.route.last;
+      return info(
+        [
+          `routing: ${state} · easy ${r.easy} · hard ${r.hard} · now ${rt.modelLabel()}`,
+          last
+            ? `last message: ${last.tier} → ${last.profile} (${last.reason})`
+            : 'no message routed yet',
+          ...(arg === 'why' || !arg
+            ? [
+                dim(
+                  `rules: !easy/!hard prefix · images → the tier with vision · ${r.rules.length} of yours · longer than ${r.longChars.toLocaleString()} characters → hard · hard words → hard · else ${r.default}`,
+                ),
+              ]
+            : []),
+        ].join('\n'),
+      );
     }
     case 'verbose': {
       if (arg && arg !== 'on' && arg !== 'off') return info('usage: /verbose [on|off]');

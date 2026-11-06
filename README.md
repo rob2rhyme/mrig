@@ -166,6 +166,41 @@ Paths must be absolute (a leading `~/` is your home folder). Only the global con
 folder. `MRIG_YOLO=1` and `--yolo` are your own choice and still work anywhere outside an
 offline zone.
 
+## Model routing
+
+Send easy work to a local model and hard work to a stronger one, message by message:
+
+```json
+{ "routing": { "easy": "ollama", "hard": "claude" } }
+```
+
+Rules decide, not another model, so every choice is predictable. Each message gets a one-line
+note saying where it went and why: `→ claude/claude-sonnet-5 (hard: "refactor")`. The first
+matching rule wins:
+
+1. **`!easy` or `!hard`** at the start of a message forces the tier. The prefix isn't sent.
+2. **Images** go to whichever tier has `vision`, when only one has.
+3. **Your rules**, in order: `"rules": [{ "match": ["typo", "commit message"], "use": "easy" },
+   { "match": "\\bakkha\\b", "use": "hard" }]`. A list matches whole words, and a string is a
+   regular expression; both ignore case.
+4. **Long messages** (over `longChars`, default 1,500 characters) are hard.
+5. **Hard words** go to the hard tier: plan, design, architecture, refactor, debug, why,
+   review, security, migrate, optimize, prove, investigate.
+6. **Everything else** goes to `default` (`easy`).
+
+- **`/route`** shows the state, the last decision and the rules.
+  - `/route easy` or `/route hard` pins a tier.
+  - `/route on` routes again, and `/route off` stops.
+  - Choosing a model yourself, with `/provider`, `/model`, `-P` or `-m`, turns routing off for
+    that session.
+- **The whole turn** runs on the chosen model, tool calls included, and the conversation carries
+  over between models. Each switch means the new model reads the prompt fresh, so a cache
+  written by the other one doesn't help.
+- **Offline mode** uses only local profiles. If one tier is a cloud model, its messages go to
+  the other tier, with one notice. With enough memory (128 GB), both tiers can be local and
+  routing works fully offline.
+- Only your global config can set `routing`, since it decides what you spend.
+
 ## Prompt caching (Claude)
 
 Anthropic profiles send every request with automatic prompt caching on, plus one explicit
@@ -583,7 +618,7 @@ quiz picks up where the last one stopped. The design is in
 ## Slash commands
 
 `/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/mcp` · `/clear` ·
-`/yolo` · `/mode <name>` · `/learned` · `/forget <topic>` · `/verbose` · `/lang` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
+`/yolo` · `/mode <name>` · `/route` · `/learned` · `/forget <topic>` · `/verbose` · `/lang` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
 Ctrl+C aborts a running turn; press it twice at the prompt to quit.
 
 `/verbose` (or `/verbose on`, `/verbose off`) shows the model's reasoning, dim, before each answer.
@@ -692,5 +727,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

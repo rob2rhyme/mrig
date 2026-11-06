@@ -10,9 +10,9 @@ You are continuing development of **mrig**, my personal, local, model-agnostic t
 
 A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands, works with files, and answers general questions. One provider layer (Vercel AI SDK 7) serves Anthropic (`claude-sonnet-5` default, `claude-opus-5`, `claude-fable-5-1`, `claude-haiku-4-5-20251001`), OpenAI, and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, OpenRouter). It is for me alone: private repo, no telemetry, no analytics, no third-party scripts, ever. It compiles to a single binary per OS with `bun build --compile`.
 
-## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1–T6, T8
+## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1–T8
 
-Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4, T1–T6 and T8 are built:
+Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4 and T1–T8 are built:
 
 - **L0 prompt caching:** request-level automatic caching plus a system-block breakpoint for Anthropic profiles, cache-write pricing, a minimum-prefix table that `/cost` uses to explain a miss, and `cacheTtl`.
 - **L1 hygiene:** `mrig doctor` checks model ids against each provider's model list, the REPL runs the same check at startup, session meta is rewritten in place, and CI runs macOS and Windows only where it matters.
@@ -34,6 +34,7 @@ Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4, T1–T6 
 - **Track 3, T6 video:** `src/tools/video.ts` (`createVideoTool`, `videoCost`, `overBudget`) over `experimental_startVideo` and `experimental_getVideoStatus`, with mrig's own polling (`pollSeconds`, `timeoutMinutes`) and download of URL results. Provider: the Vercel AI Gateway (`createVideoModel()` in `src/providers.ts`, key in `AI_GATEWAY_API_KEY`), always remote. The global `video` block requires `pricePerSecond`; a job whose estimate passes `maxCostPerJob` is refused before it starts.
 - **Track 3, T2 learner memory:** `src/learner.ts` (load, atomic save, `recordResult` with the 1/2/4/8/16-day Leitner boxes, `forget`, `learnerSummary`, `learnerReport`, `learnerPath` for zones). `Runtime.learnerBlock()` adds the summary in learn and teach mode, read once per session, to local models only unless the global `learner.shareWithCloud`. `src/tools/learned.ts` is read-only (it writes only mrig's file) and offered only in learn and teach mode. `/learned` and `/forget` in `src/ui/commands.ts`.
 - **Track 3, T8 Akkha tutor:** the `tutor` mode in `src/modes.ts` (`needsVariety`, `modePrompt()` fills in the variety, `assertModeVariety()` refuses none or an unknown one). `Runtime.variety` is saved in the session meta with the mode; the runtime passes it to `ctx.variety` (the corpus tool's default), to `createLearnedTool({ variety })` (filled in, others refused) and to `learnerSummary(…, variety)`. `/mode tutor <tag>`, `--mode tutor --variety <tag>`. Concept results in a variety-filtered corpus search now count the forms they leave out.
+- **Track 3, T7 model routing:** `src/routing.ts` (`classify`, `parseRouting`, `HARD_WORDS`). `Runtime.runTurn()` calls `routeMessage()` (switch through the internal `switchTo()`, one notice per message) and then `agent.run()`; the REPL, TUI and headless call `runTurn()`. The public `switchModel()` turns routing off. `setRouting()` backs `/route on|off|easy|hard`. `--provider`/`--model` pass `routing: false`. In offline mode a cloud tier falls back to the local one. Test seam: `languageModelFor`.
 
 v0.1 in detail:
 
@@ -193,7 +194,18 @@ Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, no
 - **T6. Video (M–L).** ✅ Built 2026-11-06; a clip end to end needs Robin's AI Gateway key.
   - A `video` tool that starts a job, polls it and downloads the result. The SDK marks video as experimental, so read its types first.
   - **Acceptance:** a short clip is generated end to end; a per-job cost cap stops an over-budget job.
-- **T7. Model routing (unranked; only when asked).** Send easy work to a local model and hard work to a frontier model by rule.
+- **T7. Model routing (unranked; only when asked).** ✅ Built 2026-11-06. Send easy work to a local model and hard work to a frontier model by rule. Robin asked for it on November 6, 2026; acceptance defined then:
+  - A global-only `routing` block names an `easy` and a `hard` profile (a project config can't set it, since it decides spending). Routing is on when the block exists and the session was started without `-P` or `-m`.
+  - **Each message is classified by rules, first match wins:**
+    - a `!easy` / `!hard` prefix (stripped from the message);
+    - an image in the prompt goes to whichever tier has vision;
+    - the user's own `rules` (a regex or a list of words, mapped to `easy` or `hard`);
+    - the built-ins: a long message (over `longChars`, default 1,500) or a "hard" word such as plan, design, refactor, debug, why, review, architecture or security;
+    - otherwise `default` (`easy`).
+  - The chosen profile runs the whole turn, and a one-line notice says which one and why (`→ claude (hard: "refactor")`). No model call decides the route.
+  - `/route` shows the state and the last decision; `/route on|off`; `/route easy|hard` pins a tier until `/route on`. A manual `/provider` or `/model` turns routing off for the session, with a notice.
+  - **Offline mode:** routing only uses local profiles. A cloud tier is unavailable; the other tier takes its messages, with one notice. At 128 GB, both tiers can be local and routing works fully offline.
+  - **Tests:** mock-model tests cover the rule table, the switch before a turn and the stripped prefix, offline fallback, manual override, and the project-config refusal.
 - **T8. Akkha tutor mode (S–M).** ✅ Built 2026-11-06. The language tutor, built on `learn` mode, language memory (A3) and corpus search (A4). Acceptance defined November 6, 2026, once T1, T2, A3 and A4 had landed:
   - `/mode tutor <variety>` and `--mode tutor --variety <tag>` start it for **one variety**. Without a variety it is refused with the list of tags, so varieties are never pooled.
   - It is a `learn`-style mode: read-only tools only, plus `learned`. Its prompt (under ~1,000 tokens before memory) says to take every word from the corpus or language memory and never invent one. Devanagari is canonical, and Akkha and romanization come from `translit`.

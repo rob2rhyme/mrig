@@ -226,7 +226,7 @@ export class TuiController {
       return exit ? 'exit' : undefined;
     }
     try {
-      const result = await this.whileRunning((signal) => rt.agent.run(text, signal));
+      const result = await this.whileRunning((signal) => rt.runTurn(text, signal));
       this.flushLive();
       const u = rt.agent.usage;
       const cost = rt.agent.cost();

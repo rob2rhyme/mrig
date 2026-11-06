@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { type McpServerConfig, parseMcpServers } from './mcp.ts';
+import { parseRouting, type RoutingConfig } from './routing.ts';
 
 export type ProviderKind = 'anthropic' | 'openai' | 'openai-compatible';
 
@@ -179,6 +180,8 @@ export interface MrigConfig {
   video?: VideoConfig;
   /** Learner memory (T2). Global only: whether the summary may go to cloud models too. */
   learner?: { shareWithCloud: boolean };
+  /** Model routing (T7). Global only: an easy and a hard profile, and the rules between them. */
+  routing?: RoutingConfig;
   /** Keys an untrusted project config tried to set and that were dropped (set by loadConfig). */
   projectIgnored?: string[];
 }
@@ -396,6 +399,11 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     ...parseTranscription(layer.transcription, base.transcription),
     ...parseVideo(layer.video, base.video),
     ...parseLearner(layer.learner, base.learner),
+    ...(layer.routing !== undefined
+      ? { routing: parseRouting(layer.routing) }
+      : base.routing
+        ? { routing: base.routing }
+        : {}),
   };
 }
 

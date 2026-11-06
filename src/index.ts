@@ -55,6 +55,8 @@ async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promis
         resume: args.continue ? 'latest' : args.resume,
         mode: args.mode,
         variety: args.variety,
+        // Routing (T7) stays off when -P or -m chose the model.
+        routing: !args.provider && !args.model,
       },
       {
         stdout: (t) => process.stdout.write(t),
@@ -158,6 +160,7 @@ async function main(): Promise<void> {
     resume: args.continue ? 'latest' : args.resume,
     mode: args.mode,
     variety: args.variety,
+    routing: !args.provider && !args.model,
   };
   if (args.tui) {
     if (process.stdin.isTTY && process.stdout.isTTY) {
