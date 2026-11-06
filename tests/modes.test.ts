@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from '../src/cli/args.ts';
-import { MODE_NAMES, MODES, parseMode } from '../src/modes.ts';
+import { MODE_NAMES, modePrompt, parseMode } from '../src/modes.ts';
 import { buildSystemPrompt } from '../src/prompt.ts';
 import { Runtime } from '../src/runtime.ts';
 import { Session } from '../src/session.ts';
@@ -24,10 +24,11 @@ describe('modes: definitions and the prompt', () => {
         modelLabel: 'm',
         now: new Date(0),
         mode: name,
+        ...(name === 'tutor' ? { variety: 'mgp' as const } : {}),
       });
       expect(prompt.length).toBeLessThan(4000); // ≈ under 1,000 tokens before memory
       for (const other of MODE_NAMES) {
-        const heading = MODES[other].prompt[0];
+        const heading = modePrompt(other, 'mgp')[0];
         if (heading) expect(prompt.includes(heading)).toBe(other === name);
       }
     }
@@ -46,7 +47,7 @@ describe('modes: definitions and the prompt', () => {
     expect(parseArgs(['--mode', 'teach']).mode).toBe('teach');
     expect(parseArgs([]).mode).toBeUndefined();
     expect(() => parseArgs(['--mode', 'quiz'])).toThrow(
-      'Unknown mode "quiz". Modes: default, teach, learn.',
+      'Unknown mode "quiz". Modes: default, teach, learn, tutor.',
     );
     expect(parseMode('learn')).toBe('learn');
   });
@@ -199,14 +200,15 @@ describe('modes: behaviour through the runtime', () => {
     const { rt } = make([]);
     const out: string[] = [];
     await runCommand(rt, '/mode', io(out));
-    expect(out.join('').split('\n').slice(0, 3)).toEqual([
+    expect(out.join('').split('\n').slice(0, 4)).toEqual([
       '● default  does the work, asking before changes as usual',
       '○ teach    explains before acting, one small step at a time; you try each next step first',
       '○ learn    quizzes you and tracks what you have covered; read-only tools only',
+      '○ tutor    the Akkha language tutor for one variety: /mode tutor <variety>',
     ]);
     out.length = 0;
     await runCommand(rt, '/mode quiz', io(out));
-    expect(out.join('')).toContain('Unknown mode "quiz". Modes: default, teach, learn.');
+    expect(out.join('')).toContain('Unknown mode "quiz". Modes: default, teach, learn, tutor.');
     expect(rt.mode).toBe('default');
     await rt.close();
   });

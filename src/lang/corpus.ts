@@ -408,16 +408,18 @@ export function searchCorpus(
     if (!param) continue;
     h.concept = param.name;
     if (param.concepticon) h.concepticon = param.concepticon;
-    h.related = corpus.forms
+    const all = corpus.forms
       .filter((f) => f.parameterId === param.id && !shown.has(`${rel(f.file)}:${f.line}`))
       .map((f) => ({
         variety: varietyOf(corpus, f.languageId),
         form: f.form,
         file: rel(f.file),
         line: f.line,
-      }))
-      .filter((f) => !opts.variety || f.variety === opts.variety)
-      .slice(0, 20);
+      }));
+    const kept = all.filter((f) => !opts.variety || f.variety === opts.variety);
+    // Forms of other varieties are left out, and counted, never dropped silently.
+    otherVarieties += all.length - kept.length;
+    h.related = kept.slice(0, 20);
   }
   return { forms, hits, otherVarieties, truncated, files };
 }

@@ -10,6 +10,8 @@ export interface ToolContext {
   maxOutputChars: number;
   /** The configured corpus folder (config `corpus`), for the corpus tool. */
   corpus?: string;
+  /** The tutor mode's variety (T8): the corpus tool's default. */
+  variety?: string;
   /** Record generated media and its cost (T4+); `usd` undefined when the price is unknown. */
   recordMedia?: (kind: string, count: number, usd: number | undefined) => void;
 }

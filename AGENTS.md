@@ -31,7 +31,8 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   files; the `corpus` tool wraps it. Plain search only; embeddings need a decision first.
 - `src/modes.ts` — modes (T1): each is prompt text plus a permission policy (`normal`,
   `ask-every-time`, `read-only`) that `PermissionManager` and `Runtime.currentTools()` apply.
-  The session meta stores the mode.
+  The session meta stores the mode. `tutor` (T8) needs a variety (`assertModeVariety`); the
+  runtime passes it to `corpus` (default variety) and `learned` (fills it in, refuses others).
 - `src/vision.ts` — vision input (T3): image paths in a prompt become `file` parts with an
   image/* type when the profile has `vision`; the transcript keeps a file:// URL, and
   `resolveImages()` reads the bytes just before each request.

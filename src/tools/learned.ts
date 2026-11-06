@@ -19,6 +19,8 @@ type Input = z.infer<typeof inputSchema>;
 export interface LearnedToolOptions {
   /** The learner file (global, or the offline zone's own). */
   path: string;
+  /** The tutor mode's variety (T8): filled in when missing, any other refused. */
+  variety?: Variety;
   now?: () => Date;
 }
 
@@ -39,8 +41,14 @@ export function createLearnedTool(opts: LearnedToolOptions): MrigTool<Input> {
       const date = today((opts.now ?? (() => new Date()))());
       try {
         // Load, change and save on each call, so two sessions don't overwrite each other.
+        if (opts.variety && input.variety && input.variety !== opts.variety) {
+          throw new ToolError(
+            `This tutor session is for ${opts.variety}; record ${input.variety} topics in a ${input.variety} session, so varieties are never pooled.`,
+          );
+        }
         const file = loadLearner(opts.path);
-        const t = recordResult(file, input, date);
+        const variety = input.variety ?? opts.variety;
+        const t = recordResult(file, { ...input, ...(variety ? { variety } : {}) }, date);
         saveLearner(opts.path, file);
         const score = t.asked === 0 ? 'not yet asked' : `${t.right}/${t.asked} right`;
         return `Recorded: ${t.topic}${t.variety ? ` (${t.variety})` : ''} is ${t.status}, ${score}, next review ${t.due}.`;

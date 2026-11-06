@@ -10,9 +10,9 @@ You are continuing development of **mrig**, my personal, local, model-agnostic t
 
 A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands, works with files, and answers general questions. One provider layer (Vercel AI SDK 7) serves Anthropic (`claude-sonnet-5` default, `claude-opus-5`, `claude-fable-5-1`, `claude-haiku-4-5-20251001`), OpenAI, and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, OpenRouter). It is for me alone: private repo, no telemetry, no analytics, no third-party scripts, ever. It compiles to a single binary per OS with `bun build --compile`.
 
-## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1–T6
+## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1–T6, T8
 
-Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4 and T1–T6 are built:
+Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4, T1–T6 and T8 are built:
 
 - **L0 prompt caching:** request-level automatic caching plus a system-block breakpoint for Anthropic profiles, cache-write pricing, a minimum-prefix table that `/cost` uses to explain a miss, and `cacheTtl`.
 - **L1 hygiene:** `mrig doctor` checks model ids against each provider's model list, the REPL runs the same check at startup, session meta is rewritten in place, and CI runs macOS and Windows only where it matters.
@@ -33,6 +33,7 @@ Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4 and T1–
 - **Track 3, T5 speech:** `src/tools/speech.ts` (`createSpeakTool`, `createTranscribeTool`), built by `Runtime.buildMediaTools()` from the global `speech` and `transcription` blocks. `createSpeechModel()` and `createTranscriptionModel()` use the OpenAI client for both `openai` and `openai-compatible` profiles (a local audio server is the offline option); Anthropic is refused. Prices: `speech.pricePerMillionChars`, `transcription.pricePerMinute` (needs the reported duration). Shared helpers in `src/tools/media.ts`.
 - **Track 3, T6 video:** `src/tools/video.ts` (`createVideoTool`, `videoCost`, `overBudget`) over `experimental_startVideo` and `experimental_getVideoStatus`, with mrig's own polling (`pollSeconds`, `timeoutMinutes`) and download of URL results. Provider: the Vercel AI Gateway (`createVideoModel()` in `src/providers.ts`, key in `AI_GATEWAY_API_KEY`), always remote. The global `video` block requires `pricePerSecond`; a job whose estimate passes `maxCostPerJob` is refused before it starts.
 - **Track 3, T2 learner memory:** `src/learner.ts` (load, atomic save, `recordResult` with the 1/2/4/8/16-day Leitner boxes, `forget`, `learnerSummary`, `learnerReport`, `learnerPath` for zones). `Runtime.learnerBlock()` adds the summary in learn and teach mode, read once per session, to local models only unless the global `learner.shareWithCloud`. `src/tools/learned.ts` is read-only (it writes only mrig's file) and offered only in learn and teach mode. `/learned` and `/forget` in `src/ui/commands.ts`.
+- **Track 3, T8 Akkha tutor:** the `tutor` mode in `src/modes.ts` (`needsVariety`, `modePrompt()` fills in the variety, `assertModeVariety()` refuses none or an unknown one). `Runtime.variety` is saved in the session meta with the mode; the runtime passes it to `ctx.variety` (the corpus tool's default), to `createLearnedTool({ variety })` (filled in, others refused) and to `learnerSummary(…, variety)`. `/mode tutor <tag>`, `--mode tutor --variety <tag>`. Concept results in a variety-filtered corpus search now count the forms they leave out.
 
 v0.1 in detail:
 
@@ -193,7 +194,13 @@ Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, no
   - A `video` tool that starts a job, polls it and downloads the result. The SDK marks video as experimental, so read its types first.
   - **Acceptance:** a short clip is generated end to end; a per-job cost cap stops an over-budget job.
 - **T7. Model routing (unranked; only when asked).** Send easy work to a local model and hard work to a frontier model by rule.
-- **T8. Akkha tutor mode (S–M).** The language tutor, built on `learn` mode, language memory (A3) and corpus search (A4). **Acceptance:** defined when T1, T2, A3 and A4 have landed.
+- **T8. Akkha tutor mode (S–M).** ✅ Built 2026-11-06. The language tutor, built on `learn` mode, language memory (A3) and corpus search (A4). Acceptance defined November 6, 2026, once T1, T2, A3 and A4 had landed:
+  - `/mode tutor <variety>` and `--mode tutor --variety <tag>` start it for **one variety**. Without a variety it is refused with the list of tags, so varieties are never pooled.
+  - It is a `learn`-style mode: read-only tools only, plus `learned`. Its prompt (under ~1,000 tokens before memory) says to take every word from the corpus or language memory and never invent one. Devanagari is canonical, and Akkha and romanization come from `translit`.
+  - **Varieties enforced in code:** `corpus` searches default to the tutor's variety, `learned` fills it in and refuses any other, and the learner summary lists only that variety's topics.
+  - The mode and its variety are saved in the session meta and survive `-c` and `/resume`.
+  - With no corpus found, the tutor says so once at the start, and asks only from language memory.
+  - **Tests:** mock-model tests show a tutor turn searching the corpus in the variety, showing Akkha through `translit`, and recording the result with the variety. They also cover the refusals and the summary filter.
 
 Shared rules for T3–T6: files on disk, sessions store paths not bytes; every call asks permission unless a rule allows it; costs use the same pricing table; only local generators are allowed under L5; no telemetry. Read the `.d.ts` files for each media function before using it.
 

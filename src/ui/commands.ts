@@ -34,6 +34,11 @@ const MEDIA_LABELS: Record<string, { label: string; priceKey: string }> = {
   video: { label: 'videos', priceKey: 'video.pricePerSecond' },
 };
 
+/** "tutor (mgp)", or just the mode's name. */
+export function modeLabel(rt: Runtime): string {
+  return rt.variety ? `${rt.mode} (${rt.variety})` : rt.mode;
+}
+
 /** Run a `/command`. Returns true when the UI should exit. */
 export async function runCommand(rt: Runtime, text: string, io: CommandIO): Promise<boolean> {
   const [cmd = '', ...rest] = text.slice(1).split(/\s+/);
@@ -66,7 +71,7 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           `${bold('/compact')}           summarize the conversation to free context`,
           `${bold('/clear')}             start a fresh conversation (same session file)`,
           `${bold('/yolo')}              toggle permission prompts`,
-          `${bold('/mode <name>')}       ${MODE_NAMES.join(' | ')}: how mrig works with you`,
+          `${bold('/mode <name>')}       ${MODE_NAMES.join(' | ')}: how mrig works with you (${bold('/mode tutor mgp')} for the Akkha tutor)`,
           `${bold('/verbose')}           show or hide the model's reasoning`,
           `${bold('/sessions')}          list saved sessions · ${bold('/resume <id>')} to load one`,
           `${bold('/tools')}             list tools · ${bold('/memory')} show loaded AGENTS.md files`,
@@ -203,14 +208,19 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
         return info(
           MODE_NAMES.map(
             (n) =>
-              `${n === rt.mode ? green('●') : dim('○')} ${bold(n.padEnd(8))} ${MODES[n].summary}`,
+              `${n === rt.mode ? green('●') : dim('○')} ${bold(n.padEnd(8))} ${MODES[n].summary}${n === rt.mode && rt.variety ? dim(` · now ${rt.variety}`) : ''}`,
           ).join('\n'),
         );
       }
-      if (!isModeName(arg))
-        return info(red(`Unknown mode "${arg}". Modes: ${MODE_NAMES.join(', ')}.`));
-      rt.setMode(arg);
-      return info(`now in ${bold(arg)} mode: ${MODES[arg].summary}`);
+      const [name = '', variety] = arg.split(/\s+/);
+      if (!isModeName(name))
+        return info(red(`Unknown mode "${name}". Modes: ${MODE_NAMES.join(', ')}.`));
+      try {
+        rt.setMode(name, variety);
+      } catch (err) {
+        return info(red((err as Error).message));
+      }
+      return info(`now in ${bold(modeLabel(rt))} mode: ${MODES[name].summary}`);
     }
     case 'verbose': {
       if (arg && arg !== 'on' && arg !== 'off') return info('usage: /verbose [on|off]');
@@ -285,7 +295,7 @@ export function bannerLines(rt: Runtime): string[] {
   const lines: string[] = [];
   const memory = findMemoryFiles(rt.cwd);
   lines.push(
-    `${bold(magenta('mrig'))} ${dim(`v${VERSION}`)} · ${rt.modelLabel()}${rt.mode !== 'default' ? ` · ${magenta(`${rt.mode} mode`)}` : ''}${rt.permissions.promptsSkipped ? ` · ${yellow('yolo')}` : ''}`,
+    `${bold(magenta('mrig'))} ${dim(`v${VERSION}`)} · ${rt.modelLabel()}${rt.mode !== 'default' ? ` · ${magenta(`${modeLabel(rt)} mode`)}` : ''}${rt.permissions.promptsSkipped ? ` · ${yellow('yolo')}` : ''}`,
   );
   if (rt.offline) {
     lines.push(

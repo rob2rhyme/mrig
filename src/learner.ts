@@ -211,10 +211,12 @@ function grouped(topics: LearnerTopic[]): Array<[string, LearnerTopic[]]> {
  * The block for the system prompt in learn and teach mode: due topics first, then the weakest,
  * at most 30 lines, grouped by variety so varieties are never pooled. '' when there is nothing.
  */
-export function learnerSummary(file: LearnerFile, date: string): string {
-  const due = file.topics.filter((t) => t.due <= date).sort((a, b) => a.due.localeCompare(b.due));
+export function learnerSummary(file: LearnerFile, date: string, variety?: Variety): string {
+  // The tutor (T8) sees only its own variety's topics.
+  const topics = variety ? file.topics.filter((t) => t.variety === variety) : file.topics;
+  const due = topics.filter((t) => t.due <= date).sort((a, b) => a.due.localeCompare(b.due));
   const rate = (t: LearnerTopic) => (t.asked === 0 ? 1 : t.right / t.asked);
-  const weak = file.topics
+  const weak = topics
     .filter((t) => t.due > date && t.status !== 'known')
     .sort((a, b) => rate(a) - rate(b) || a.due.localeCompare(b.due));
   const picked = [...due, ...weak].slice(0, SUMMARY_LINES);
@@ -223,7 +225,7 @@ export function learnerSummary(file: LearnerFile, date: string): string {
     `## Learner memory (what the user has practised before; today is ${date}. Start with due topics. Record each result with the learned tool.)`,
   ];
   for (const [name, ts] of grouped(picked)) parts.push(`### ${name}\n${ts.map(line).join('\n')}`);
-  const left = file.topics.length - picked.length;
+  const left = topics.length - picked.length;
   if (left > 0)
     parts.push(`(${left} more topic${left === 1 ? '' : 's'} not listed; /learned shows all)`);
   return parts.join('\n');
