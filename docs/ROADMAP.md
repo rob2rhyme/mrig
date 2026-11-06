@@ -1,6 +1,6 @@
 # Roadmap: local AI first, Akkha second, modes and media third, app front ends fourth
 
-Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.** **Track 4, app front ends (web, desktop and VS Code), was added on November 6, 2026 at Robin's request; it runs in parallel with the live checks.**
+Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.** **Track 4, app front ends (an installable web app with an allowlist login, and a VS Code extension), was added on November 6, 2026 at Robin's request; it runs in parallel with the live checks.**
 
 Labels: **[V]** verified · **[S]** secondary · **[I]** inference or recommendation. Effort: S = under a day, M = a few days, L = a week+ of evenings.
 
@@ -17,7 +17,7 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 3. **After the font spike (A1)**: on a pass, mark A1 ✅ and drop the "provisional" label from `AKKHA_BRAHMI` (`src/lang/tables.ts`, `docs/LANGUAGE.md`, the README). On a failure in one engine, decide with Robin as the encoding decision says; never switch to the PUA fallback automatically. The `hb-shape` golden tests (A3) go in the font repo. Waits on Robin's item 2.
 4. **A5** (the Akkha-Rik app's own repo): the `lang` tags are done; generating `ak` from `deva` and the web-font rendering wait for A1. Waits on Robin's item 2.
 5. **A6 to A8** wait on the BAMA agreement (A6), then on A7's data. The later ideas (edit formats, subagents, auto-update) only when asked.
-6. **Track 4, app front ends** (U1 → U2 → U3 → U4 → U5): [the decision note](decisions/2026-11-06-app-front-ends.md) was approved by Robin on November 6, 2026, with every recommended answer. Build in order, starting with U1; it does not wait on the live checks.
+6. **Track 4, app front ends** (U1 → U2 → U3 → U4): [the decision note](decisions/2026-11-06-app-front-ends.md) was approved by Robin on November 6, 2026 and revised the same day (a PWA with an allowlist login, other devices through Tailscale, and VS Code; no native desktop apps). Build in order, starting with U1; it does not wait on the live checks.
 
 **Robin's queue, in parallel:**
 
@@ -25,7 +25,7 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 2. Run the A1 font spike in the font repo, so the Akkha-Brahmi table can stop being provisional.
 3. Confirm whether January 14, 2027 applies to Local AI v1.0.
 4. Later: the machine purchase when a buying signal appears.
-5. Track 4 hands-on checks as each front end lands: a real session in the web app (U2), the `.dmg` on the Mac (U3), the `.vsix` in VS Code (U4).
+5. Track 4 hands-on checks as each front end lands: install the PWA on the Mac and use it for a real session (U2), pair a phone over Tailscale (U3, which needs Tailscale on both), install the `.vsix` in VS Code (U4).
 
 **Local AI v1.0 is done** when the L0 to L5 code is merged (it is) and the L0 and model-wave checks in `LIVE_CHECKS.md` pass. L0's passed on November 6, 2026; the model wave (L2, L3) is what remains.
 
@@ -142,18 +142,21 @@ Robin's request: teaching and learning modes, a path to image, sound and eventua
 
 ## Track 4 — App front ends
 
-Robin's request (November 6, 2026): a real app feel, in three forms: a web app, a desktop app (macOS first, then Windows and Linux) and a VS Code extension. The plan is [the decision note](decisions/2026-11-06-app-front-ends.md): one local server (`mrig serve`, loopback only, a token per launch) speaking one protocol, one web front end built into the `mrig` binary, and three thin shells around it. The terminal stays the default. Sizes are estimates [I].
+Robin's request (November 6, 2026): a real app feel. Revised the same day to two front ends, because native desktop apps cost a lot of work and disk space:
+- **A PWA**, installable into the Mac's Dock and onto a phone's home screen. **Only devices on an allowlist can log in**, each paired once with a code. Other devices reach the Mac through Tailscale.
+- **A VS Code extension.**
 
-**Order:** the note was approved by Robin on November 6, 2026 (every recommended answer: Tauri v2, unsigned for now, a `.vsix` for now, loopback only). Then U1 → U2 → U3 → U4 → U5. U3 and U4 are independent once U2 lands. Runs in parallel with the live checks; a live-check fix comes first.
+The plan is [the decision note](decisions/2026-11-06-app-front-ends.md): one local server (`mrig serve`, which only ever listens on `127.0.0.1`) speaking one protocol, and one web front end built into the `mrig` binary, shown by both. The terminal stays the default. Sizes are estimates [I].
+
+**Order:** U1 → U2 → U3 → U4. U3 and U4 are independent once U2 lands. Runs in parallel with the live checks; a live-check fix comes first.
 
 | # | Item | Effort | Done when |
 |---|---|---|---|
-| U1 | **Local app server**: `mrig serve`, protocol v1, the security rules, structured tool `display` in the core, one `Runtime` per conversation, reconnect snapshots | M | Mock-model tests drive a real server on loopback (streaming, permission round trip, abort, reconnect, two conversations); every security rule has a test that it refuses; REPL and TUI tests unchanged |
-| U2 | **Web app v1**: `mrig app` opens the browser on the front end built into the binary: sidebar, streaming markdown, tool cards with diffs, permission panel, Stop, model and mode pickers, status bar, images in and media out, command palette, light and dark | L | `ChatViewModel` tested without a browser; a Playwright smoke test against `mrig serve` with the mock model; nothing loads from the internet; Robin uses it for a real session and the fixes he lists are in |
-| U3 | **Desktop app for macOS**: Tauri v2 shell with `mrig serve` as a sidecar; menus, notifications, dock badge, drag and drop, remembered window; an unsigned `.dmg` from CI | M | The `.dmg` installs on Robin's Mac and opens a project; quitting leaves no `mrig serve` behind; a background turn sends a notification; the crash path is tested |
-| U4 | **VS Code extension**: the same front end in a webview panel; selection and active-file context, clickable `file:line`, edits in VS Code's diff editor, a status bar item; a `.vsix` from CI | M | The `.vsix` installs on Robin's Mac; a selection reaches the message box; Allow in the diff editor applies an edit; a `file:line` link opens the line |
-| U5 | **Desktop for Windows and Linux**, plus signing and auto-update as Robin decides | M | Installers built in CI and opened on each OS |
-| U6 | Later, only when asked: settings editor, MCP panel, learner and tutor view, push-to-talk, several projects in one window | — | — |
+| U1 | **Local app server**: `mrig serve` on `127.0.0.1`, protocol v1, the security basics, launch-token auth, structured tool `display` in the core, one `Runtime` per conversation, reconnect snapshots | M | Mock-model tests drive a real server on loopback (streaming, permission round trip, abort, reconnect, two conversations); every security rule has a test that it refuses; REPL and TUI tests unchanged |
+| U2 | **The PWA on the Mac**: `mrig app`; the allowlist, pairing and device login (`mrig app allow add`, `devices`, `revoke`); manifest and service worker; sidebar, streaming markdown, tool cards with diffs, permission panel, Stop, model and mode pickers, status bar, images in and media out, command palette, light and dark | L | Pairing and login tests; `ChatViewModel` tested without a browser; Playwright smoke tests; nothing loads from the internet; Robin installs it on the Mac, uses it for a real session, and the fixes he lists are in |
+| U3 | **Other devices through Tailscale**: Tailscale `Host` and identity headers, Funnel refused, Allow once and Deny only from other devices (no Always, no `/yolo`), phone layout, a background service (`mrig app service install`), the README setup guide | M | WebSocket through Tailscale Serve checked first; tests for each remote rule; Robin pairs a phone, installs the PWA and runs a turn with a permission request |
+| U4 | **VS Code extension**: the same front end in a webview panel, with its own `mrig serve` and launch token; selection and active-file context, clickable `file:line`, edits in VS Code's diff editor, a status bar item; a `.vsix` from CI | M | The `.vsix` installs on Robin's Mac; a selection reaches the message box; Allow in the diff editor applies an edit; a `file:line` link opens the line |
+| U5 | Later, only when asked: push notifications to a closed PWA, passkeys, settings editor, MCP panel, learner and tutor view, push-to-talk, several projects in one window | — | — |
 
 ## Hardware plan and backups
 

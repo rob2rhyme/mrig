@@ -218,18 +218,23 @@ Shared rules for T3–T6: files on disk, sessions store paths not bytes; every c
 
 ### Track 4 — App front ends (alongside the live checks)
 
-Added November 6, 2026 at Robin's request. The design, protocol, security rules and per-item acceptance are in `docs/decisions/2026-11-06-app-front-ends.md`; read it in full before any Track 4 work.
+Added November 6, 2026 at Robin's request and revised the same day: a PWA where only allowlisted devices can log in, plus a VS Code extension; no native desktop apps. The design, protocol, security rules and per-item acceptance are in `docs/decisions/2026-11-06-app-front-ends.md`; read it in full before any Track 4 work.
 
-- **Gate.** ✅ Robin approved the note on November 6, 2026, with every recommended answer. Build U1 first.
-- **U1. Local app server (M).** `mrig serve`: loopback only, a new token per launch (in the URL fragment), `Host` and `Origin` checks, zod-validated protocol v1 shared with the front end, structured tool `display`, one `Runtime` per conversation.
+- **Gate.** ✅ Robin approved the note on November 6, 2026, and its revision the same day. Build U1 first.
+- **U1. Local app server (M).** `mrig serve` listening on `127.0.0.1` only; `Host` and `Origin` checks; launch-token auth for clients that start the server (VS Code); zod-validated protocol v1 shared with the front end; structured tool `display`; one `Runtime` per conversation.
   - **Acceptance:** mock-model tests over a real loopback server for streaming, permissions, abort, reconnect and two conversations; a refusing test for every security rule; the REPL and TUI tests unchanged.
-- **U2. Web app v1 (L).** `mrig app`; the React front end built into the binary with Bun's HTML imports; the scope is the note's "What feels like an app" list, minus notifications and editor features.
-  - **Acceptance:** a `ChatViewModel` tested without a browser; one Playwright smoke test; no remote assets (CSP); Robin's fixes after one real session.
-- **U3. Desktop app for macOS (M).** Tauri v2 with `mrig serve` as a sidecar. **Acceptance:** as in the note.
-- **U4. VS Code extension (M).** A webview panel, not a chat participant. **Acceptance:** as in the note.
-- **U5. Desktop for Windows and Linux (M).** **Acceptance:** as in the note.
+- **U2. The PWA on the Mac (L).** `mrig app` on a fixed port (4747 by default); the allowlist in `~/.mrig/app/devices.json`, edited only from the Mac's terminal (`mrig app allow add`, `devices`, `revoke`); pairing codes (single-use, 10 minutes, five tries) and hashed device keys in `HttpOnly` cookies; the Mac's browser paired automatically; manifest and an app-shell-only service worker; the note's "What feels like an app" list, minus push notifications and editor features.
+  - **Acceptance:** pairing and login tests; a `ChatViewModel` tested without a browser; Playwright smoke tests; no remote assets (CSP); Robin's fixes after one real session.
+- **U3. Other devices through Tailscale (M).** Tailscale Serve forwards to `127.0.0.1`; the `.ts.net` `Host` and identity headers are accepted, Funnel is refused; other devices answer Allow once or Deny only, and can't use `/yolo` or change config; the phone layout; `mrig app service install`. **Acceptance:** as in the note; WebSocket through Serve is checked first.
+- **U4. VS Code extension (M).** A webview panel, not a chat participant, with its own `mrig serve` and launch token. **Acceptance:** as in the note.
 
-Rules for Track 4: business logic stays in the core; the terminal stays the default; no telemetry and no remote assets; the GurbachhanAkkhaRik font is never bundled (Noto Sans Brahmi is the fallback).
+Rules for Track 4:
+- Business logic stays in the core.
+- The terminal stays the default.
+- No telemetry and no remote assets.
+- The server never listens beyond `127.0.0.1`.
+- The allowlist is edited only from the Mac's terminal.
+- The GurbachhanAkkhaRik font is never bundled; Noto Sans Brahmi is the fallback.
 
 ## Start now
 
