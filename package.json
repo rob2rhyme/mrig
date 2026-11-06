@@ -2,6 +2,7 @@
   "name": "mrig",
   "version": "0.1.0",
   "description": "mrig — a personal, local, model-agnostic coding and general-purpose agent for the terminal",
+  "license": "MIT",
   "type": "module",
   "private": true,
   "bin": {
