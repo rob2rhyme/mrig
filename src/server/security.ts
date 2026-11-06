@@ -136,3 +136,40 @@ export class MediaSigner {
     return safeEqual(s, this.mac(conversation, path, expires)) ? path : undefined;
   }
 }
+
+/** A cookie's value from a `Cookie` header, or undefined. */
+export function cookieValue(header: string | null, name: string): string | undefined {
+  if (!header) return undefined;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq > 0 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
+  }
+  return undefined;
+}
+
+/**
+ * The device cookie: HttpOnly (page scripts can't read it), SameSite=Strict (no other site's
+ * page can send it), Secure when the app is served over HTTPS (U3).
+ */
+export function deviceCookie(name: string, value: string, maxAgeSeconds: number, secure: boolean) {
+  return `${name}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure ? '; Secure' : ''}`;
+}
+
+/** At most `limit` hits per key in any `windowMs`: slows down guessing pairing codes. */
+export class RateLimiter {
+  private readonly hits = new Map<string, number[]>();
+  constructor(
+    private readonly limit: number,
+    private readonly windowMs: number,
+    private readonly now: () => number = () => Date.now(),
+  ) {}
+
+  /** Record a hit; false when the key is over its limit. */
+  hit(key: string): boolean {
+    const t = this.now();
+    const recent = (this.hits.get(key) ?? []).filter((h) => t - h < this.windowMs);
+    recent.push(t);
+    this.hits.set(key, recent);
+    return recent.length <= this.limit;
+  }
+}

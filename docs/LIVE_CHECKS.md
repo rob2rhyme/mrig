@@ -162,6 +162,26 @@ Needs: Ollama on the Mac. Costs: nothing but time.
   ```
 - [ ] Commit `docs/COMPATIBILITY.md`. It's what the agent needs to choose the default `local` profile.
 
+## 7. The web app on your Mac (Track 4, U2)
+
+Needs: mrig built from main, and the Anthropic key from check 1. Costs: a few cents.
+
+- [ ] Start it, then use the browser window it opens:
+
+  ```bash
+  mrig app
+  ```
+- [ ] Install it as an app: in Chrome or Edge, the install icon at the right of the address bar;
+  in Safari, **File → Add to Dock**. Open it from the Dock.
+- [ ] Open a project (the mrig folder is fine), choose **claude** in the model picker, and ask
+  for a small change, for example "add a comment at the top of README.md". Answer the permission
+  request with **Allow once**, then look at the diff in the card.
+- [ ] Ask something long, then press **Stop**.
+- [ ] Check the allowlist: `mrig app devices` lists `mac` as paired.
+
+**Pass:** everything above works. Then write down anything that feels wrong or slow, such as
+layout, wording, or keys you expected to work, and send that list. Those fixes finish U2.
+
 ## Not here
 
 - **The A1 font spike** runs in the GurbachhanAkkhaRik font repo, not mrig. The kit (the re-encoding script, the test words and the browser page) and its steps are in [`tools/akkha-spike/`](../tools/akkha-spike/README.md); the plan is in [the encoding decision](decisions/2026-09-23-akkha-encoding.md) under "Font spike".

@@ -56,6 +56,15 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   Tools may add `display()` (a diff, file, command or path for an app) and report saved media
   through `ctx.recordFile`. `src/ui/status.ts` is the status the TUI and the server share.
   Every security rule needs a test that it refuses; never listen beyond 127.0.0.1.
+  `devices.ts` is the device allowlist for `mrig app` (U2): `~/.mrig/app/devices.json`, edited
+  only from the CLI, hashes only, pairing codes and HttpOnly cookie keys. `app-assets.ts`
+  builds `web/` into the binary (Bun HTML imports).
+- `web/` — the web app (Track 4, U2): React, no CSS framework. The logic is pure and tested in
+  `tests/web.test.ts`: `model.ts` (protocol messages → screen state, like `TuiController`),
+  `markdown.ts` (replies never become HTML; remote images never load; only http/https/mailto
+  links), `highlight.ts`, `diff.ts`. `ui.tsx` and `app.tsx` only draw it. `sw.js` caches the
+  app's own files only. `e2e/app.e2e.ts` drives it in Chromium (`bun run test:e2e`; CI runs it
+  on Linux). Re-render icons with `bun scripts/build-icons.ts` after changing `web/icons/icon.svg`.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the

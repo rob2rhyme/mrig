@@ -9,7 +9,8 @@
 import { existsSync, statSync } from 'node:fs';
 import { basename, isAbsolute, resolve } from 'node:path';
 import type { AgentEvents } from '../agent.ts';
-import { isModeName } from '../modes.ts';
+import { VARIETIES } from '../lang/tables.ts';
+import { isModeName, MODE_NAMES } from '../modes.ts';
 import type { Answer, AskRequest } from '../permissions.ts';
 import { formatModelError } from '../providers.ts';
 import { Runtime, type RuntimeOptions } from '../runtime.ts';
@@ -249,6 +250,7 @@ export class Hub {
       conv.live = '';
       conv.rt.save();
       this.sendStatus(conv);
+      conv.broadcast({ type: 'info', conversation: conv.id, info: this.info(conv) });
     }
   }
 
@@ -364,21 +366,30 @@ export class Hub {
 
   // ---- snapshots and media ----
 
+  private info(conv: Conversation) {
+    return {
+      conversation: conv.id,
+      sessionId: conv.rt.session.meta.id,
+      cwd: conv.rt.cwd,
+      title: conv.rt.session.meta.title,
+    };
+  }
+
   private snapshot(conv: Conversation): ServerMessage {
     const rt = conv.rt;
     return {
       type: 'snapshot',
-      info: {
-        conversation: conv.id,
-        sessionId: rt.session.meta.id,
-        cwd: rt.cwd,
-        title: rt.session.meta.title,
-      },
+      info: this.info(conv),
       items: transcriptItems(rt.agent.messages, rt.currentTools()),
       running: conv.running !== null,
       live: conv.live,
       asks: [...conv.asks.values()].map((a) => a.pending),
       status: runtimeStatus(rt),
+      options: {
+        providers: Object.keys(rt.config.providers).sort(),
+        modes: [...MODE_NAMES],
+        varieties: Object.keys(VARIETIES),
+      },
     };
   }
 

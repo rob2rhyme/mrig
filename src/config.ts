@@ -182,9 +182,19 @@ export interface MrigConfig {
   learner?: { shareWithCloud: boolean };
   /** Model routing (T7). Global only: an easy and a hard profile, and the rules between them. */
   routing?: RoutingConfig;
+  /** The app (Track 4). Global only: the port `mrig app` listens on (127.0.0.1 only). */
+  app?: AppConfig;
   /** Keys an untrusted project config tried to set and that were dropped (set by loadConfig). */
   projectIgnored?: string[];
 }
+
+export interface AppConfig {
+  /** The port for `mrig app`; fixed, because an installed app remembers its address. */
+  port: number;
+}
+
+/** The default port for `mrig app`. */
+export const DEFAULT_APP_PORT = 4747;
 
 export const DEFAULT_PROVIDERS: Record<string, ProviderProfile> = {
   claude: {
@@ -399,6 +409,7 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     ...parseTranscription(layer.transcription, base.transcription),
     ...parseVideo(layer.video, base.video),
     ...parseLearner(layer.learner, base.learner),
+    ...parseApp(layer.app, base.app),
     ...(layer.routing !== undefined
       ? { routing: parseRouting(layer.routing) }
       : base.routing
@@ -465,6 +476,19 @@ function parseTranscription(
       ...(price !== undefined ? { pricePerMinute: price } : {}),
     },
   };
+}
+
+function parseApp(value: unknown, base: AppConfig | undefined): { app?: AppConfig } {
+  if (value === undefined) return base ? { app: base } : {};
+  const v = value as { port?: unknown };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('"app" must be an object, e.g. { "port": 4747 }.');
+  }
+  const port = v.port ?? DEFAULT_APP_PORT;
+  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('"app.port" must be a whole number from 1 to 65535.');
+  }
+  return { app: { port } };
 }
 
 function parseLearner(

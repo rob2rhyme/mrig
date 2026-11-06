@@ -30,6 +30,20 @@ jobs:
       - name: Smoke test binary
         run: ./dist/mrig --version
 
+  # The web app in a real browser (Track 4, U2). Linux only: one browser run proves the app;
+  # the unit tests cover the logic on every OS.
+  e2e:
+    name: web app (chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:e2e
+
   cross:
     name: ${{ matrix.os }}
     if: >-

@@ -443,6 +443,58 @@ Put project conventions, commands, and rules there.
 It needs an interactive terminal; without one mrig falls back to the plain REPL. The plain REPL
 stays the default until the TUI has had more real use.
 
+## The web app (`mrig app`)
+
+mrig as an app on your Mac: conversations in a sidebar, replies as they stream, tool calls as
+cards (edits shown as a diff), permission requests with **Allow once / Always allow / Deny**
+buttons, a Stop button, model and mode pickers, and a status bar. It installs into the Dock and
+opens in its own window.
+
+```bash
+mrig app
+```
+
+That starts it at `http://127.0.0.1:4747` and opens your browser. The first time, it pairs that
+browser automatically. To install it:
+- **Chrome or Edge:** use the install icon at the right of the address bar.
+- **Safari:** choose **File → Add to Dock**.
+
+Leave the terminal running while you use it; Ctrl+C stops it. The terminal (`mrig`, `--tui`)
+is unchanged, and conversations are the same session files in both.
+
+**In the app:**
+- **Open a project:** pick one under Projects (folders you've used before), or type its path.
+  Each project lists its saved conversations; **＋ New conversation** starts one.
+- **Images:** drag, paste or attach one (PNG, JPEG, WebP or GIF, up to 5 MB) for a model with
+  vision.
+- **Keys:** **Enter** sends, **Shift+Enter** adds a line. **⌘K** (Ctrl+K) opens the commands.
+  With a permission request open, **y**, **a** and **n** answer it.
+- **Background:** the title and the Dock badge count waiting requests. If you allow
+  notifications, mrig tells you when it finishes or needs you while you're in another window.
+
+**Only allowlisted devices can log in.** The allowlist lives on your Mac
+(`~/.mrig/app/devices.json`, readable only by you) and is edited only from its terminal:
+
+```bash
+mrig app allow add ipad      # allow a device; shows a one-time pairing code
+mrig app devices             # who is allowed, when each was last seen, recent failed attempts
+mrig app revoke ipad         # remove it; any window it has open closes within seconds
+```
+
+- **Pairing:** enter the device name and code once on the device. A code works once, for
+  10 minutes, and five wrong tries cancel it.
+- **Staying logged in:** the device then stays logged in until you revoke it, or for 90 days
+  without use.
+- **What's stored:** the file keeps only hashes of codes and keys, never the codes or keys
+  themselves. Pairings, failures and revocations are logged to `~/.mrig/app/access.log`.
+- **This Mac only, for now:** the app listens on `127.0.0.1` only. Using it from your phone, over
+  Tailscale, comes next (U3).
+
+Options: `--port <n>` (or `"app": { "port": 4747 }` in `~/.mrig/config.json`), `--no-open`,
+`--pair` (pair this Mac's browser again), and `-P`, `-m`, `--offline`, `--mode` as for an
+interactive session. If `mrig app` is already running, a second `mrig app` just opens the
+browser.
+
 ## App server (`mrig serve`)
 
 The app front ends (Track 4: an installable web app, and a VS Code extension) talk to mrig
@@ -455,7 +507,7 @@ $ mrig serve
 ```
 
 It runs until Ctrl+C, or until the program that started it closes its input. You won't need it
-directly: the web app (`mrig app`) and the VS Code extension start it for you once they exist.
+directly: the VS Code extension will start it for you (U4); the web app is `mrig app`, above.
 The terminal (`mrig`, `--tui`, `-p`) is unchanged.
 
 - **Local only.** It listens on `127.0.0.1` and nothing else. No other device can reach the
@@ -762,7 +814,7 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Track 4 U1: the app server (`mrig serve`). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Track 4 U1: the app server (`mrig serve`); U2: the web app (`mrig app`, an installable PWA with a device allowlist). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3.
 
 ## License
