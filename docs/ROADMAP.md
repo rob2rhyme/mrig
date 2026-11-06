@@ -10,22 +10,22 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 
 **Status marks.** ✅ means the code is built and in a reviewed pull request or merged. ⏳ means the rest waits on Robin: a hardware run, an API key or a decision. **To pick the next item, take the first item in the agent's queue that has no ✅, and skip ⏳ parts.** The two queues run in parallel; the agent's remaining items each wait on one of Robin's.
 
-**Agent's queue, in order:** All the code that isn't waiting on Robin is built: L0–L7, A2–A4 and T1–T8. Each item below waits on Robin's queue; when every item is waiting, say so and ask rather than starting unlisted work.
+**Agent's queue, in order:** All the code that isn't waiting on Robin is built: L0–L7, A2–A4 and T1–T8. Items 1 to 5 wait on Robin's queue; item 6 (Track 4) is approved and ready to build. When every item is waiting, say so and ask rather than starting unlisted work.
 
 1. **Default local profile** (S): add `local`, and `local-hard` once the machine has 128 GB, chosen from the first eval matrix in [`COMPATIBILITY.md`](COMPATIBILITY.md) (see L3 notes). Waits on Robin's item 1.
 2. **Live-check follow-ups**: as each check in [`LIVE_CHECKS.md`](LIVE_CHECKS.md) comes back, mark its ⏳ part ✅ with the date, or fix what broke. Fill in the results table in [`LOCAL_MODELS.md`](LOCAL_MODELS.md) from the trials. Waits on Robin's item 1.
 3. **After the font spike (A1)**: on a pass, mark A1 ✅ and drop the "provisional" label from `AKKHA_BRAHMI` (`src/lang/tables.ts`, `docs/LANGUAGE.md`, the README). On a failure in one engine, decide with Robin as the encoding decision says; never switch to the PUA fallback automatically. The `hb-shape` golden tests (A3) go in the font repo. Waits on Robin's item 2.
 4. **A5** (the Akkha-Rik app's own repo): the `lang` tags are done; generating `ak` from `deva` and the web-font rendering wait for A1. Waits on Robin's item 2.
 5. **A6 to A8** wait on the BAMA agreement (A6), then on A7's data. The later ideas (edit formats, subagents, auto-update) only when asked.
-6. **Track 4, app front ends** (U1 → U2 → U3 → U4 → U5): build in order once Robin approves [the decision note](decisions/2026-11-06-app-front-ends.md). No front-end code before that. Waits on Robin's item 3.
+6. **Track 4, app front ends** (U1 → U2 → U3 → U4 → U5): [the decision note](decisions/2026-11-06-app-front-ends.md) was approved by Robin on November 6, 2026, with every recommended answer. Build in order, starting with U1; it does not wait on the live checks.
 
 **Robin's queue, in parallel:**
 
 1. Work through [`LIVE_CHECKS.md`](LIVE_CHECKS.md), the step-by-step checklist: prompt caching (L0), vision (T3), image, speech and video with real providers (T4–T6), the local speech round trip, and the first local model wave with the eval matrix (L2, L3). The matrix feeds the agent's item 1.
 2. Run the A1 font spike in the font repo, so the Akkha-Brahmi table can stop being provisional.
-3. Answer the seven open questions in [the app front ends note](decisions/2026-11-06-app-front-ends.md) (Track 4), or approve the recommended answers.
-4. Confirm whether January 14, 2027 applies to Local AI v1.0.
-5. Later: the machine purchase when a buying signal appears.
+3. Confirm whether January 14, 2027 applies to Local AI v1.0.
+4. Later: the machine purchase when a buying signal appears.
+5. Track 4 hands-on checks as each front end lands: a real session in the web app (U2), the `.dmg` on the Mac (U3), the `.vsix` in VS Code (U4).
 
 **Local AI v1.0 is done** when the L0 to L5 code is merged (it is) and the L0 and model-wave checks in `LIVE_CHECKS.md` pass. L0's passed on November 6, 2026; the model wave (L2, L3) is what remains.
 
@@ -144,7 +144,7 @@ Robin's request: teaching and learning modes, a path to image, sound and eventua
 
 Robin's request (November 6, 2026): a real app feel, in three forms: a web app, a desktop app (macOS first, then Windows and Linux) and a VS Code extension. The plan is [the decision note](decisions/2026-11-06-app-front-ends.md): one local server (`mrig serve`, loopback only, a token per launch) speaking one protocol, one web front end built into the `mrig` binary, and three thin shells around it. The terminal stays the default. Sizes are estimates [I].
 
-**Order:** the note first (Robin approves it), then U1 → U2 → U3 → U4 → U5. U3 and U4 are independent once U2 lands. Runs in parallel with the live checks; a live-check fix comes first.
+**Order:** the note was approved by Robin on November 6, 2026 (every recommended answer: Tauri v2, unsigned for now, a `.vsix` for now, loopback only). Then U1 → U2 → U3 → U4 → U5. U3 and U4 are independent once U2 lands. Runs in parallel with the live checks; a live-check fix comes first.
 
 | # | Item | Effort | Done when |
 |---|---|---|---|

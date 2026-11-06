@@ -220,7 +220,7 @@ Shared rules for T3–T6: files on disk, sessions store paths not bytes; every c
 
 Added November 6, 2026 at Robin's request. The design, protocol, security rules and per-item acceptance are in `docs/decisions/2026-11-06-app-front-ends.md`; read it in full before any Track 4 work.
 
-- **Gate.** Robin answers or approves the note's open questions before any code, as with T2.
+- **Gate.** ✅ Robin approved the note on November 6, 2026, with every recommended answer. Build U1 first.
 - **U1. Local app server (M).** `mrig serve`: loopback only, a new token per launch (in the URL fragment), `Host` and `Origin` checks, zod-validated protocol v1 shared with the front end, structured tool `display`, one `Runtime` per conversation.
   - **Acceptance:** mock-model tests over a real loopback server for streaming, permissions, abort, reconnect and two conversations; a refusing test for every security rule; the REPL and TUI tests unchanged.
 - **U2. Web app v1 (L).** `mrig app`; the React front end built into the binary with Bun's HTML imports; the scope is the note's "What feels like an app" list, minus notifications and editor features.

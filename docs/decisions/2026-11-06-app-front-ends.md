@@ -1,6 +1,6 @@
 # App front ends (Track 4) decision
 
-Date: November 6, 2026. Status: **proposed; waiting on RT's answers** (see **Open questions for RT**). No front-end code is written until RT approves this note, the same rule T2 followed.
+Date: November 6, 2026. Status: **decided by RT, November 6, 2026**, with the recommended answer to each open question (see **Answers** below). Building starts with U1.
 
 Labels: **[V]** verified against the code or a primary source · **[S]** secondary source · **[I]** inference or recommendation.
 
@@ -255,6 +255,9 @@ All sizes are estimates [I]. Each item gets its own branch, tests, README sectio
 
 ## Open questions for RT
 
+Answered below; kept as asked.
+
+
 1. **Architecture (§1).** Approve one local server plus one web front end, reused by the desktop app and the VS Code extension (recommended)?
 2. **Desktop framework (§5).** Tauri v2 (recommended), Electrobun (Bun-only, newer), or Electron (largest, most consistent rendering)?
 3. **Order.** Web → desktop (Mac) → VS Code → Windows and Linux (recommended)? Or VS Code before the desktop app?
@@ -262,3 +265,15 @@ All sizes are estimates [I]. Each item gets its own branch, tests, README sectio
 5. **VS Code distribution (§6).** A `.vsix` you install yourself (recommended for now), or publish to the Marketplace?
 6. **Look.** A clean, neutral design that follows the system's light or dark mode (recommended), or something branded? If branded, which colors or logo?
 7. **Network access.** Confirm loopback only, with no phone access, in v1 (recommended)?
+
+## Answers (RT, November 6, 2026)
+
+RT approved every recommendation:
+
+1. **Architecture:** one local server plus one web front end, reused by the desktop app and the VS Code extension.
+2. **Desktop framework:** Tauri v2. Revisit Electrobun at U5.
+3. **Order:** U1 (server) → U2 (web) → U3 (macOS desktop) → U4 (VS Code) → U5 (Windows and Linux).
+4. **Signing:** unsigned for RT's own Mac for now. Decide on the Apple Developer Program before the app is shared.
+5. **VS Code distribution:** a `.vsix` installed by hand for now. Publishing to the Marketplace is a later decision.
+6. **Look:** clean and neutral, following the system's light or dark mode. Branding can come later.
+7. **Network access:** loopback only in v1, with no phone access.

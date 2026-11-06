@@ -127,7 +127,7 @@ Priorities and backlog live in `docs/ROADMAP.md`. It has three tracks:
   speech and video generation), after v1.0.
 - **Track 4, app front ends** (a web app, a desktop app and a VS Code extension on one local
   server and one front end), in parallel with the live checks. The plan and its security rules
-  are in `docs/decisions/2026-11-06-app-front-ends.md`; no front-end code until Robin approves it.
+  are in `docs/decisions/2026-11-06-app-front-ends.md` (approved by Robin, November 6, 2026).
 
 `docs/JUMPSTART.md` carries the acceptance criteria. Later ideas, unranked: per-model edit
 formats for weak local models, subagents, auto-update.
