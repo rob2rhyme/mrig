@@ -189,14 +189,14 @@ export interface MrigConfig {
 export const DEFAULT_PROVIDERS: Record<string, ProviderProfile> = {
   claude: {
     kind: 'anthropic',
-    model: 'claude-sonnet-5',
+    model: 'claude-sonnet-5-5',
     apiKeyEnv: 'ANTHROPIC_API_KEY',
     contextWindow: 1_000_000,
     vision: true,
   },
   opus: {
     kind: 'anthropic',
-    model: 'claude-opus-5',
+    model: 'claude-opus-5-5',
     apiKeyEnv: 'ANTHROPIC_API_KEY',
     contextWindow: 1_000_000,
     vision: true,

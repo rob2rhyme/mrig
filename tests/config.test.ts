@@ -76,7 +76,7 @@ describe('config', () => {
     const cfg = loadConfig({ cwd: project.dir, env: {} });
     expect(cfg.defaultProvider).toBe('ollama');
     expect(cfg.providers.ollama?.model).toBe('qwen3.8:27b');
-    expect(cfg.providers.claude?.model).toBe('claude-sonnet-5'); // untouched default
+    expect(cfg.providers.claude?.model).toBe('claude-sonnet-5-5'); // untouched default
     expect(cfg.maxSteps).toBe(5);
     expect(cfg.cacheTtl).toBe('1h');
     expect(cfg.permissions.allow).toEqual(['bash:git status']);
@@ -272,6 +272,38 @@ describe('config', () => {
     expect(
       estimateCost(usage, pricingFor({ kind: 'openai', model: 'gpt-unknown' })),
     ).toBeUndefined();
+  });
+
+  test('defaults are Sonnet 5.5 and Opus 5.5, priced as their own models', () => {
+    const cfg = loadConfig({ cwd: project.dir, env: {} });
+    expect(cfg.providers.claude?.model).toBe('claude-sonnet-5-5');
+    expect(cfg.providers.opus?.model).toBe('claude-opus-5-5');
+    // Opus 5.5 is $4/$20 with cache reads at $0.20 (0.05× input), not Opus 5's $5/$25.
+    expect(pricingFor({ kind: 'anthropic', model: 'claude-opus-5-5' })).toEqual({
+      input: 4,
+      output: 20,
+      cacheRead: 0.2,
+    });
+    expect(pricingFor({ kind: 'anthropic', model: 'claude-opus-5' })).toEqual({
+      input: 5,
+      output: 25,
+    });
+    expect(pricingFor({ kind: 'anthropic', model: 'claude-sonnet-5-5' })).toEqual({
+      input: 2,
+      output: 10,
+      cacheRead: 0.2,
+    });
+    const usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 100_000,
+      cacheReadTokens: 500_000,
+      cacheWriteTokens: 200_000,
+      requests: 3,
+    };
+    // Opus 5.5: 300k uncached × $4 + 500k read × $0.2 + 200k write × $5 (1.25×) + 100k out × $20
+    expect(
+      estimateCost(usage, pricingFor({ kind: 'anthropic', model: 'claude-opus-5-5' })),
+    ).toBeCloseTo(1.2 + 0.1 + 1 + 2, 6);
   });
 
   test('cache writes: 1.25× input at 5m, 2× at 1h, explicit cacheWrite/cacheRead win', () => {

@@ -129,7 +129,7 @@ describe('doctor: model-id check against /v1/models', () => {
   test('doctor() checks every profile, or only one, and rejects unknown names', async () => {
     const { fetch, calls } = fakeFetch((url) =>
       url.includes('anthropic')
-        ? list('claude-sonnet-5', 'claude-opus-5', 'claude-fable-5-1')
+        ? list('claude-sonnet-5-5', 'claude-opus-5-5', 'claude-fable-5-1')
         : list(),
     );
     const all = await doctor(DEFAULT_CONFIG, { fetch, env: { ANTHROPIC_API_KEY: 'k' } });
