@@ -43,7 +43,8 @@ export const corpusTool = defineTool<z.infer<typeof inputSchema>>({
     } catch (err) {
       throw new ToolError((err as Error).message);
     }
-    const opts = { variety: input.variety, limit: input.limit };
+    // In tutor mode (T8) searches default to the tutor's variety.
+    const opts = { variety: input.variety ?? ctx.variety, limit: input.limit };
     const result = searchCorpus(corpus, input.query, opts);
     return truncateMiddle(
       formatSearch(corpus, input.query, result, opts).join('\n'),

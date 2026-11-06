@@ -33,6 +33,8 @@ export interface SessionMeta {
   zone?: string;
   /** The mode (T1), when not default; `-c` and `/resume` restore it. */
   mode?: string;
+  /** The tutor mode's variety (T8). */
+  variety?: string;
 }
 
 type Line = { type: 'meta' } & SessionMeta;
@@ -212,9 +214,11 @@ export class Session {
     this.writeAll();
   }
 
-  setMode(mode: string): void {
+  setMode(mode: string, variety?: string): void {
     if (mode === 'default') delete this.meta.mode;
     else this.meta.mode = mode;
+    if (variety) this.meta.variety = variety;
+    else delete this.meta.variety;
     this.writeAll();
   }
 

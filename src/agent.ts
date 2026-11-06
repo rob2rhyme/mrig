@@ -90,6 +90,8 @@ export interface AgentOptions {
   compaction?: CompactionOptions;
   /** Config `corpus`, passed to tools (A4). */
   corpus?: string;
+  /** The tutor mode's variety (T8), passed to tools. */
+  variety?: string;
 }
 
 export interface CompactionOptions {
@@ -517,6 +519,7 @@ export class Agent {
       signal,
       maxOutputChars: this.opts.maxToolOutputChars,
       ...(this.opts.corpus ? { corpus: this.opts.corpus } : {}),
+      ...(this.opts.variety ? { variety: this.opts.variety } : {}),
       recordMedia: (kind, count, usd) => this.recordMedia(kind, count, usd),
     };
     this.stats.toolsUsed[tool.name] = (this.stats.toolsUsed[tool.name] ?? 0) + 1;

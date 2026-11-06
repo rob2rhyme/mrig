@@ -6,7 +6,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { platform, release } from 'node:os';
 import { dirname, join } from 'node:path';
 import { mrigHome, type ToolMode } from './config.ts';
-import { MODES, type ModeName } from './modes.ts';
+import type { Variety } from './lang/tables.ts';
+import { type ModeName, modePrompt } from './modes.ts';
 import { detectShell } from './util/shell.ts';
 
 const MEMORY_FILES = ['AGENTS.md', 'MRIG.md'];
@@ -72,6 +73,8 @@ export interface PromptOptions {
   lang?: string;
   /** The mode (T1); its text follows "How to work". */
   mode?: ModeName;
+  /** The tutor mode's variety (T8). */
+  variety?: Variety;
   /** The learner memory summary (T2), in learn and teach mode only. */
   learner?: string;
 }
@@ -108,8 +111,8 @@ export function buildSystemPrompt(opts: PromptOptions): string {
     '- For ordinary questions with no file work needed, just answer.',
     '- When a task is ambiguous or risky (deleting data, changing shared config), ask one short question first.',
   ];
-  const mode = MODES[opts.mode ?? 'default'];
-  if (mode.prompt.length > 0) lines.push('', ...mode.prompt);
+  const modeLines = modePrompt(opts.mode ?? 'default', opts.variety);
+  if (modeLines.length > 0) lines.push('', ...modeLines);
   if (memory) {
     lines.push('', '## Project memory (from AGENTS.md files — follow these instructions)', memory);
   }

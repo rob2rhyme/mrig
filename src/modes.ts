@@ -7,9 +7,11 @@
  *   first. Every change asks, even with yolo or a matching allow rule.
  * - learn: quizzes the user and keeps a running list of what was covered; results go into
  *   learner memory (T2) through the `learned` tool, as does what teach mode introduces.
- *   Only read-only tools are offered. Remembering what you learned across sessions is T2
- *   (learner memory), which waits for its decision note.
+ *   Only read-only tools are offered.
+ * - tutor: the Akkha language tutor (T8), a learn-style mode for one variety. Every word comes
+ *   from the corpus (A4) or language memory (A3); the variety is enforced by the tools.
  */
+import { VARIETIES, type Variety } from './lang/tables.ts';
 
 /** How a mode changes the permission gate. */
 export type PermissionPolicy =
@@ -24,12 +26,14 @@ export interface Mode {
   name: ModeName;
   /** One line for /mode and the banner. */
   summary: string;
-  /** Text added to the system prompt; empty for default. */
+  /** Text added to the system prompt; empty for default. `{variety}` is filled in. */
   prompt: string[];
   permissions: PermissionPolicy;
+  /** The mode works on one language variety, which must be chosen (tutor). */
+  needsVariety?: boolean;
 }
 
-export type ModeName = 'default' | 'teach' | 'learn';
+export type ModeName = 'default' | 'teach' | 'learn' | 'tutor';
 
 export const MODES: Readonly<Record<ModeName, Mode>> = {
   default: {
@@ -67,7 +71,48 @@ export const MODES: Readonly<Record<ModeName, Mode>> = {
     ],
     permissions: 'read-only',
   },
+  tutor: {
+    name: 'tutor',
+    summary: 'the Akkha language tutor for one variety: /mode tutor <variety>',
+    prompt: [
+      '## Mode: tutor ({variety})',
+      'You are a patient language tutor for {variety}, written in Akkha. Teach and quiz this variety only.',
+      '- Take every word, gloss and example from the corpus tool or the language memory above. Never invent a word or a form; if they have nothing on a topic, say so and pick another.',
+      '- Devanagari is the canonical spelling. Get the Akkha form and the romanization from the translit tool, never by hand, and show all three: Akkha, Devanagari, romanization.',
+      '- Quiz one item at a time: meaning from the word, the word from the meaning, or reading an Akkha form aloud in romanization. Start with topics the learner memory lists as due.',
+      '- After each answer, say whether it is right, give the correct form with its source (file:line), and record it with the learned tool.',
+      '- Only read-only tools are available; do not offer to change files or run commands.',
+    ],
+    permissions: 'read-only',
+    needsVariety: true,
+  },
 };
+
+/** The mode's prompt lines, with the variety filled in. */
+export function modePrompt(name: ModeName, variety?: Variety): string[] {
+  const label = variety ? `${VARIETIES[variety]}, ${variety}` : 'the chosen variety';
+  return MODES[name].prompt.map((line) => line.replaceAll('{variety}', label));
+}
+
+export function isVariety(tag: string): tag is Variety {
+  return tag in VARIETIES;
+}
+
+/** Refuse a mode that needs a variety when none (or an unknown one) is given. */
+export function assertModeVariety(
+  name: ModeName,
+  variety: string | undefined,
+): Variety | undefined {
+  if (!MODES[name].needsVariety) return undefined;
+  const tags = Object.keys(VARIETIES).join(', ');
+  if (!variety) {
+    throw new Error(
+      `The ${name} mode works on one variety, so varieties are never pooled. Choose one: ${tags} (for example /mode ${name} mgp).`,
+    );
+  }
+  if (!isVariety(variety)) throw new Error(`Unknown variety "${variety}". Use one of ${tags}.`);
+  return variety;
+}
 
 export const MODE_NAMES = Object.keys(MODES) as ModeName[];
 

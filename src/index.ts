@@ -54,6 +54,7 @@ async function headless(args: ReturnType<typeof parseArgs>, cwd: string): Promis
         maxSteps: args.maxSteps,
         resume: args.continue ? 'latest' : args.resume,
         mode: args.mode,
+        variety: args.variety,
       },
       {
         stdout: (t) => process.stdout.write(t),
@@ -156,6 +157,7 @@ async function main(): Promise<void> {
     maxSteps: args.maxSteps,
     resume: args.continue ? 'latest' : args.resume,
     mode: args.mode,
+    variety: args.variety,
   };
   if (args.tui) {
     if (process.stdin.isTTY && process.stdout.isTTY) {

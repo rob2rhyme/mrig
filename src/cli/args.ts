@@ -25,6 +25,8 @@ export interface CliArgs {
   init: boolean;
   /** `--mode <name>` (T1). */
   mode?: ModeName;
+  /** `--variety <tag>` (T8): the tutor mode's variety. */
+  variety?: string;
   version: boolean;
   help: boolean;
 }
@@ -51,6 +53,7 @@ Options:
       --list-sessions      List saved sessions
       --offline            Only local models; prompts always on (also: a .mrig-zone file)
       --mode <name>        Start in a mode: ${MODE_NAMES.join(', ')} (or /mode in a session)
+      --variety <tag>      The tutor's variety: mgp, mrd, kgj, kip, kif, kjl, kzq (with --mode tutor)
       --tui                Terminal UI with a status line (experimental)
       --doctor             Same as "mrig doctor"
       --init               Same as "mrig init"
@@ -139,6 +142,9 @@ export function parseArgs(argv: string[]): CliArgs {
         break;
       case '--init':
         args.init = true;
+        break;
+      case '--variety':
+        args.variety = take(a, i++);
         break;
       case '--mode':
         args.mode = parseMode(take(a, i++));

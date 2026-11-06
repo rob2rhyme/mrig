@@ -11,7 +11,7 @@ import type { Answer, AskRequest } from '../permissions.ts';
 import { formatModelError } from '../providers.ts';
 import { Runtime, type RuntimeOptions } from '../runtime.ts';
 import { describeOffline } from '../zone.ts';
-import { bannerLines, runCommand, startupChecks } from './commands.ts';
+import { bannerLines, modeLabel, runCommand, startupChecks } from './commands.ts';
 
 export type ItemKind =
   | 'banner'
@@ -144,7 +144,7 @@ export class TuiController {
       contextPct: Math.min(100, Math.round((report.estimate / report.window) * 100)),
       ...(rt.offline ? { offline: describeOffline(rt.offline) } : {}),
       yolo: rt.permissions.promptsSkipped,
-      ...(rt.mode !== 'default' ? { mode: rt.mode } : {}),
+      ...(rt.mode !== 'default' ? { mode: modeLabel(rt) } : {}),
       ...(mcp.length > 0 ? { mcp: `${connected}/${mcp.length}` } : {}),
     };
   }

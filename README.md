@@ -527,8 +527,30 @@ A mode changes how mrig works with you. Switch with `/mode <name>`, or start in 
 | `default` | Does the work. | As usual: allow rules and `--yolo` apply. |
 | `teach` | Explains before acting, works one small step at a time, and asks you to try each next step first, then reviews your attempt. | Every change asks, even with `--yolo` or a matching allow rule; "always" counts once. |
 | `learn` | Quizzes you one question at a time, adjusts the difficulty, keeps a running list of what you covered, and remembers it between sessions (learner memory, below). | Only read-only tools are offered: it reads and searches to make questions, and changes nothing. |
+| `tutor` | The Akkha language tutor for one variety: `/mode tutor mgp` (below). | As `learn`. |
 
 The banner and the TUI status line show the mode when it isn't `default`.
+
+### The Akkha tutor
+
+`/mode tutor <variety>` (or `mrig --mode tutor --variety mgp`) starts a tutor for **one** of the
+varieties: `mgp`, `mrd`, `kgj`, `kip`, `kif`, `kjl` or `kzq`. Without one it's refused, so
+varieties never get mixed.
+
+- **Words come from your data**, never from the model's imagination: the corpus (see
+  [Corpus search](#corpus-search)) and your language memory (`lang/*.md`). If they have nothing on
+  a topic, the tutor says so and moves on. Without any corpus, it tells you at the start.
+- **Every word in three forms:** Akkha, Devanagari (the canonical spelling) and romanization.
+  The Akkha form and the romanization come from the `translit` tool, never typed by hand. Each
+  answer comes with its source, `file:line`.
+- **It quizzes** from meaning to word, word to meaning, or reading Akkha aloud. It starts with
+  what's due, and records each answer in learner memory.
+- **The variety is enforced, not just asked for:** corpus searches default to it, results are
+  recorded under it, and a result for another variety is refused. The learner summary it starts
+  with lists only that variety's topics.
+- The mode and its variety are saved with the session, so `mrig -c` picks the tutor back up.
+- It's a learn-style mode: read-only tools only, and the learner summary goes to local models
+  only, as in `learn`.
 
 ### Learner memory
 
@@ -670,5 +692,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

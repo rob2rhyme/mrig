@@ -18,10 +18,12 @@ import {
   type DoctorOptions,
   type ModelCheck,
 } from './doctor.ts';
+import { findCorpus } from './lang/corpus.ts';
 import { type LangMemory, loadLangMemory } from './lang/memory.ts';
+import type { Variety } from './lang/tables.ts';
 import { learnerPath, learnerSummary, loadLearner, today } from './learner.ts';
 import { formatMcpStatus, type McpConnect, McpManager, type McpServerStatus } from './mcp.ts';
-import { isModeName, MODES, type ModeName } from './modes.ts';
+import { assertModeVariety, isModeName, MODES, type ModeName } from './modes.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
 import { buildSystemPrompt } from './prompt.ts';
 import {
@@ -65,6 +67,8 @@ export interface RuntimeOptions {
   ephemeral?: boolean;
   /** `--mode` (T1). Without it: the resumed session's mode, else default. */
   mode?: ModeName;
+  /** `--variety` (T8): the tutor mode's variety. Without it: the resumed session's. */
+  variety?: string;
   /** Use this image model instead of building one from `image.profile` (tests). */
   imageModel?: ImageModel;
   /** Test seams for the speech tools (T5). */
@@ -157,10 +161,14 @@ export class Runtime {
     }
 
     this.mediaTools = this.buildMediaTools(opts);
-    // An explicit --mode wins; a resumed session keeps the mode it was saved with.
+    // An explicit --mode wins; a resumed session keeps the mode (and variety) it was saved with.
     const saved = this.session.meta.mode;
-    this.applyMode(opts.mode ?? (saved && isModeName(saved) ? saved : 'default'));
-    if (opts.mode && opts.mode !== (saved ?? 'default')) this.session.setMode(opts.mode);
+    const mode = opts.mode ?? (saved && isModeName(saved) ? saved : 'default');
+    const variety = assertModeVariety(mode, opts.variety ?? this.session.meta.variety);
+    this.applyMode(mode, variety);
+    if (mode !== (saved ?? 'default') || variety !== this.session.meta.variety) {
+      this.session.setMode(mode, variety);
+    }
     this.lang = loadLangMemory(opts.cwd);
     this.agent = new Agent({
       model: this.model,
@@ -175,6 +183,7 @@ export class Runtime {
       cacheTtl: this.config.cacheTtl,
       compaction: this.compactionOptions(),
       ...(this.config.corpus ? { corpus: this.config.corpus } : {}),
+      ...(this.variety ? { variety: this.variety } : {}),
       events: opts.events,
       messages: this.session.messages,
     });
@@ -191,6 +200,7 @@ export class Runtime {
       toolMode: this.profile.toolMode,
       lang: this.lang.block,
       mode: this.mode,
+      ...(this.variety ? { variety: this.variety } : {}),
       learner: this.learnerBlock(),
     });
   }
@@ -221,7 +231,7 @@ export class Runtime {
     }
     if (this.learnerSnapshot === undefined) {
       try {
-        this.learnerSnapshot = learnerSummary(loadLearner(this.learnerFile), today());
+        this.learnerSnapshot = learnerSummary(loadLearner(this.learnerFile), today(), this.variety);
       } catch (err) {
         this.events.onNotice?.((err as Error).message);
         this.learnerSnapshot = '';
@@ -280,15 +290,27 @@ export class Runtime {
     return tools;
   }
 
-  private applyMode(name: ModeName): void {
+  /** The tutor mode's variety (T8); undefined in other modes. */
+  variety: Variety | undefined;
+
+  private applyMode(name: ModeName, variety?: Variety): void {
     this.mode = name;
+    this.variety = MODES[name].needsVariety ? variety : undefined;
     this.permissions.policy = MODES[name].permissions;
+    this.learnerSnapshot = undefined; // a new mode or variety reads its own summary
+    if (this.agent) this.agent.opts.variety = this.variety;
+    if (name === 'tutor' && !findCorpus(this.cwd, this.config.corpus)) {
+      this.events.onNotice?.(
+        'No corpus found, so the tutor can only ask from language memory. Set "corpus" in the config or add a cldf/ folder.',
+      );
+    }
   }
 
-  /** `/mode <name>`: switch the prompt, the tools on offer and the permission policy. */
-  setMode(name: ModeName): void {
-    this.applyMode(name);
-    this.session.setMode(name);
+  /** `/mode <name> [variety]`: switch the prompt, the tools on offer and the permission policy. */
+  setMode(name: ModeName, variety?: string): void {
+    const v = assertModeVariety(name, variety); // refuse before changing anything
+    this.applyMode(name, v);
+    this.session.setMode(name, v);
     this.agent.setTools(this.currentTools());
     this.agent.opts.systemPrompt = this.systemPrompt();
   }
@@ -362,7 +384,12 @@ export class Runtime {
     const tools = offlineTools([...toolsForMode(this.profile.toolMode), ...extra], this.offline);
     // learn and teach mode can record results in learner memory (T2).
     if (this.mode !== 'default')
-      tools.push(createLearnedTool({ path: this.learnerFile }) as AnyTool);
+      tools.push(
+        createLearnedTool({
+          path: this.learnerFile,
+          ...(this.variety ? { variety: this.variety } : {}),
+        }) as AnyTool,
+      );
     // learn mode offers read-only tools only.
     return MODES[this.mode].permissions === 'read-only' ? tools.filter((t) => t.readOnly) : tools;
   }
@@ -422,8 +449,11 @@ export class Runtime {
     this.agent.loadTranscript(session.messages);
     const saved = session.meta.mode;
     const mode = saved && isModeName(saved) ? saved : 'default';
-    if (mode !== this.mode) {
-      this.applyMode(mode);
+    const variety = MODES[mode].needsVariety
+      ? assertModeVariety(mode, session.meta.variety)
+      : undefined;
+    if (mode !== this.mode || variety !== this.variety) {
+      this.applyMode(mode, variety);
       this.agent.setTools(this.currentTools());
       this.agent.opts.systemPrompt = this.systemPrompt();
     }
