@@ -24,6 +24,9 @@ import {
 /** USD per million tokens for known hosted models. Local/openai-compatible default to free. */
 export const KNOWN_PRICING: Array<{ match: RegExp; pricing: Pricing }> = [
   { match: /claude-fable-5-1/, pricing: { input: 10, output: 50, cacheRead: 0.25 } },
+  // The 5.5 rows come first: /claude-opus-5/ would otherwise match claude-opus-5-5 too.
+  { match: /claude-opus-5-5/, pricing: { input: 4, output: 20, cacheRead: 0.2 } },
+  { match: /claude-sonnet-5-5/, pricing: { input: 2, output: 10, cacheRead: 0.2 } },
   { match: /claude-opus-5/, pricing: { input: 5, output: 25 } },
   { match: /claude-sonnet-5/, pricing: { input: 2, output: 10 } },
   { match: /claude-haiku-4-5/, pricing: { input: 1, output: 5 } },
@@ -56,6 +59,46 @@ export function cacheMinPrefix(model: string): number | undefined {
 export type CacheProviderOptions = {
   anthropic: { cacheControl: { type: 'ephemeral'; ttl: CacheTtl } };
 };
+
+/**
+ * Claude models whose thinking blocks are bound to the conversation ("preserved thinking"): the
+ * system prompt, the tools and every earlier message must be unchanged since a block was made.
+ * Source: Anthropic's model notes as of November 2026; re-check when adding models.
+ */
+const PRESERVED_THINKING = /claude-(fable-5-1|mythos-5-1|opus-5-5|sonnet-5-5|haiku-5-5)/;
+
+export function hasPreservedThinking(profile: ProviderProfile): boolean {
+  return profile.kind === 'anthropic' && PRESERVED_THINKING.test(profile.model);
+}
+
+export type RequestProviderOptions = {
+  anthropic: CacheProviderOptions['anthropic'] & {
+    thinking?: { type: 'adaptive'; blockBinding: { prefixMismatchBehavior: 'drop_block' } };
+  };
+};
+
+/**
+ * Request-level provider options: automatic caching, plus, on preserved-thinking models, an
+ * instruction to drop (not reject) thinking blocks whose prefix changed. mrig changes the prompt
+ * and tools mid-session (/mode, /lang reload, a model switch, MCP servers starting), and on
+ * accounts created from August 31, 2026 the API otherwise answers the next request with a 400.
+ * Adaptive is these models' default thinking mode, so stating it changes nothing else; the
+ * provider adds the thinking-binding-controls beta header itself.
+ */
+export function requestProviderOptions(
+  profile: ProviderProfile,
+  cacheTtl: CacheTtl,
+): RequestProviderOptions | undefined {
+  const cache = cacheProviderOptions(profile, cacheTtl);
+  if (!cache) return undefined;
+  if (!hasPreservedThinking(profile)) return cache;
+  return {
+    anthropic: {
+      ...cache.anthropic,
+      thinking: { type: 'adaptive', blockBinding: { prefixMismatchBehavior: 'drop_block' } },
+    },
+  };
+}
 
 /**
  * Provider options that turn on prompt caching. Anthropic only: passed at request level it

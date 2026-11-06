@@ -37,6 +37,7 @@ import {
   emptyUsage,
   estimateCost,
   pricingFor,
+  requestProviderOptions,
   type UsageTotals,
 } from './providers.ts';
 import {
@@ -358,6 +359,7 @@ export class Agent {
     // system block. Tools render before system, so that breakpoint keeps tools + system cached
     // for the whole session; the automatic one follows the growing conversation.
     const cache = cacheProviderOptions(this.opts.profile, this.cacheTtl());
+    const requestOptions = requestProviderOptions(this.opts.profile, this.cacheTtl());
     this.messagesAtLastRequest = this.messages.length;
     const result = streamText({
       model: this.opts.model,
@@ -367,7 +369,7 @@ export class Agent {
       // Image paths become bytes only here, so the transcript (and the session) keeps paths.
       messages: resolveImages(this.messages, this.opts.profile.vision === true),
       tools: this.aiTools,
-      ...(cache ? { providerOptions: cache } : {}),
+      ...(requestOptions ? { providerOptions: requestOptions } : {}),
       abortSignal: signal,
       maxRetries: 2,
       // Errors surface as an 'error' stream part below; suppress the SDK's default console.error.

@@ -10,6 +10,7 @@
  */
 import { type ModelMessage, pruneMessages } from 'ai';
 import type { ProviderProfile } from './config.ts';
+import { hasPreservedThinking } from './providers.ts';
 import { truncateMiddle } from './util/text.ts';
 
 /** Context window assumed for hosted models whose profile sets none. */
@@ -37,14 +38,11 @@ const ACK: ModelMessage = {
 };
 
 /**
- * Claude models whose thinking blocks are bound to the conversation (preserved thinking).
- * Editing earlier turns ahead of kept thinking blocks can be rejected, so they skip tier (a).
- * Source: Anthropic's model notes as of November 2026; re-check when adding models.
+ * Claude models with preserved thinking skip tier (a): pruning turns ahead of kept thinking
+ * blocks would cost them their reasoning, while a summary replaces the whole history.
  */
-const PRESERVED_THINKING = /claude-(fable-5-1|mythos-5-1|opus-5-5|sonnet-5-5|haiku-5-5)/;
-
 export function preferSummaryOnly(profile: ProviderProfile): boolean {
-  return profile.kind === 'anthropic' && PRESERVED_THINKING.test(profile.model);
+  return hasPreservedThinking(profile);
 }
 
 /** The profile's window, else what the server reported, else a per-kind default. */

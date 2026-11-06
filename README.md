@@ -6,7 +6,7 @@ or a model running on your own machine. Swap models by editing a config file, no
 
 ```
 ❯ mrig
-mrig v0.1.0 · claude/claude-sonnet-5
+mrig v0.1.0 · claude/claude-sonnet-5-5
 ~/code/shiftpay · memory: AGENTS.md
 
 ❯ why is the unpaid balance test failing?
@@ -51,8 +51,8 @@ works without it.
 
 ```sh
 export ANTHROPIC_API_KEY=sk-ant-...
-mrig                         # claude-sonnet-5 by default
-mrig -P opus                 # claude-opus-5
+mrig                         # claude-sonnet-5-5 by default
+mrig -P opus                 # claude-opus-5-5
 mrig -P fable                # claude-fable-5-1
 ```
 
@@ -92,7 +92,7 @@ what reaches stdout:
 
   ```json
   {"text":"…","stop":"done","steps":3,"sessionId":"20261105-…","provider":"claude",
-   "model":"claude-sonnet-5","usage":{"inputTokens":5120,"outputTokens":310,
+   "model":"claude-sonnet-5-5","usage":{"inputTokens":5120,"outputTokens":310,
    "cacheReadTokens":4096,"cacheWriteTokens":0,"requests":3},"cost":0.0042}
   ```
 
@@ -175,7 +175,7 @@ Send easy work to a local model and hard work to a stronger one, message by mess
 ```
 
 Rules decide, not another model, so every choice is predictable. Each message gets a one-line
-note saying where it went and why: `→ claude/claude-sonnet-5 (hard: "refactor")`. The first
+note saying where it went and why: `→ claude/claude-sonnet-5-5 (hard: "refactor")`. The first
 matching rule wins:
 
 1. **`!easy` or `!hard`** at the start of a message forces the tier. The prefix isn't sent.
@@ -228,7 +228,9 @@ Long sessions are compacted automatically before the next step once the request 
    by a model-written summary. The cut never separates a tool call from its result.
 
 Claude models that bind thinking blocks to the conversation (Fable 5.1, Opus 5.5, Sonnet 5.5)
-skip straight to the summary, because editing earlier turns can be rejected for them. Each
+skip straight to the summary, because editing earlier turns can be rejected for them. For the
+same reason mrig asks these models to drop, rather than reject, earlier thinking whenever the
+prompt or tools change mid-session (`/mode`, `/lang reload`, `/model`, MCP servers starting). Each
 compaction invalidates the prompt cache, so it is kept rare; if the window is so small that it
 would run on almost every step, mrig says so once and suggests a larger context.
 
