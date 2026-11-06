@@ -35,13 +35,15 @@ Order: cheapest first, most expensive last. Each check says what it costs, what 
 
 Needs: Anthropic key. Costs: a few cents.
 
-- [ ] Start a session:
+- [x] Start a session:
 
   ```bash
   mrig -P claude
   ```
-- [ ] Ask two questions in a row, for example "what files are here?" and then "which one is largest?".
-- [ ] Type `/cost`.
+- [x] Ask two questions in a row, for example "what files are here?" and then "which one is largest?".
+- [x] Type `/cost`.
+
+**Passed 2026-11-06** on `claude-sonnet-5-5`: `4 requests · 29,489 input (21,690 cache read, 7,787 cache write) · 630 output · ~$0.0301`, with the `prompt cache: 5m TTL` line.
 
 **Pass:** the first line shows `(N cache read, …)` with N above 0, and a line reads `prompt cache: 5m TTL · writes billed at 1.25× input`. If N is 0, `/cost` prints a line explaining why; send that line.
 

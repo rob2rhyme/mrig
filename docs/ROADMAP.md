@@ -25,7 +25,7 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 3. Confirm whether January 14, 2027 applies to Local AI v1.0.
 4. Later: the machine purchase when a buying signal appears.
 
-**Local AI v1.0 is done** when the L0 to L5 code is merged (it is) and the L0 and model-wave checks in `LIVE_CHECKS.md` pass.
+**Local AI v1.0 is done** when the L0 to L5 code is merged (it is) and the L0 and model-wave checks in `LIVE_CHECKS.md` pass. L0's passed on November 6, 2026; the model wave (L2, L3) is what remains.
 
 ## Track 1 — Local AI (mrig)
 
@@ -33,7 +33,7 @@ Goal: a dependable agent that runs **fully offline** on Robin's Mac, with Claude
 
 | # | Item | Effort | Done when |
 |---|---|---|---|
-| L0 | **Prompt caching** for Claude profiles: automatic caching + one system/tools breakpoint; price cache writes. ✅ Built 2026-11-03 (`feat/L0-prompt-caching`): request-level caching, a system-block breakpoint, cache-write pricing (1.25× / 2×), a minimum-prefix table for `/cost`, `cacheTtl`. ⏳ The live check against the API needs Robin's key | S | A live run shows `cacheReadTokens > 0` from the second request on, once the prompt is longer than the model's minimum cacheable prefix, and `/cost` shows the write premium |
+| L0 | **Prompt caching** for Claude profiles: automatic caching + one system/tools breakpoint; price cache writes. ✅ Built 2026-11-03 (`feat/L0-prompt-caching`): request-level caching, a system-block breakpoint, cache-write pricing (1.25× / 2×), a minimum-prefix table for `/cost`, `cacheTtl`. ✅ Live check passed 2026-11-06 on `claude-sonnet-5-5`: a two-question session read 21,690 of 29,489 input tokens from the cache (74%) and wrote 7,787, and `/cost` matched the pricing to the cent (~$0.0301) | S | A live run shows `cacheReadTokens > 0` from the second request on, once the prompt is longer than the model's minimum cacheable prefix, and `/cost` shows the write premium |
 | L1 | ✅ **Hygiene**: model-id check via `/v1/models`; session meta sync fix; CI on Linux for every push, macOS/Windows on PRs to `main` only. Done 2026-11-03 (`feat/L1-hygiene`) | S | `mrig doctor` flags an unknown model; CI minutes drop |
 | L2 | **Local runtime bring-up and hardening** (see notes below). ✅ Hardening built 2026-11-03 (`feat/L2-local-hardening`): Ollama context warning, `toolMode: "minimal"`, empty-argument retry. ⏳ Model trials on the M4 Pro pending: procedure and results table in `docs/LOCAL_MODELS.md` | S–M | Each candidate model completes a read → edit → bash task in mrig. The hardening items below are merged |
 | L3 | **Agent eval harness**: a scripted task suite run headless (`-p`) against every profile. ✅ Harness built 2026-11-03 (`feat/L3-eval-harness`): `bun run eval`, 10 tasks. ⏳ The real matrix and the default `local` profile need runs on real models; `docs/COMPATIBILITY.md` is empty until then | M | A compatibility matrix exists, and the default `local` profile is chosen from it |
