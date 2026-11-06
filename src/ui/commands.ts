@@ -18,6 +18,13 @@ export interface CommandIO {
   busy<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T>;
 }
 
+/** How /cost names each kind of generated media, and the config key that prices it. */
+const MEDIA_LABELS: Record<string, { label: string; priceKey: string }> = {
+  image: { label: 'images', priceKey: 'image.pricePerImage' },
+  speech: { label: 'speech', priceKey: 'speech.pricePerMillionChars' },
+  transcription: { label: 'transcriptions', priceKey: 'transcription.pricePerMinute' },
+};
+
 /** Run a `/command`. Returns true when the UI should exit. */
 export async function runCommand(rt: Runtime, text: string, io: CommandIO): Promise<boolean> {
   const [cmd = '', ...rest] = text.slice(1).split(/\s+/);
@@ -102,8 +109,9 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
       if (miss) lines.push(miss);
       for (const [kind, m] of Object.entries(rt.agent.media)) {
         const known = m.count - m.unpriced;
+        const { label, priceKey } = MEDIA_LABELS[kind] ?? { label: kind, priceKey: kind };
         lines.push(
-          `${kind}s: ${m.count}${known > 0 ? ` · ~$${m.usd.toFixed(4)}` : ''}${m.unpriced > 0 ? ` · ${m.unpriced} without a price (set ${kind}.pricePerImage)` : ''}`,
+          `${label}: ${m.count}${known > 0 ? ` · ~$${m.usd.toFixed(4)}` : ''}${m.unpriced > 0 ? ` · ${m.unpriced} without a price (set ${priceKey})` : ''}`,
         );
       }
       return info(lines.join('\n'));

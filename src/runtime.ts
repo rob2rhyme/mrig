@@ -1,7 +1,7 @@
 /**
  * Wires config → provider → permissions → agent → session. Shared by the REPL and headless mode.
  */
-import type { ImageModel, LanguageModel } from 'ai';
+import type { ImageModel, LanguageModel, SpeechModel, TranscriptionModel } from 'ai';
 import { Agent, type AgentEvents, type CompactionOptions } from './agent.ts';
 import {
   loadConfig,
@@ -22,10 +22,16 @@ import { formatMcpStatus, type McpConnect, McpManager, type McpServerStatus } fr
 import { isModeName, MODES, type ModeName } from './modes.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
 import { buildSystemPrompt } from './prompt.ts';
-import { createImageModel, createModel } from './providers.ts';
+import {
+  createImageModel,
+  createModel,
+  createSpeechModel,
+  createTranscriptionModel,
+} from './providers.ts';
 import { Session, type SessionMeta } from './session.ts';
 import { createImageTool } from './tools/image.ts';
 import { type AnyTool, toolsForMode } from './tools/index.ts';
+import { createSpeakTool, createTranscribeTool } from './tools/speech.ts';
 import {
   assertNoYolo,
   assertProfileAllowed,
@@ -56,6 +62,9 @@ export interface RuntimeOptions {
   mode?: ModeName;
   /** Use this image model instead of building one from `image.profile` (tests). */
   imageModel?: ImageModel;
+  /** Test seams for the speech tools (T5). */
+  speechModel?: SpeechModel;
+  transcriptionModel?: TranscriptionModel;
   /** Use this model instead of building one from the profile (tests, the eval harness). */
   languageModel?: LanguageModel;
   /** Use this config instead of loading it from cwd (the eval harness runs in temp dirs). */
@@ -179,19 +188,44 @@ export class Runtime {
   }
 
   /** The image tool, when configured. A provider that can't be set up is a notice, not a crash. */
+  /**
+   * The media tools the config asks for: image (T4), speak and transcribe (T5). Each one is
+   * built on its own; a provider that can't be set up is a notice, not a crash.
+   */
   private buildMediaTools(opts: RuntimeOptions): AnyTool[] {
-    const image = this.config.image;
-    if (!image) return [];
-    try {
-      const { profile } = resolveProfile(this.config, image.profile);
-      const model = opts.imageModel ?? createImageModel(profile, image.model);
-      return [
-        createImageTool({ config: image, model, remote: !isLocalProfile(profile) }) as AnyTool,
-      ];
-    } catch (err) {
-      opts.events.onNotice?.(`The image tool is off: ${(err as Error).message}`);
-      return [];
+    const tools: AnyTool[] = [];
+    const build = (label: string, profileName: string, make: (remote: boolean) => AnyTool) => {
+      try {
+        const { profile } = resolveProfile(this.config, profileName);
+        tools.push(make(!isLocalProfile(profile)));
+      } catch (err) {
+        opts.events.onNotice?.(`The ${label} tool is off: ${(err as Error).message}`);
+      }
+    };
+    const { image, speech, transcription } = this.config;
+    const profileOf = (name: string) => resolveProfile(this.config, name).profile;
+    if (image) {
+      build('image', image.profile, (remote) => {
+        const model = opts.imageModel ?? createImageModel(profileOf(image.profile), image.model);
+        return createImageTool({ config: image, model, remote }) as AnyTool;
+      });
     }
+    if (speech) {
+      build('speak', speech.profile, (remote) => {
+        const model =
+          opts.speechModel ?? createSpeechModel(profileOf(speech.profile), speech.model);
+        return createSpeakTool({ config: speech, model, remote }) as AnyTool;
+      });
+    }
+    if (transcription) {
+      build('transcribe', transcription.profile, (remote) => {
+        const model =
+          opts.transcriptionModel ??
+          createTranscriptionModel(profileOf(transcription.profile), transcription.model);
+        return createTranscribeTool({ config: transcription, model, remote }) as AnyTool;
+      });
+    }
+    return tools;
   }
 
   private applyMode(name: ModeName): void {
