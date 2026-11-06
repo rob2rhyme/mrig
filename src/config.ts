@@ -54,6 +54,8 @@ export interface ProviderProfile {
   contextWindow?: number;
   /** Tool set for this model: "full" (default) or "minimal" (bash only). */
   toolMode?: ToolMode;
+  /** The model reads images (T3): image paths in a prompt are attached. Default false. */
+  vision?: boolean;
 }
 
 export interface PermissionsConfig {
@@ -114,30 +116,35 @@ export const DEFAULT_PROVIDERS: Record<string, ProviderProfile> = {
     model: 'claude-sonnet-5',
     apiKeyEnv: 'ANTHROPIC_API_KEY',
     contextWindow: 1_000_000,
+    vision: true,
   },
   opus: {
     kind: 'anthropic',
     model: 'claude-opus-5',
     apiKeyEnv: 'ANTHROPIC_API_KEY',
     contextWindow: 1_000_000,
+    vision: true,
   },
   fable: {
     kind: 'anthropic',
     model: 'claude-fable-5-1',
     apiKeyEnv: 'ANTHROPIC_API_KEY',
     contextWindow: 1_000_000,
+    vision: true,
   },
   haiku: {
     kind: 'anthropic',
     model: 'claude-haiku-4-5-20251001',
     apiKeyEnv: 'ANTHROPIC_API_KEY',
     contextWindow: 200_000,
+    vision: true,
   },
   openai: {
     kind: 'openai',
     // Check https://platform.openai.com/docs/models for the current ID you want.
     model: 'gpt-5',
     apiKeyEnv: 'OPENAI_API_KEY',
+    vision: true,
   },
   ollama: {
     kind: 'openai-compatible',

@@ -10,9 +10,9 @@ You are continuing development of **mrig**, my personal, local, model-agnostic t
 
 A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands, works with files, and answers general questions. One provider layer (Vercel AI SDK 7) serves Anthropic (`claude-sonnet-5` default, `claude-opus-5`, `claude-fable-5-1`, `claude-haiku-4-5-20251001`), OpenAI, and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, OpenRouter). It is for me alone: private repo, no telemetry, no analytics, no third-party scripts, ever. It compiles to a single binary per OS with `bun build --compile`.
 
-## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1
+## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1, T3
 
-Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4 and T1 are built:
+Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4, T1 and T3 are built:
 
 - **L0 prompt caching:** request-level automatic caching plus a system-block breakpoint for Anthropic profiles, cache-write pricing, a minimum-prefix table that `/cost` uses to explain a miss, and `cacheTtl`.
 - **L1 hygiene:** `mrig doctor` checks model ids against each provider's model list, the REPL runs the same check at startup, session meta is rewritten in place, and CI runs macOS and Windows only where it matters.
@@ -28,6 +28,7 @@ Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4 and T1 ar
 - **Track 2, A3 language memory:** `src/lang/memory.ts` reads `lang/<tag>[-<topic>].md` from `~/.mrig/lang/` and each `.mrig/lang/` from the git root to cwd, once per session, into a labelled system-prompt block (32,000-character budget, whole files only, NFC). `/lang` reports files and tokens; `/lang reload` rereads. Font-tool commands are in `AGENTS.md`.
 - **Track 2, A4 corpus search:** `src/lang/corpus.ts` (find, load, search, format) and `src/lang/csv.ts` (an RFC 4180 reader that keeps line numbers). `src/tools/corpus.ts` is the ninth built-in tool: read-only, local. Config `corpus` (a project may set it) or a `cldf/` folder up to the git root. Fixture: `tests/fixtures/cldf-wordlist/` (invented rows).
 - **Track 3, T1 modes:** `src/modes.ts` defines `default`, `teach` and `learn` as prompt text plus a permission policy. `PermissionManager.policy` applies it (`ask-every-time` sets yolo and allow rules aside and never learns a rule; `read-only` refuses non-read-only tools), and `Runtime.currentTools()` offers learn mode read-only tools only. `--mode`, `/mode`; the session meta stores `mode`, and `-c` and `/resume` restore it; an explicit `--mode` wins. `/yolo` can't turn prompts off outside default mode.
+- **Track 3, T3 vision input:** `src/vision.ts` finds existing image paths in a prompt (quoted, escaped, relative, absolute, `~/`; 5 MB and 20 per message). With `vision: true` on the profile, `Agent.userMessage()` attaches them as AI SDK `file` parts (image/*), the transcript keeps a file:// URL, and `resolveImages()` reads the bytes before each request. Without vision, a notice and text only; earlier images become a text note.
 
 v0.1 in detail:
 
@@ -175,7 +176,7 @@ Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, no
 - **T2. Learner memory (S–M).**
   - Write a decision note in `docs/decisions/` first: what is stored, where (local only), how the user inspects it (`/learned`) and deletes it (`/forget`).
   - **Acceptance:** Robin approves the note before any code; then read, write and delete are tested; nothing is sent over the network; the offline guarantee (L5) is respected.
-- **T3. Vision input (S).**
+- **T3. Vision input (S).** ✅ Built 2026-11-05.
   - An image path in a prompt reaches vision-capable models as an image part. Add a profile flag for vision support.
   - **Acceptance:** a mock-model test shows the image part reaching the model; a profile without vision gets a clear message, not a crash.
 - **T4. Image generation (S–M).**

@@ -406,6 +406,29 @@ Put project conventions, commands, and rules there.
 It needs an interactive terminal; without one mrig falls back to the plain REPL. The plain REPL
 stays the default until the TUI has had more real use.
 
+## Images
+
+Put an image's path in a prompt and models that can see get the image itself:
+
+```
+❯ what is wrong with this layout? screenshots/home.png
+❯ compare "~/Desktop/before.png" and ~/Desktop/after\ fix.png
+```
+
+- **Which paths:** existing `.png`, `.jpg`, `.jpeg`, `.gif` and `.webp` files, relative to the
+  working directory, absolute, or under `~/`. Quote a path with spaces, or escape the spaces as a
+  terminal does when you drag a file in. A path that doesn't exist is plain text, so
+  "make logo.png" attaches nothing. The path also stays in the text, so the model knows the name.
+- **Which models:** profiles with `"vision": true`. The built-in Claude and OpenAI profiles have
+  it; local profiles don't, because the default local models read text only. Set it on a profile
+  whose model reads images (for example a vision model on Ollama).
+- **Without vision**, mrig says which images it didn't attach and sends the text alone. After a
+  switch to such a model, earlier images become a short note in the conversation.
+- **Limits:** 5 MB per image and 20 images per message; larger or extra ones are skipped with a
+  notice.
+- **Sessions keep paths, not bytes.** The file is read again for each request. If it has been
+  deleted, the model is told it's gone.
+
 ## Modes
 
 A mode changes how mrig works with you. Switch with `/mode <name>`, or start in one with
@@ -533,5 +556,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

@@ -48,6 +48,7 @@ import {
   toolRegistry,
 } from './tools/index.ts';
 import { firstLines } from './util/text.ts';
+import { findImagePaths, imagePart, resolveImages } from './vision.ts';
 
 export interface ToolCallInfo {
   id: string;
@@ -291,7 +292,7 @@ export class Agent {
 
   async run(userText: string, signal?: AbortSignal): Promise<RunResult> {
     if (this.firstPrompt === undefined) this.firstPrompt = userText;
-    this.messages.push({ role: 'user', content: userText });
+    this.messages.push(this.userMessage(userText));
     this.emptyArgStreak = 0;
     let steps = 0;
     for (let step = 1; step <= this.opts.maxSteps; step++) {
@@ -308,6 +309,21 @@ export class Agent {
       `Stopped after ${this.opts.maxSteps} steps. Say "continue" to keep going, or raise maxSteps in config.`,
     );
     return { stop: 'max-steps', steps, text: '' };
+  }
+
+  /** The user's message, with any image paths attached as images when the model has vision (T3). */
+  private userMessage(text: string): ModelMessage {
+    const { images, skipped } = findImagePaths(text, this.opts.cwd);
+    const notice = this.opts.events.onNotice;
+    for (const s of skipped) notice?.(`Image not attached: ${s.shown} (${s.reason}).`);
+    if (images.length === 0) return { role: 'user', content: text };
+    if (!this.opts.profile.vision) {
+      notice?.(
+        `Image${images.length === 1 ? '' : 's'} not attached: ${images.map((i) => i.shown).join(', ')}. ${this.opts.modelLabel} has no vision; set "vision": true on a profile whose model reads images, or switch with /provider.`,
+      );
+      return { role: 'user', content: text };
+    }
+    return { role: 'user', content: [{ type: 'text', text }, ...images.map(imagePart)] };
   }
 
   private async step(
@@ -331,7 +347,8 @@ export class Agent {
       system: cache
         ? { role: 'system', content: this.opts.systemPrompt, providerOptions: cache }
         : this.opts.systemPrompt,
-      messages: this.messages,
+      // Image paths become bytes only here, so the transcript (and the session) keeps paths.
+      messages: resolveImages(this.messages, this.opts.profile.vision === true),
       tools: this.aiTools,
       ...(cache ? { providerOptions: cache } : {}),
       abortSignal: signal,
