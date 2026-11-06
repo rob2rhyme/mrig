@@ -176,7 +176,7 @@ Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, no
   - A mode is a named preset of system-prompt text and permission defaults, defined in code.
   - `teach` explains before acting, works in small steps, and asks the user to try the next step first. `learn` quizzes the user and records what was covered.
   - **Acceptance:** mock-model tests show the prompt and the permission behaviour change per mode; the mode is saved in the session meta and survives `-c`; each mode's prompt stays under ~1,000 tokens before memory.
-- **T2. Learner memory (S–M).**
+- **T2. Learner memory (S–M).** 📝 Decision note drafted 2026-11-06 (`docs/decisions/2026-11-06-learner-memory.md`); awaiting Robin's approval.
   - Write a decision note in `docs/decisions/` first: what is stored, where (local only), how the user inspects it (`/learned`) and deletes it (`/forget`).
   - **Acceptance:** Robin approves the note before any code; then read, write and delete are tested; nothing is sent over the network; the offline guarantee (L5) is respected.
 - **T3. Vision input (S).** ✅ Built 2026-11-05.
