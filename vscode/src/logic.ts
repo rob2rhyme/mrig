@@ -3,7 +3,7 @@
  * reading `mrig serve`'s first line, the panel's HTML, the proposed file for a diff, the text a
  * selection sends, and where to find the `mrig` program.
  */
-import { join } from 'node:path';
+import { posix, win32 } from 'node:path';
 
 export interface ServeInfo {
   url: string;
@@ -110,6 +110,7 @@ export function selectionText(relativePath: string, start: number, end: number):
 export function mrigCandidates(setting: string, home: string, platform: string): string[] {
   if (setting.trim()) return [setting.trim()];
   const exe = platform === 'win32' ? 'mrig.exe' : 'mrig';
+  const join = platform === 'win32' ? win32.join : posix.join;
   return [
     exe,
     join(home, '.local', 'bin', exe),

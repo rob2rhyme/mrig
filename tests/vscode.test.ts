@@ -117,7 +117,7 @@ describe('the VS Code extension (U4)', () => {
     const win = mrigCandidates('', 'C:\\Users\\rt', 'win32');
     expect(win[0]).toBe('mrig.exe');
     expect(win).toHaveLength(2);
-    expect(win[1]?.endsWith('mrig.exe')).toBe(true);
+    expect(win[1]).toBe('C:\\Users\\rt\\.local\\bin\\mrig.exe');
   });
 
   test('the status bar', () => {
