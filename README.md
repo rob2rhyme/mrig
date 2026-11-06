@@ -483,6 +483,40 @@ Two more blocks give the model `speak` (text to speech) and `transcribe` (speech
   with a local server, or in an offline zone, so the audio never leaves the machine.
 - Only your global config can set `speech` and `transcription`.
 
+### Video
+
+A `video` block gives the model a `video` tool, through the
+[Vercel AI Gateway](https://vercel.com/docs/ai-gateway). One key reaches many providers' video
+models (Google Veo, Kling, Seedance, Wan and others), so trying another model is a one-line
+change:
+
+```json
+{
+  "video": {
+    "model": "google/veo-3.1-fast-generate-001",
+    "pricePerSecond": 0.15,
+    "maxCostPerJob": 2
+  }
+}
+```
+
+- **Key:** set `AI_GATEWAY_API_KEY` (or name another variable with `"apiKeyEnv"`).
+- **`pricePerSecond` is required.** Video is the most expensive tool by far, and the cost cap
+  needs a price to work. Take it from the gateway's model page.
+- **The per-job cap:** before a job starts, mrig estimates seconds × price. If that's over
+  `maxCostPerJob` (default $2), the job is refused and nothing is sent. The model is told why,
+  and can offer a shorter clip.
+- **It asks first,** with the length, the estimate and the cap:
+  `video "a fox runs through snow" (5 s, ~$0.75; cap $2.00)`. Allow it with `"video:*"`; the
+  cap still applies.
+- **Jobs take minutes.** mrig starts the job, checks it every `pollSeconds` (default 10), and
+  saves the clip under `videos/` when it's done. After `timeoutMinutes` (default 20) it stops
+  waiting and says the provider may still finish the job and bill for it. Ctrl+C stops the wait
+  the same way.
+- Other settings: `duration` (default 5 seconds), `aspectRatio` (e.g. `"16:9"`), `resolution`
+  (e.g. `"1280x720"`) and `dir`.
+- Video is cloud-only, so offline mode removes the tool. Only your global config can set `video`.
+
 ## Modes
 
 A mode changes how mrig works with you. Switch with `/mode <name>`, or start in one with
@@ -610,5 +644,5 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap. Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).

@@ -10,9 +10,9 @@ You are continuing development of **mrig**, my personal, local, model-agnostic t
 
 A Bun + TypeScript CLI (`mrig`) that writes and modifies software, runs commands, works with files, and answers general questions. One provider layer (Vercel AI SDK 7) serves Anthropic (`claude-sonnet-5` default, `claude-opus-5`, `claude-fable-5-1`, `claude-haiku-4-5-20251001`), OpenAI, and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, OpenRouter). It is for me alone: private repo, no telemetry, no analytics, no third-party scripts, ever. It compiles to a single binary per OS with `bun build --compile`.
 
-## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1, T3–T5
+## Current state — v0.1 plus Track 1 (L0–L7), Track 2 A2–A4 and Track 3 T1, T3–T6
 
-Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4, T1 and T3–T5 are built:
+Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4, T1 and T3–T6 are built:
 
 - **L0 prompt caching:** request-level automatic caching plus a system-block breakpoint for Anthropic profiles, cache-write pricing, a minimum-prefix table that `/cost` uses to explain a miss, and `cacheTtl`.
 - **L1 hygiene:** `mrig doctor` checks model ids against each provider's model list, the REPL runs the same check at startup, session meta is rewritten in place, and CI runs macOS and Windows only where it matters.
@@ -31,6 +31,7 @@ Everything below is v0.1 (Phase 0 + 1). On top of it, L0–L7, A2–A4, T1 and T
 - **Track 3, T3 vision input:** `src/vision.ts` finds existing image paths in a prompt (quoted, escaped, relative, absolute, `~/`; 5 MB and 20 per message). With `vision: true` on the profile, `Agent.userMessage()` attaches them as AI SDK `file` parts (image/*), the transcript keeps a file:// URL, and `resolveImages()` reads the bytes before each request. Without vision, a notice and text only; earlier images become a text note.
 - **Track 3, T4 image generation:** `src/tools/image.ts` (`createImageTool`), built by `Runtime.buildMediaTools()` only when the global config has `image` (a project config can't set it). `createImageModel()` in `src/providers.ts` covers `openai` and `openai-compatible`; Anthropic is refused with a notice. The tool asks with the price unless `image:*` allows it, saves under `image.dir` without overwriting, and reports cost through `ctx.recordMedia`; `Agent.media` feeds `/cost` and the `--json` `media` field. No built-in price table: `image.pricePerImage` sets it.
 - **Track 3, T5 speech:** `src/tools/speech.ts` (`createSpeakTool`, `createTranscribeTool`), built by `Runtime.buildMediaTools()` from the global `speech` and `transcription` blocks. `createSpeechModel()` and `createTranscriptionModel()` use the OpenAI client for both `openai` and `openai-compatible` profiles (a local audio server is the offline option); Anthropic is refused. Prices: `speech.pricePerMillionChars`, `transcription.pricePerMinute` (needs the reported duration). Shared helpers in `src/tools/media.ts`.
+- **Track 3, T6 video:** `src/tools/video.ts` (`createVideoTool`, `videoCost`, `overBudget`) over `experimental_startVideo` and `experimental_getVideoStatus`, with mrig's own polling (`pollSeconds`, `timeoutMinutes`) and download of URL results. Provider: the Vercel AI Gateway (`createVideoModel()` in `src/providers.ts`, key in `AI_GATEWAY_API_KEY`), always remote. The global `video` block requires `pricePerSecond`; a job whose estimate passes `maxCostPerJob` is refused before it starts.
 
 v0.1 in detail:
 
@@ -187,7 +188,7 @@ Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, no
 - **T5. Speech (M).** ✅ Built 2026-11-06; the live check and a round trip with real local models are Robin's.
   - `speak` (text to speech) and `transcribe` (speech to text), with a local option.
   - **Acceptance:** as T4, plus a local round trip that passes with networking disabled.
-- **T6. Video (M–L).**
+- **T6. Video (M–L).** ✅ Built 2026-11-06; a clip end to end needs Robin's AI Gateway key.
   - A `video` tool that starts a job, polls it and downloads the result. The SDK marks video as experimental, so read its types first.
   - **Acceptance:** a short clip is generated end to end; a per-job cost cap stops an over-budget job.
 - **T7. Model routing (unranked; only when asked).** Send easy work to a local model and hard work to a frontier model by rule.
