@@ -728,4 +728,8 @@ v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
 `toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Next (see `docs/ROADMAP.md`):
-model trials and the first real matrix, then Track 2 or Track 3. Licensing is yours to choose before publishing (add a `LICENSE` file).
+model trials and the first real matrix, then Track 2 or Track 3.
+
+## License
+
+MIT, © 2026 Robin Thapa. See [`LICENSE`](LICENSE). The license covers mrig's code and docs only. The GurbachhanAkkhaRik font is not in this repo and is not covered by it.
