@@ -24,7 +24,7 @@
     "check": "bun run lint && bun run typecheck && bun test && bun run build && bun run build:vscode",
     "eval": "bun run scripts/eval.ts",
     "build:vscode": "bun build ./vscode/src/extension.ts --outfile vscode/out/extension.js --target node --format cjs --external vscode --minify-syntax",
-    "package:vscode": "bun run build:vscode && cd vscode && bunx @vscode/vsce@3.6.0 package --no-dependencies --out ../dist/mrig-vscode.vsix"
+    "package:vscode": "bun run build:vscode && mkdir -p dist && cd vscode && bunx @vscode/vsce@3.6.0 package --no-dependencies --out ../dist/mrig-vscode.vsix"
   },
   "engines": {
     "bun": ">=1.3.0"
