@@ -120,6 +120,30 @@ export interface TranscriptionConfig {
   pricePerMinute?: number;
 }
 
+/** Video generation (T6), through the Vercel AI Gateway: the `video` tool. */
+export interface VideoConfig {
+  /** A gateway video model id, e.g. "google/veo-3.1-fast-generate-001". */
+  model: string;
+  /** The environment variable holding the gateway key. Default "AI_GATEWAY_API_KEY". */
+  apiKeyEnv: string;
+  /** Another gateway URL (rarely needed). */
+  baseURL?: string;
+  /** Default clip length in seconds. Default 5. */
+  duration: number;
+  aspectRatio?: `${number}:${number}`;
+  resolution?: `${number}x${number}`;
+  /** USD per second of video. Required: the cost cap needs it. */
+  pricePerSecond: number;
+  /** A job whose estimated cost is over this many US dollars never starts. Default 2. */
+  maxCostPerJob: number;
+  /** Seconds between status checks. Default 10. */
+  pollSeconds: number;
+  /** Give up waiting after this many minutes. Default 20. */
+  timeoutMinutes: number;
+  /** Where videos are saved, relative to the working directory. Default "videos". */
+  dir: string;
+}
+
 export interface MrigConfig {
   defaultProvider: string;
   providers: Record<string, ProviderProfile>;
@@ -151,6 +175,8 @@ export interface MrigConfig {
   speech?: SpeechConfig;
   /** Speech to text (T5); the `transcribe` tool exists only when this is set. */
   transcription?: TranscriptionConfig;
+  /** Video generation (T6); the `video` tool exists only when this is set. */
+  video?: VideoConfig;
   /** Keys an untrusted project config tried to set and that were dropped (set by loadConfig). */
   projectIgnored?: string[];
 }
@@ -366,6 +392,7 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     ...parseImage(layer.image, base.image),
     ...parseSpeech(layer.speech, base.speech),
     ...parseTranscription(layer.transcription, base.transcription),
+    ...parseVideo(layer.video, base.video),
   };
 }
 
@@ -425,6 +452,64 @@ function parseTranscription(
       profile: (v.profile as string | undefined) ?? 'openai',
       model: v.model as string,
       ...(price !== undefined ? { pricePerMinute: price } : {}),
+    },
+  };
+}
+
+function parseVideo(value: unknown, base: VideoConfig | undefined): { video?: VideoConfig } {
+  if (value === undefined) return base ? { video: base } : {};
+  const v = mediaBlock(
+    'video',
+    value,
+    base,
+    '{ "model": "google/veo-3.1-fast-generate-001", "pricePerSecond": 0.15 }',
+  );
+  const positive = (key: string, x: unknown, fallback: number): number => {
+    if (x === undefined) return fallback;
+    if (typeof x !== 'number' || !(x > 0))
+      throw new Error(`"video.${key}" must be a positive number.`);
+    return x;
+  };
+  if (v.pricePerSecond === undefined) {
+    throw new Error(
+      '"video.pricePerSecond" is required: the per-job cost cap needs it. Take it from your provider\'s price page.',
+    );
+  }
+  const price = optionalPrice('video.pricePerSecond', v.pricePerSecond) as number;
+  if (
+    v.aspectRatio !== undefined &&
+    (typeof v.aspectRatio !== 'string' || !/^\d+:\d+$/.test(v.aspectRatio))
+  ) {
+    throw new Error(
+      `Invalid "video.aspectRatio": ${JSON.stringify(v.aspectRatio)}. Use W:H, e.g. "16:9".`,
+    );
+  }
+  if (
+    v.resolution !== undefined &&
+    (typeof v.resolution !== 'string' || !SIZE.test(v.resolution))
+  ) {
+    throw new Error(
+      `Invalid "video.resolution": ${JSON.stringify(v.resolution)}. Use WIDTHxHEIGHT, e.g. "1280x720".`,
+    );
+  }
+  for (const k of ['apiKeyEnv', 'baseURL', 'dir'] as const) {
+    if (v[k] !== undefined && (typeof v[k] !== 'string' || !(v[k] as string).trim())) {
+      throw new Error(`"video.${k}" must be a string.`);
+    }
+  }
+  return {
+    video: {
+      model: v.model as string,
+      apiKeyEnv: (v.apiKeyEnv as string | undefined) ?? 'AI_GATEWAY_API_KEY',
+      ...(v.baseURL ? { baseURL: v.baseURL as string } : {}),
+      duration: positive('duration', v.duration, 5),
+      ...(v.aspectRatio ? { aspectRatio: v.aspectRatio as VideoConfig['aspectRatio'] } : {}),
+      ...(v.resolution ? { resolution: v.resolution as VideoConfig['resolution'] } : {}),
+      pricePerSecond: price,
+      maxCostPerJob: positive('maxCostPerJob', v.maxCostPerJob, 2),
+      pollSeconds: positive('pollSeconds', v.pollSeconds, 10),
+      timeoutMinutes: positive('timeoutMinutes', v.timeoutMinutes, 20),
+      dir: (v.dir as string | undefined) ?? 'videos',
     },
   };
 }

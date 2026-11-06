@@ -1,6 +1,7 @@
 /**
  * Wires config → provider → permissions → agent → session. Shared by the REPL and headless mode.
  */
+import type { Experimental_VideoModelV4 as VideoModel } from '@ai-sdk/provider';
 import type { ImageModel, LanguageModel, SpeechModel, TranscriptionModel } from 'ai';
 import { Agent, type AgentEvents, type CompactionOptions } from './agent.ts';
 import {
@@ -27,11 +28,13 @@ import {
   createModel,
   createSpeechModel,
   createTranscriptionModel,
+  createVideoModel,
 } from './providers.ts';
 import { Session, type SessionMeta } from './session.ts';
 import { createImageTool } from './tools/image.ts';
 import { type AnyTool, toolsForMode } from './tools/index.ts';
 import { createSpeakTool, createTranscribeTool } from './tools/speech.ts';
+import { createVideoTool } from './tools/video.ts';
 import {
   assertNoYolo,
   assertProfileAllowed,
@@ -65,6 +68,8 @@ export interface RuntimeOptions {
   /** Test seams for the speech tools (T5). */
   speechModel?: SpeechModel;
   transcriptionModel?: TranscriptionModel;
+  /** Test seam for the video tool (T6). */
+  videoModel?: VideoModel;
   /** Use this model instead of building one from the profile (tests, the eval harness). */
   languageModel?: LanguageModel;
   /** Use this config instead of loading it from cwd (the eval harness runs in temp dirs). */
@@ -224,6 +229,16 @@ export class Runtime {
           createTranscriptionModel(profileOf(transcription.profile), transcription.model);
         return createTranscribeTool({ config: transcription, model, remote }) as AnyTool;
       });
+    }
+    // Video goes through the AI Gateway, not a profile; it is always remote.
+    const video = this.config.video;
+    if (video) {
+      try {
+        const model = opts.videoModel ?? createVideoModel(video);
+        tools.push(createVideoTool({ config: video, model }) as AnyTool);
+      } catch (err) {
+        opts.events.onNotice?.(`The video tool is off: ${(err as Error).message}`);
+      }
     }
     return tools;
   }

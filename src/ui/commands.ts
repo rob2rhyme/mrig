@@ -23,6 +23,7 @@ const MEDIA_LABELS: Record<string, { label: string; priceKey: string }> = {
   image: { label: 'images', priceKey: 'image.pricePerImage' },
   speech: { label: 'speech', priceKey: 'speech.pricePerMillionChars' },
   transcription: { label: 'transcriptions', priceKey: 'transcription.pricePerMinute' },
+  video: { label: 'videos', priceKey: 'video.pricePerSecond' },
 };
 
 /** Run a `/command`. Returns true when the UI should exit. */

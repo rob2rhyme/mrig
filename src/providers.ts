@@ -2,8 +2,10 @@
  * One provider layer for every backend. Swap models by editing config, not code.
  */
 import { createAnthropic } from '@ai-sdk/anthropic';
+import { createGateway } from '@ai-sdk/gateway';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import type { Experimental_VideoModelV4 as VideoModel } from '@ai-sdk/provider';
 import type {
   ImageModel,
   LanguageModel,
@@ -11,7 +13,13 @@ import type {
   SpeechModel,
   TranscriptionModel,
 } from 'ai';
-import { type CacheTtl, type Pricing, type ProviderProfile, resolveApiKey } from './config.ts';
+import {
+  type CacheTtl,
+  type Pricing,
+  type ProviderProfile,
+  resolveApiKey,
+  type VideoConfig,
+} from './config.ts';
 
 /** USD per million tokens for known hosted models. Local/openai-compatible default to free. */
 export const KNOWN_PRICING: Array<{ match: RegExp; pricing: Pricing }> = [
@@ -284,4 +292,23 @@ export function createTranscriptionModel(
   env: NodeJS.ProcessEnv = process.env,
 ): TranscriptionModel {
   return audioClient(profile, 'transcription', env).transcription(modelId);
+}
+
+/**
+ * A video model (T6) through the Vercel AI Gateway, which serves many providers' video models
+ * under one key. Video is cloud-only, so offline mode drops the tool.
+ */
+export function createVideoModel(
+  config: VideoConfig,
+  env: NodeJS.ProcessEnv = process.env,
+): VideoModel {
+  const apiKey = env[config.apiKeyEnv];
+  if (!apiKey) {
+    throw new ProviderError(
+      `No key for the AI Gateway. Set ${config.apiKeyEnv}, or "video.apiKeyEnv" to the variable that holds it.`,
+    );
+  }
+  return createGateway({ apiKey, ...(config.baseURL ? { baseURL: config.baseURL } : {}) }).video(
+    config.model,
+  );
 }

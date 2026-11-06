@@ -36,7 +36,8 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   image/* type when the profile has `vision`; the transcript keeps a file:// URL, and
   `resolveImages()` reads the bytes just before each request.
 - `src/tools/image.ts` — image generation (T4); `src/tools/speech.ts` — `speak` and
-  `transcribe` (T5). Built per runtime from the global `image`, `speech` and `transcription`
+  `transcribe` (T5); `src/tools/video.ts` — `video` (T6), through the AI Gateway
+  (`@ai-sdk/gateway`), with the per-job cost cap checked before a job starts. Built per runtime from the global `image`, `speech` and `transcription`
   config by `Runtime.buildMediaTools()`; never read-only; remote unless the profile is local.
   `src/tools/media.ts` holds the shared file naming, saving and price display.
   Tools report media cost through `ctx.recordMedia`, which `Agent.cost()` adds in.

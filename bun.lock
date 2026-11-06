@@ -6,6 +6,7 @@
       "name": "mrig",
       "dependencies": {
         "@ai-sdk/anthropic": "^4.0.54",
+        "@ai-sdk/gateway": "4.0.82",
         "@ai-sdk/mcp": "^2.0.91",
         "@ai-sdk/openai": "^4.0.67",
         "@ai-sdk/openai-compatible": "^3.0.49",
