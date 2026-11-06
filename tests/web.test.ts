@@ -8,7 +8,13 @@ import { lineDiff } from '../web/diff.ts';
 import { highlight } from '../web/highlight.ts';
 import { detectHost, fileRef, parseFromHost } from '../web/host.ts';
 import { type Inline, parseInline, parseMarkdown } from '../web/markdown.ts';
-import { type AppState, INITIAL_STATE, reduce, waitingAsks } from '../web/model.ts';
+import {
+  type AppState,
+  INITIAL_STATE,
+  MAC_ONLY_COMMANDS,
+  reduce,
+  waitingAsks,
+} from '../web/model.ts';
 
 const STATUS = { model: 'local/m', tokensIn: 0, tokensOut: 0, contextPct: 0, yolo: false };
 const OPTIONS = { providers: ['claude', 'local'], modes: ['default', 'learn'], varieties: ['mgp'] };
@@ -308,5 +314,26 @@ describe('the host bridge (U4)', () => {
     ]) {
       expect(fileRef(not)).toBeUndefined();
     }
+  });
+});
+
+describe('another device in the view model (U3)', () => {
+  test('hello.ok says whether this is another device; a refusal keeps its reason', () => {
+    const remote = reduce(INITIAL_STATE, {
+      type: 'hello.ok',
+      protocol: 1,
+      version: 't',
+      remote: true,
+    });
+    expect(remote).toMatchObject({ connection: 'open', remote: true });
+    expect(reduce(INITIAL_STATE, { type: 'hello.ok', protocol: 1, version: 't' }).remote).toBe(
+      false,
+    );
+    const refused = reduce(INITIAL_STATE, { type: 'local.refused', reason: 'No Funnel.' });
+    expect(refused).toMatchObject({ connection: 'refused', refused: 'No Funnel.' });
+  });
+
+  test('/yolo is not offered on another device', () => {
+    expect(MAC_ONLY_COMMANDS).toEqual(['/yolo']);
   });
 });

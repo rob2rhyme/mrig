@@ -3,9 +3,10 @@ import { MODE_NAMES, type ModeName, parseMode } from '../modes.ts';
 /** `mrig app …` (Track 4, U2). */
 export type AppCommand =
   | { action: 'run'; open: boolean; pair: boolean }
-  | { action: 'allow'; name: string }
+  | { action: 'allow'; name: string; login?: string }
   | { action: 'devices' }
-  | { action: 'revoke'; name: string };
+  | { action: 'revoke'; name: string }
+  | { action: 'service'; what: 'install' | 'remove' | 'status' };
 
 export interface CliArgs {
   prompt?: string;
@@ -55,8 +56,9 @@ Usage:
   mrig init                              write a starter ~/.mrig/config.json
   mrig serve [--port <n>] [--with-app]   local app server for the app front ends (127.0.0.1 only)
   mrig app [--port <n>] [--no-open]      the mrig web app on this Mac (installable; 127.0.0.1 only)
-  mrig app allow add <name>              allow a device and show its one-time pairing code
+  mrig app allow add <name> [--login <x>]  allow a device and show its one-time pairing code
   mrig app devices                       list allowed devices; mrig app revoke <name> removes one
+  mrig app service install|remove|status keep mrig app running in the background (macOS)
 
 Options:
   -p, --print <prompt>     Run a single prompt non-interactively and exit
@@ -77,6 +79,7 @@ Options:
       --port <n>           With serve or app: the port (serve: a free one; app: 4747 or app.port)
       --no-open            With app: don't open the browser
       --pair               With app: pair this Mac's browser again
+      --login <x>          With app allow add: only this Tailscale login may use the device
       --doctor             Same as "mrig doctor"
       --init               Same as "mrig init"
   -v, --version            Print version
@@ -106,6 +109,7 @@ export function parseArgs(argv: string[]): CliArgs {
   let appWord = false;
   let noOpen = false;
   let pairAgain = false;
+  let login: string | undefined;
   const take = (flag: string, i: number): string => {
     const v = argv[i + 1];
     if (v === undefined || v.startsWith('-')) throw new Error(`Missing value for ${flag}`);
@@ -154,6 +158,12 @@ export function parseArgs(argv: string[]): CliArgs {
       case '--no-open':
         noOpen = true;
         break;
+      case '--login': {
+        const v = argv[++i];
+        if (!v) throw new Error('--login needs a Tailscale login, like you@example.com');
+        login = v;
+        break;
+      }
       case '--pair':
         pairAgain = true;
         break;
@@ -230,12 +240,21 @@ export function parseArgs(argv: string[]): CliArgs {
     const [w1, w2, w3, ...extra] = positional;
     if (positional.length === 0) args.app = { action: 'run', open: !noOpen, pair: pairAgain };
     else if (w1 === 'allow' && w2 === 'add' && w3 && extra.length === 0)
-      args.app = { action: 'allow', name: w3 };
+      args.app = { action: 'allow', name: w3, ...(login !== undefined ? { login } : {}) };
+    else if (
+      w1 === 'service' &&
+      (w2 === 'install' || w2 === 'remove' || w2 === 'status') &&
+      positional.length === 2
+    )
+      args.app = { action: 'service', what: w2 };
     else if (w1 === 'devices' && positional.length === 1) args.app = { action: 'devices' };
     else if (w1 === 'revoke' && w2 && positional.length === 2)
       args.app = { action: 'revoke', name: w2 };
     else positional.unshift('app');
     if (args.app) positional.length = 0;
+  }
+  if (login !== undefined && args.app?.action !== 'allow') {
+    throw new Error('--login works with mrig app allow add <name>');
   }
   if ((noOpen || pairAgain) && args.app?.action !== 'run') {
     throw new Error(`${noOpen ? '--no-open' : '--pair'} works with mrig app`);

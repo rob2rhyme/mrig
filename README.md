@@ -448,7 +448,7 @@ stays the default until the TUI has had more real use.
 mrig as an app on your Mac: conversations in a sidebar, replies as they stream, tool calls as
 cards (edits shown as a diff), permission requests with **Allow once / Always allow / Deny**
 buttons, a Stop button, model and mode pickers, and a status bar. It installs into the Dock and
-opens in its own window.
+opens in its own window, and on your phone's home screen through Tailscale (below).
 
 ```bash
 mrig app
@@ -487,13 +487,70 @@ mrig app revoke ipad         # remove it; any window it has open closes within s
   without use.
 - **What's stored:** the file keeps only hashes of codes and keys, never the codes or keys
   themselves. Pairings, failures and revocations are logged to `~/.mrig/app/access.log`.
-- **This Mac only, for now:** the app listens on `127.0.0.1` only. Using it from your phone, over
-  Tailscale, comes next (U3).
+- **Local only:** the app listens on `127.0.0.1` only. Other devices reach it through Tailscale
+  (below), never directly.
 
 Options: `--port <n>` (or `"app": { "port": 4747 }` in `~/.mrig/config.json`), `--no-open`,
 `--pair` (pair this Mac's browser again), and `-P`, `-m`, `--offline`, `--mode` as for an
 interactive session. If `mrig app` is already running, a second `mrig app` just opens the
 browser.
+
+### On your phone, through Tailscale
+
+[Tailscale](https://tailscale.com) is a private network between your own devices. It works from
+anywhere, not just home Wi-Fi, and gives the Mac an HTTPS address that only your devices can
+reach. mrig never listens on your Wi-Fi or the internet.
+
+Set it up once:
+
+1. Install Tailscale on the Mac and the phone, signed in to the same account.
+2. In Tailscale's admin console, under **DNS**, turn on **HTTPS Certificates** (Serve needs it).
+3. On the Mac, forward the Tailscale address to the app (it stays set across restarts):
+
+   ```bash
+   tailscale serve --bg 4747
+   ```
+
+   On a Mac with the Tailscale app, the command line is
+   `/Applications/Tailscale.app/Contents/MacOS/Tailscale`.
+4. Allow the phone and get its pairing code:
+
+   ```bash
+   mrig app allow add phone
+   ```
+
+   `mrig app` prints the address, `https://<your-mac>.<tailnet>.ts.net`.
+5. Open that address on the phone, enter `phone` and the code, then **Share → Add to Home
+   Screen**.
+
+What another device can do:
+- **Chat, switch models and modes, resume conversations, stop a turn:** everything as on the Mac.
+- **Answer permission requests with Allow once or Deny only.** There is no **Always allow** and
+  no `/yolo`, so a lost or borrowed phone can't widen what mrig may do. Those stay on the Mac.
+
+Locking it down further:
+- **Pin a device to your Tailscale login:** `mrig app allow add phone --login you@example.com`.
+  It then works only through Tailscale, signed in as you, so a copied cookie is no use anywhere
+  else.
+- **Funnel is refused.** Tailscale Funnel would put the address on the public internet; mrig
+  refuses every request that comes through it and says why. Use `tailscale serve`, never
+  `tailscale funnel`.
+- **`mrig app revoke phone`** closes its open window within seconds.
+
+mrig finds the Mac's Tailscale name with `tailscale status`. If it can't, set it in
+`~/.mrig/config.json`: `"app": { "tailscaleHost": "mac.tail1234.ts.net" }`.
+
+**Keep it running.** The phone can reach mrig only while the Mac is on and awake with
+`mrig app` running. To run it in the background and start it at login (macOS):
+
+```bash
+mrig app service install     # a LaunchAgent; output goes to ~/.mrig/app/service.log
+mrig app service status
+mrig app service remove
+```
+
+It starts through your login shell, so API keys you export in `~/.zshrc` reach it. No key is
+written into the service file.
 
 ## App server (`mrig serve`)
 
@@ -840,7 +897,7 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Track 4 U1: the app server (`mrig serve`); U2: the web app (`mrig app`, an installable PWA with a device allowlist); U4: the VS Code extension (`vscode/`). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Track 4 U1: the app server (`mrig serve`); U2: the web app (`mrig app`, an installable PWA with a device allowlist); U3: other devices through Tailscale; U4: the VS Code extension (`vscode/`). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3.
 
 ## License

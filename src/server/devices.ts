@@ -9,6 +9,8 @@
  * - Pairing swaps the code for a device key (32 random bytes) held in an HttpOnly cookie. The
  *   file keeps only SHA-256 hashes of codes and keys, never the values.
  * - A key is good until the device is revoked or goes 90 days unseen.
+ * - A device can be pinned to a Tailscale login (U3): it then logs in only through Tailscale
+ *   Serve, as that user, so a copied cookie is no use from anywhere else.
  * - Every change re-reads the file first, so a revoke from the terminal is never overwritten by
  *   a running server's stale copy.
  * - Every pairing, login failure and revocation is appended to `access.log` (never a secret).
@@ -32,6 +34,13 @@ export const COOKIE_NAME = 'mrig_device';
 export const PAIRING_MINUTES = 10;
 export const PAIRING_TRIES = 5;
 export const KEY_IDLE_DAYS = 90;
+/** Where a request came from, as `requestFrom` in security.ts sorted it. */
+export interface LoginFrom {
+  remote: boolean;
+  /** The Tailscale login Serve gave, for a remote request. */
+  login?: string;
+}
+
 /** No 0/O, 1/I/L: easy to read off one screen and type on another. */
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 8;
@@ -46,6 +55,8 @@ export interface Device {
   keyHash?: string;
   pairedAt?: string;
   lastSeen?: string;
+  /** The Tailscale login it must come from (`Tailscale-User-Login`), when pinned. */
+  login?: string;
   /** An open pairing: SHA-256 of the code, when it expires, wrong tries so far. */
   pairing?: { codeHash: string; expires: string; tries: number };
 }
@@ -108,9 +119,16 @@ export class DeviceStore {
   /**
    * Allow a device, or give an allowed one a fresh pairing code. Returns the code; only its
    * hash is kept. An already-paired device keeps working until the new code is used.
+   * `login` pins it to a Tailscale login; without it, an existing pin stays.
    */
-  allow(name: string): string {
+  allow(name: string, opts: { login?: string } = {}): string {
     assertDeviceName(name);
+    const login = opts.login?.trim().toLowerCase();
+    if (opts.login !== undefined && !/^[^\s@]+@[^\s@]+$/.test(login ?? '')) {
+      throw new Error(
+        `"${opts.login}" doesn't look like a Tailscale login, like you@example.com or you@github.`,
+      );
+    }
     const code = newPairingCode();
     this.update((file) => {
       let device = file.devices.find((d) => d.name === name);
@@ -118,6 +136,7 @@ export class DeviceStore {
         device = { name, createdAt: this.iso() };
         file.devices.push(device);
       }
+      if (login) device.login = login;
       device.pairing = {
         codeHash: sha256(code),
         expires: new Date(this.now() + PAIRING_MINUTES * 60_000).toISOString(),
@@ -165,8 +184,15 @@ export class DeviceStore {
     return result;
   }
 
-  /** The device a cookie value (`<name>.<key>`) belongs to, or undefined. Notes it as seen. */
-  verify(cookie: string | undefined, address = '-'): string | undefined {
+  /**
+   * The device a cookie value (`<name>.<key>`) belongs to, or undefined. Notes it as seen. A
+   * pinned device must come through Tailscale as its login.
+   */
+  verify(
+    cookie: string | undefined,
+    address = '-',
+    from: LoginFrom = { remote: false },
+  ): string | undefined {
     if (!cookie) return undefined;
     const dot = cookie.indexOf('.');
     const name = cookie.slice(0, dot);
@@ -180,6 +206,10 @@ export class DeviceStore {
         KEY_IDLE_DAYS * 86_400_000;
     if (!ok) {
       this.audit('login-failed', name, address);
+      return undefined;
+    }
+    if (device.login && !(from.remote && from.login?.toLowerCase() === device.login)) {
+      this.audit('login-failed:pin', name, address);
       return undefined;
     }
     if (this.now() - Date.parse(device.lastSeen ?? '') > SEEN_EVERY_MS) {

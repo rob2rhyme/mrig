@@ -184,6 +184,13 @@ function App() {
   }
 
   if (state.connection === 'unauthorized') return <PairScreen onPaired={start} />;
+  if (state.connection === 'refused') {
+    return (
+      <main className="connecting" role="alert">
+        {state.refused}
+      </main>
+    );
+  }
   // Until the login check answers, show neither the app nor the pairing screen.
   if (state.connection === 'connecting' && state.order.length === 0) {
     return (

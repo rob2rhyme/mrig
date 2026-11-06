@@ -210,6 +210,39 @@ Needs: VS Code, and `mrig` on your PATH (or in `~/.local/bin`, `/opt/homebrew/bi
 **Pass:** everything above works. As with the web app, write down anything that feels wrong
 and send that list.
 
+## 9. Your phone, through Tailscale (Track 4, U3)
+
+Needs: Tailscale on the Mac and the phone, signed in to the same account; HTTPS certificates
+turned on in Tailscale's admin console (**DNS → HTTPS Certificates**). Costs: a few cents.
+
+- [ ] On the Mac, forward the Tailscale address to the app, then start it:
+
+  ```bash
+  tailscale serve --bg 4747
+  ```
+
+  ```bash
+  mrig app
+  ```
+
+  It prints `Other devices: https://<your-mac>.<tailnet>.ts.net`. (If it prints a
+  `tailscale serve` hint instead, Serve isn't pointing at 4747 yet.)
+- [ ] Allow the phone, pinned to your Tailscale login:
+
+  ```bash
+  mrig app allow add phone --login you@example.com
+  ```
+- [ ] On the phone, open the `https://…ts.net` address in Safari, enter `phone` and the code,
+  then **Share → Add to Home Screen** and open it from there.
+- [ ] Open the mrig folder, choose **claude**, and ask for a small change. The permission request
+  shows **Allow once** and **Deny** only; tap **Allow once**.
+- [ ] Optional: `mrig app service install`, restart the Mac, and check the phone still connects
+  without a terminal open.
+- [ ] `mrig app revoke phone`: the phone's window closes within seconds.
+
+**Pass:** everything above works. Write down anything that feels wrong on the phone and send
+that list.
+
 ## Not here
 
 - **The A1 font spike** runs in the GurbachhanAkkhaRik font repo, not mrig. The kit (the re-encoding script, the test words and the browser page) and its steps are in [`tools/akkha-spike/`](../tools/akkha-spike/README.md); the plan is in [the encoding decision](decisions/2026-09-23-akkha-encoding.md) under "Font spike".
