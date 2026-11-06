@@ -36,6 +36,8 @@ export interface CliArgs {
   port?: number;
   /** `mrig app …`: the web app and its device allowlist (Track 4, U2). */
   app?: AppCommand;
+  /** `--with-app` (with serve): also serve the web app, for the VS Code panel (U4). */
+  withApp?: boolean;
   /** `--mode <name>` (T1). */
   mode?: ModeName;
   /** `--variety <tag>` (T8): the tutor mode's variety. */
@@ -51,7 +53,7 @@ Usage:
   mrig -p "prompt" [options]             headless: run once, print, exit
   mrig doctor [-P <name>] [-m <id>]      check model ids against each provider's model list
   mrig init                              write a starter ~/.mrig/config.json
-  mrig serve [--port <n>]                local app server for the app front ends (127.0.0.1 only)
+  mrig serve [--port <n>] [--with-app]   local app server for the app front ends (127.0.0.1 only)
   mrig app [--port <n>] [--no-open]      the mrig web app on this Mac (installable; 127.0.0.1 only)
   mrig app allow add <name>              allow a device and show its one-time pairing code
   mrig app devices                       list allowed devices; mrig app revoke <name> removes one
@@ -145,6 +147,9 @@ export function parseArgs(argv: string[]): CliArgs {
       }
       case '--cwd':
         args.cwd = take(a, i++);
+        break;
+      case '--with-app':
+        args.withApp = true;
         break;
       case '--no-open':
         noOpen = true;
@@ -244,5 +249,6 @@ export function parseArgs(argv: string[]): CliArgs {
     throw new Error('--port works with mrig serve or mrig app');
   }
   if (args.serve && args.prompt) throw new Error('mrig serve takes no prompt');
+  if (args.withApp && !args.serve) throw new Error('--with-app works with mrig serve');
   return args;
 }

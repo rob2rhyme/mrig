@@ -44,6 +44,23 @@ jobs:
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:e2e
 
+  # The VS Code extension (Track 4, U4), packaged as a .vsix to download from the run.
+  vscode:
+    name: VS Code extension (.vsix)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run package:vscode
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mrig-vscode
+          path: dist/mrig-vscode.vsix
+          retention-days: 30
+
   cross:
     name: ${{ matrix.os }}
     if: >-

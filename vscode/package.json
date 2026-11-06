@@ -1,0 +1,130 @@
+{
+  "name": "mrig",
+  "displayName": "mrig",
+  "description": "mrig, your local model-agnostic agent, in a VS Code panel.",
+  "version": "0.1.0",
+  "publisher": "rob2rhyme",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rob2rhyme/mrig"
+  },
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mrig",
+          "title": "mrig",
+          "icon": "media/mrig.svg"
+        }
+      ]
+    },
+    "views": {
+      "mrig": [
+        {
+          "type": "webview",
+          "id": "mrig.panel",
+          "name": "mrig"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "mrig.show",
+        "title": "Show mrig",
+        "category": "mrig"
+      },
+      {
+        "command": "mrig.askAboutSelection",
+        "title": "Ask mrig about this",
+        "category": "mrig"
+      },
+      {
+        "command": "mrig.addActiveFile",
+        "title": "Add this file to the message",
+        "category": "mrig"
+      },
+      {
+        "command": "mrig.allow",
+        "title": "Allow",
+        "category": "mrig",
+        "icon": "$(check)"
+      },
+      {
+        "command": "mrig.deny",
+        "title": "Deny",
+        "category": "mrig",
+        "icon": "$(close)"
+      },
+      {
+        "command": "mrig.restart",
+        "title": "Restart mrig",
+        "category": "mrig"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "mrig.askAboutSelection",
+          "when": "editorHasSelection",
+          "group": "mrig@1"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "mrig.allow",
+          "when": "mrig.askOpen && resourceScheme == mrig-proposed",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mrig.deny",
+          "when": "mrig.askOpen && resourceScheme == mrig-proposed",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mrig.allow",
+          "when": "mrig.askOpen"
+        },
+        {
+          "command": "mrig.deny",
+          "when": "mrig.askOpen"
+        },
+        {
+          "command": "mrig.askAboutSelection",
+          "when": "editorHasSelection"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "mrig.askAboutSelection",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "mrig",
+      "properties": {
+        "mrig.path": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Where the `mrig` program is. Leave empty to look on your PATH, then in `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin`."
+        }
+      }
+    }
+  }
+}

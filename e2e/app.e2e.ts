@@ -166,3 +166,171 @@ describe('mrig app in a browser (U2)', () => {
     expect(offsite).toEqual([]);
   });
 });
+
+/**
+ * Track 4, U4: the app inside a frame, as the VS Code panel shows it. A page on another loopback
+ * port stands in for the VS Code webview (`parent=` in the fragment, honoured only with the
+ * launch token), and a third origin plays a page trying to talk to the app.
+ */
+describe('mrig app in a host frame (U4)', () => {
+  const home = tempDir('mrig-e2e-host-home-');
+  const project = tempDir('mrig-e2e-host-proj-');
+  let server: RunningServer;
+  let host: ReturnType<typeof Bun.serve>;
+  let evil: ReturnType<typeof Bun.serve>;
+  let browser: Browser;
+
+  type Received = { origin: string; data: { type: string; [k: string]: unknown } };
+
+  beforeAll(async () => {
+    process.env.MRIG_HOME = home.dir;
+    writeFileSync(
+      join(home.dir, 'config.json'),
+      JSON.stringify({
+        providers: {
+          local: { kind: 'openai-compatible', baseURL: 'http://localhost:8000/v1', model: 'm', pricing: { input: 0, output: 0 } },
+        },
+      }),
+    );
+    writeFileSync(join(project.dir, 'notes.txt'), 'first line\nold line\nlast line\n');
+    server = startServer({
+      port: 0,
+      version: 'e2e',
+      checks: false,
+      app: APP_ASSETS,
+      runtime: {
+        provider: 'local',
+        languageModel: mockModel([
+          textTurn('The loop is in `src/agent.ts:42`, and `npm test` runs the tests.'),
+          toolTurn('edit', JSON.stringify({ path: 'notes.txt', old_string: 'old line', new_string: 'new line' }), 'e1'),
+          textTurn('Edited notes.txt.'),
+        ]),
+      },
+    });
+    // A page from another origin that keeps trying to type into the app's message box.
+    evil = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: () =>
+        new Response(
+          `<script>setInterval(() => { try { parent.frames[0].postMessage({ type: 'insert', text: 'evil' }, '*');
+            parent.frames[0].postMessage({ type: 'answer', askId: 'a1', answer: 'yes' }, '*'); } catch {} }, 50);</script>`,
+          { headers: { 'Content-Type': 'text/html' } },
+        ),
+    });
+    host = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: (req) => {
+        const mode = new URL(req.url).searchParams.get('mode');
+        const self = `http://127.0.0.1:${host.port}`;
+        const parent = mode === 'mismatch' ? `http://127.0.0.1:${evil.port}` : self;
+        const fragment =
+          mode === 'plain'
+            ? ''
+            : `#${new URLSearchParams({ host: 'vscode', token: server.token, parent, cwd: project.dir })}`;
+        return new Response(
+          `<!doctype html><body style="margin:0">
+          <iframe id="app" src="${server.url}/${fragment}" style="width:900px;height:700px;border:0"></iframe>
+          <iframe id="evil" src="http://127.0.0.1:${evil.port}/" style="display:none"></iframe>
+          <script>
+            const APP = ${JSON.stringify(server.url)};
+            window.received = [];
+            addEventListener('message', (e) => received.push({ origin: e.origin, data: e.data }));
+            window.toApp = (m) => document.getElementById('app').contentWindow.postMessage(m, APP);
+          </script></body>`,
+          { headers: { 'Content-Type': 'text/html' } },
+        );
+      },
+    });
+    browser = await chromium.launch();
+  });
+
+  afterAll(async () => {
+    await browser?.close();
+    await server?.stop();
+    host?.stop(true);
+    evil?.stop(true);
+    home.cleanup();
+    project.cleanup();
+  });
+
+  const received = (page: Page) => page.evaluate(() => (window as unknown as { received: Received[] }).received);
+  const waitFor = async (page: Page, type: string, ms = 10_000): Promise<Received['data']> => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      const hit = (await received(page)).find((r) => r.data?.type === type);
+      if (hit) return hit.data;
+      await page.waitForTimeout(50);
+    }
+    throw new Error(`no ${type} message from the app`);
+  };
+
+  test('selection in, file links and permission answers out, from the host only', async () => {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${host.port}/?mode=host`);
+    const app = page.frameLocator('#app');
+    await app.locator('.status .dot.open').waitFor();
+    await waitFor(page, 'ready');
+    // Every message out is addressed to the host and comes from the app's origin.
+    expect((await received(page)).every((r) => r.origin === server.url)).toBe(true);
+
+    // The workspace folder opens by itself; a selection from the editor lands in the box.
+    await app.getByText('New conversation in').waitFor();
+    const box = app.getByLabel('Message');
+    await page.evaluate(() => (window as unknown as { toApp: (m: unknown) => void }).toApp({ type: 'insert', text: '`src/agent.ts:40-44` ' }));
+    await page.waitForTimeout(300); // the other origin has had several tries by now
+    expect(await box.inputValue()).toBe('`src/agent.ts:40-44` ');
+
+    await box.fill('where is the loop?');
+    await box.press('Enter');
+    const link = app.locator('button.file-ref', { hasText: 'src/agent.ts:42' });
+    await link.waitFor();
+    expect(await app.locator('button.file-ref', { hasText: 'npm test' }).count()).toBe(0);
+    await link.click();
+    expect(await waitFor(page, 'open')).toEqual({ type: 'open', path: 'src/agent.ts', line: 42 });
+    const status = await waitFor(page, 'status');
+    expect(status).toMatchObject({ model: 'local/m', waiting: 0 });
+
+    // An edit asks; the host sees what it would change, and answers.
+    await box.fill('please edit the notes');
+    await box.press('Enter');
+    const ask = await waitFor(page, 'ask');
+    expect(ask).toMatchObject({
+      summary: expect.stringContaining('notes.txt'),
+      display: { kind: 'diff', path: 'notes.txt', before: 'old line', after: 'new line' },
+    });
+    expect(readFileSync(join(project.dir, 'notes.txt'), 'utf8')).toContain('old line');
+    await page.evaluate(
+      (askId) => (window as unknown as { toApp: (m: unknown) => void }).toApp({ type: 'answer', askId, answer: 'yes' }),
+      ask.askId,
+    );
+    await app.getByText('Edited notes.txt.').waitFor();
+    expect(await waitFor(page, 'ask.closed')).toEqual({ type: 'ask.closed', askId: ask.askId });
+    expect(readFileSync(join(project.dir, 'notes.txt'), 'utf8')).toBe('first line\nnew line\nlast line\n');
+    expect(await box.inputValue()).not.toContain('evil');
+    await page.close();
+  });
+
+  test('a parent that is not the one named gets nothing, and is not listened to', async () => {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${host.port}/?mode=mismatch`);
+    const app = page.frameLocator('#app');
+    await app.locator('.status .dot.open').waitFor();
+    await page.evaluate(() => (window as unknown as { toApp: (m: unknown) => void }).toApp({ type: 'insert', text: 'from the wrong parent' }));
+    await page.waitForTimeout(500);
+    expect((await received(page)).filter((r) => r.origin === server.url)).toEqual([]);
+    expect(await app.getByLabel('Message').count()).toBeLessThanOrEqual(1);
+    if (await app.getByLabel('Message').count()) {
+      expect(await app.getByLabel('Message').inputValue()).toBe('');
+    }
+    await page.close();
+  });
+
+  test('outside a host, the app refuses to be framed', async () => {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${host.port}/?mode=plain`);
+    await page.frameLocator('#app').getByText("mrig can't be shown inside another page").waitFor();
+    await page.close();
+  });
+});

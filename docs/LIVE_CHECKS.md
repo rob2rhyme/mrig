@@ -182,6 +182,34 @@ Needs: mrig built from main, and the Anthropic key from check 1. Costs: a few ce
 **Pass:** everything above works. Then write down anything that feels wrong or slow, such as
 layout, wording, or keys you expected to work, and send that list. Those fixes finish U2.
 
+## 8. The VS Code extension (Track 4, U4)
+
+Needs: VS Code, and `mrig` on your PATH (or in `~/.local/bin`, `/opt/homebrew/bin` or
+`/usr/local/bin`). Costs: a few cents.
+
+- [ ] Get the `.vsix`: open the latest `ci` run for main in the
+  [Actions tab](https://github.com/rob2rhyme/mrig/actions), download the **mrig-vscode**
+  artifact and unzip it. Then install it:
+
+  ```bash
+  code --install-extension ~/Downloads/mrig-vscode.vsix
+  ```
+
+  (If `code` isn't found: in VS Code, the Extensions view → **…** → **Install from VSIX…**.)
+- [ ] Open the mrig folder in VS Code and click the mrig icon in the activity bar. The panel
+  shows "New conversation in …/mrig". Choose **claude** in the model picker.
+- [ ] Select a few lines of `src/agent.ts`, right-click → **Ask mrig about this**. The message
+  box shows `` `src/agent.ts:…` ``. Ask what those lines do.
+- [ ] Ask "add a comment at the top of README.md". The diff editor opens with the change; click
+  **Allow** (✓) in its title bar. The edit is applied and the diff closes.
+- [ ] Ask "where is the agent loop? Give the file and line as `path:line`." Click the link in
+  the reply: `src/agent.ts` opens at that line.
+- [ ] Close the VS Code window, then check no server is left: `pgrep -fl "mrig serve"` prints
+  nothing.
+
+**Pass:** everything above works. As with the web app, write down anything that feels wrong
+and send that list.
+
 ## Not here
 
 - **The A1 font spike** runs in the GurbachhanAkkhaRik font repo, not mrig. The kit (the re-encoding script, the test words and the browser page) and its steps are in [`tools/akkha-spike/`](../tools/akkha-spike/README.md); the plan is in [the encoding decision](decisions/2026-09-23-akkha-encoding.md) under "Font spike".

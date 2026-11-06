@@ -2,12 +2,22 @@
  * The web app's views (Track 4, U2). They only draw `AppState` (model.ts) and send protocol
  * messages; the behaviour lives in the reducer and the server.
  */
-import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  Fragment,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ClientMessage } from '../src/server/protocol.ts';
 import type { ToolDisplay } from '../src/tools/types.ts';
 import { pair, upload } from './connection.ts';
 import { lineDiff } from './diff.ts';
 import { highlight } from './highlight.ts';
+import { fileRef } from './host.ts';
 import { type Block, type Inline, parseMarkdown } from './markdown.ts';
 import type { AppState, ConversationView, Entry, LocalAction, ToolCard } from './model.ts';
 
@@ -19,13 +29,51 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ---------- markdown ----------
 
+/** Opens a file in the host's editor (VS Code, U4); absent in a plain browser. */
+export const OpenFileContext = createContext<
+  ((ref: { path: string; line?: number }) => void) | undefined
+>(undefined);
+
+/** Put text in the message box: appended, or (`replace`) instead of what is there. */
+export function insertIntoComposer(text: string, replace = false): void {
+  window.dispatchEvent(new CustomEvent('mrig:insert', { detail: { text, replace } }));
+}
+
+/** Inline code, clickable when it names a file and a host can open it. */
+function CodeSpan({ text }: { text: string }) {
+  const open = useContext(OpenFileContext);
+  const ref = open ? fileRef(text) : undefined;
+  if (!open || !ref) return <code>{text}</code>;
+  return (
+    <button type="button" className="file-ref" title="Open in the editor" onClick={() => open(ref)}>
+      <code>{text}</code>
+    </button>
+  );
+}
+
+/** A path on a tool card, clickable when a host can open it. */
+function PathLabel({ path }: { path: string }) {
+  const open = useContext(OpenFileContext);
+  if (!open) return <div className="path">{path}</div>;
+  return (
+    <button
+      type="button"
+      className="path file-ref"
+      title="Open in the editor"
+      onClick={() => open({ path })}
+    >
+      {path}
+    </button>
+  );
+}
+
 function Inlines({ nodes }: { nodes: Inline[] }): ReactNode {
   return nodes.map((n, i) => {
     switch (n.type) {
       case 'text':
         return <Fragment key={i}>{n.text}</Fragment>;
       case 'code':
-        return <code key={i}>{n.text}</code>;
+        return <CodeSpan key={i} text={n.text} />;
       case 'strong':
         return (
           <strong key={i}>
@@ -212,21 +260,21 @@ function DisplayView({ display }: { display: ToolDisplay }) {
     case 'diff':
       return (
         <>
-          <div className="path">{display.path}</div>
+          <PathLabel path={display.path} />
           <DiffView before={display.before} after={display.after} />
         </>
       );
     case 'file':
       return (
         <>
-          <div className="path">{display.path}</div>
+          <PathLabel path={display.path} />
           <CodeBlock text={display.content} lang={langOfPath(display.path)} />
         </>
       );
     case 'command':
       return <CodeBlock text={display.command} lang="sh" />;
     case 'path':
-      return <div className="path">{display.path}</div>;
+      return <PathLabel path={display.path} />;
   }
 }
 
@@ -427,6 +475,17 @@ function Composer({ conv, send, token }: { conv: ConversationView; send: Send; t
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refocus on conversation change
   useEffect(() => box.current?.focus(), [conv.conversation]);
+
+  // Text from the command palette or the host (VS Code's "Ask mrig about this").
+  useEffect(() => {
+    const onInsert = (e: Event) => {
+      const { text: add, replace } = (e as CustomEvent<{ text: string; replace: boolean }>).detail;
+      setText((t) => (replace || !t.trim() ? add : `${t.trimEnd()}\n${add}`));
+      box.current?.focus();
+    };
+    window.addEventListener('mrig:insert', onInsert);
+    return () => window.removeEventListener('mrig:insert', onInsert);
+  }, []);
 
   return (
     <form
@@ -993,13 +1052,7 @@ export function Shell({
 
   const fill = (text: string) => {
     setPalette(false);
-    const box = document.querySelector<HTMLTextAreaElement>('.composer textarea');
-    if (box) {
-      // Let React see the change: set through the native setter, then fire an input event.
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(box, text);
-      box.dispatchEvent(new Event('input', { bubbles: true }));
-      box.focus();
-    }
+    insertIntoComposer(text, true);
   };
 
   return (
