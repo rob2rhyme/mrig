@@ -137,7 +137,7 @@ describe('tutor (T8)', () => {
     expect(corpus).toContain('(2 forms in other varieties not shown)');
     expect(translit?.split('\n')[0]).toBe(devaToAkkha('आमा').text);
     expect(learned).toBe(
-      'Recorded: आमा (mother) (mgp) is practising, 1/1 right, next review ' + learned?.slice(-11),
+      `Recorded: आमा (mother) (mgp) is practising, 1/1 right, next review ${learned?.slice(-11)}`,
     );
     expect(refused).toContain('This tutor session is for mgp; record kgj topics in a kgj session');
     const saved = loadLearner(join(home.dir, 'learner.json'));

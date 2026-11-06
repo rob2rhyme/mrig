@@ -33,12 +33,14 @@ import {
   createTranscriptionModel,
   createVideoModel,
 } from './providers.ts';
+import { classify, type RouteDecision, type Tier } from './routing.ts';
 import { Session, type SessionMeta } from './session.ts';
 import { createImageTool } from './tools/image.ts';
 import { type AnyTool, toolsForMode } from './tools/index.ts';
 import { createLearnedTool } from './tools/learned.ts';
 import { createSpeakTool, createTranscribeTool } from './tools/speech.ts';
 import { createVideoTool } from './tools/video.ts';
+import { findImagePaths } from './vision.ts';
 import {
   assertNoYolo,
   assertProfileAllowed,
@@ -78,6 +80,10 @@ export interface RuntimeOptions {
   videoModel?: VideoModel;
   /** Use this model instead of building one from the profile (tests, the eval harness). */
   languageModel?: LanguageModel;
+  /** Test seam: the model for a profile that routing or /provider switches to. */
+  languageModelFor?: (profile: string) => LanguageModel | undefined;
+  /** Model routing (T7) when the config has `routing`; off when -P or -m chose a model. */
+  routing?: boolean;
   /** Use this config instead of loading it from cwd (the eval harness runs in temp dirs). */
   config?: MrigConfig;
   ask: AskFn;
@@ -161,6 +167,8 @@ export class Runtime {
     }
 
     this.mediaTools = this.buildMediaTools(opts);
+    this.modelFor = opts.languageModelFor;
+    this.route = { active: this.routingUsable(opts.routing ?? true) };
     // An explicit --mode wins; a resumed session keeps the mode (and variety) it was saved with.
     const saved = this.session.meta.mode;
     const mode = opts.mode ?? (saved && isModeName(saved) ? saved : 'default');
@@ -357,11 +365,103 @@ export class Runtime {
     };
   }
 
-  /** Switch provider and/or model mid-session, keeping the transcript. */
+  // ---- model routing (T7) ----
+
+  /** Routing state: whether it's on, a pinned tier (/route easy|hard), and the last decision. */
+  route: { active: boolean; pinned?: Tier; last?: RouteDecision & { profile: string } };
+  private modelFor: RuntimeOptions['languageModelFor'];
+  private routeFallbackShown = false;
+
+  /** Routing needs a `routing` block whose two profiles exist; otherwise it stays off. */
+  private routingUsable(wanted: boolean): boolean {
+    const r = this.config.routing;
+    if (!r || !wanted) return false;
+    try {
+      resolveProfile(this.config, r.easy);
+      resolveProfile(this.config, r.hard);
+      return true;
+    } catch (err) {
+      this.events.onNotice?.(`Routing is off: ${(err as Error).message}`);
+      return false;
+    }
+  }
+
+  /** Whether a tier's profile may run here (offline mode allows local profiles only). */
+  private tierAllowed(tier: Tier): boolean {
+    const name = this.config.routing?.[tier];
+    if (!name) return false;
+    return !this.offline || isLocalProfile(resolveProfile(this.config, name).profile);
+  }
+
+  /**
+   * Route one message (T7): pick the tier by rules, switch to its profile if needed, and say
+   * which and why. Returns the message to send (a `!easy` / `!hard` prefix removed).
+   */
+  routeMessage(text: string): string {
+    const r = this.config.routing;
+    if (!r || !this.route.active) return text;
+    const vision = (t: Tier) => resolveProfile(this.config, r[t]).profile.vision === true;
+    const decision: RouteDecision = this.route.pinned
+      ? {
+          tier: this.route.pinned,
+          reason: 'pinned with /route',
+          text: text.replace(/^\s*!(easy|hard)\b\s*/i, ''),
+        }
+      : classify(text, r, {
+          hasImages: findImagePaths(text, this.cwd).images.length > 0,
+          vision: { easy: vision('easy'), hard: vision('hard') },
+        });
+    let tier = decision.tier;
+    if (!this.tierAllowed(tier)) {
+      const other: Tier = tier === 'easy' ? 'hard' : 'easy';
+      if (!this.tierAllowed(other)) return decision.text; // nothing usable: stay where we are
+      if (!this.routeFallbackShown) {
+        this.routeFallbackShown = true;
+        this.events.onNotice?.(
+          `Offline mode: the ${tier} profile (${r[tier]}) is not local, so its messages go to ${r[other]}.`,
+        );
+      }
+      tier = other;
+    }
+    const profile = r[tier];
+    if (profile !== this.providerName) this.switchTo(profile);
+    this.route.last = { ...decision, tier, profile };
+    this.events.onNotice?.(`→ ${this.modelLabel()} (${tier}: ${decision.reason})`);
+    return decision.text;
+  }
+
+  /** `/route on|off|easy|hard`. On (or a pin) only when both profiles exist; returns whether it's on. */
+  setRouting(state: 'on' | 'off' | Tier): boolean {
+    delete this.route.pinned;
+    if (state === 'off') {
+      this.route.active = false;
+      return false;
+    }
+    this.route.active = this.routingUsable(true);
+    if (this.route.active && state !== 'on') this.route.pinned = state;
+    return this.route.active;
+  }
+
+  /** Route the message, then run the turn. The REPL, the TUI and headless mode all use this. */
+  runTurn(text: string, signal?: AbortSignal): ReturnType<Agent['run']> {
+    return this.agent.run(this.routeMessage(text), signal);
+  }
+
+  /** Switch provider and/or model mid-session, keeping the transcript. Turns routing off. */
   switchModel(provider?: string, model?: string): void {
-    const resolved = resolveProfile(this.config, provider ?? this.providerName, model);
+    this.switchTo(provider ?? this.providerName, model);
+    if (this.route.active) {
+      this.route.active = false;
+      this.events.onNotice?.(
+        'Routing is off for this session, because you chose a model. /route on turns it back on.',
+      );
+    }
+  }
+
+  private switchTo(provider: string, model?: string): void {
+    const resolved = resolveProfile(this.config, provider, model);
     assertProfileAllowed(resolved.name, resolved.profile, this.offline);
-    const nextModel = createModel(resolved.profile);
+    const nextModel = this.modelFor?.(resolved.name) ?? createModel(resolved.profile);
     this.providerName = resolved.name;
     this.profile = resolved.profile;
     this.model = nextModel;

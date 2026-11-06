@@ -112,7 +112,7 @@ export async function runHeadless(opts: HeadlessOptions, io: HeadlessIO): Promis
     }
     let result: RunResult;
     try {
-      result = await runtime.agent.run(prompt, io.signal);
+      result = await runtime.runTurn(prompt, io.signal);
     } catch (err) {
       const message = formatModelError(err, runtime.profile);
       if (output === 'json') {

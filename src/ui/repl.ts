@@ -193,7 +193,7 @@ export class Repl {
     this.write('\n');
     this.showThinking();
     try {
-      const result = await rt.agent.run(text, this.running.signal);
+      const result = await rt.runTurn(text, this.running.signal);
       this.clearThinking();
       this.ensureNewline();
       const cost = rt.agent.cost();
