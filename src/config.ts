@@ -15,6 +15,7 @@ import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { type McpServerConfig, parseMcpServers } from './mcp.ts';
 import { parseRouting, type RoutingConfig } from './routing.ts';
+import { tailscaleName } from './server/security.ts';
 
 export type ProviderKind = 'anthropic' | 'openai' | 'openai-compatible';
 
@@ -191,6 +192,11 @@ export interface MrigConfig {
 export interface AppConfig {
   /** The port for `mrig app`; fixed, because an installed app remembers its address. */
   port: number;
+  /**
+   * This Mac's Tailscale name, for other devices (U3). Read from the `tailscale` CLI when
+   * absent; set it if that can't find it.
+   */
+  tailscaleHost?: string;
 }
 
 /** The default port for `mrig app`. */
@@ -480,7 +486,7 @@ function parseTranscription(
 
 function parseApp(value: unknown, base: AppConfig | undefined): { app?: AppConfig } {
   if (value === undefined) return base ? { app: base } : {};
-  const v = value as { port?: unknown };
+  const v = value as { port?: unknown; tailscaleHost?: unknown };
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('"app" must be an object, e.g. { "port": 4747 }.');
   }
@@ -488,7 +494,14 @@ function parseApp(value: unknown, base: AppConfig | undefined): { app?: AppConfi
   if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('"app.port" must be a whole number from 1 to 65535.');
   }
-  return { app: { port } };
+  if (v.tailscaleHost === undefined) return { app: { port } };
+  const host = typeof v.tailscaleHost === 'string' ? tailscaleName(v.tailscaleHost) : undefined;
+  if (!host) {
+    throw new Error(
+      '"app.tailscaleHost" must be this Mac\'s Tailscale name, like "mac.tail1234.ts.net".',
+    );
+  }
+  return { app: { port, tailscaleHost: host } };
 }
 
 function parseLearner(

@@ -709,6 +709,9 @@ pre.preview {
   margin-top: 0.4rem;
   font-family: var(--mono);
 }
+.ask-rule.note {
+  font-family: inherit;
+}
 
 /* ---------- composer ---------- */
 

@@ -168,20 +168,40 @@ async function app(
   const { DeviceStore, PAIRING_MINUTES } = await import('./server/devices.ts');
   const store = new DeviceStore();
   const cwd = resolve(args.cwd ?? process.cwd());
-  const port = args.port ?? loadConfig({ cwd }).app?.port ?? DEFAULT_APP_PORT;
+  const appConfig = loadConfig({ cwd }).app;
+  const port = args.port ?? appConfig?.port ?? DEFAULT_APP_PORT;
   const out = (line = '') => process.stdout.write(`${line}\n`);
 
+  if (command.action === 'service') {
+    const service = await import('./server/service.ts');
+    const lines =
+      command.what === 'install'
+        ? service.installService()
+        : command.what === 'remove'
+          ? service.removeService()
+          : service.serviceStatus();
+    for (const l of lines) out(l);
+    return;
+  }
+
   if (command.action === 'allow') {
-    const code = store.allow(command.name);
+    const code = store.allow(command.name, command.login ? { login: command.login } : {});
+    const pin = store.get(command.name)?.login;
     out(`${green('✓')} ${command.name} is on the allowlist. Its one-time pairing code:`);
     out();
     out(`    ${code}`);
     out();
     out(`On that device, open mrig and enter the device name "${command.name}" and this code.`);
     out(dim(`The code works once, for ${PAIRING_MINUTES} minutes; five wrong tries cancel it.`));
+    if (pin) out(dim(`It works only through Tailscale, signed in as ${pin}.`));
+    const { detectTailscale } = await import('./server/tailscale.ts');
+    const ts = appConfig?.tailscaleHost ? undefined : detectTailscale(port);
+    const host = appConfig?.tailscaleHost ?? ts?.host;
     out(
       dim(
-        `On this Mac the app is at http://127.0.0.1:${port}. Other devices come in U3 (Tailscale).`,
+        host
+          ? `On this Mac the app is at http://127.0.0.1:${port}; on other devices, https://${host}.`
+          : `On this Mac the app is at http://127.0.0.1:${port}. Other devices need Tailscale: see the README.`,
       ),
     );
     return;
@@ -196,7 +216,7 @@ async function app(
         : d.pairing
           ? yellow(`waiting for its pairing code (until ${d.pairing.expires.slice(11, 16)} UTC)`)
           : dim('not paired');
-      out(`${d.name.padEnd(16)} ${state}`);
+      out(`${d.name.padEnd(16)} ${state}${d.login ? dim(` · only as ${d.login}`) : ''}`);
     }
     const failures = store
       .recent(50)
@@ -216,17 +236,23 @@ async function app(
     return;
   }
 
-  // Pair this Mac's browser the first time (or with --pair): a one-time code in the URL fragment.
-  const pairing = !store.get('mac')?.keyHash || command.pair ? store.allow('mac') : undefined;
+  // Pair this Mac's browser the first time it opens it (or with --pair): a one-time code in the
+  // URL fragment. Not with --no-open, so the background service never logs a live code.
+  const pairing =
+    (command.open && !store.get('mac')?.keyHash) || command.pair ? store.allow('mac') : undefined;
   const base = `http://127.0.0.1:${port}/`;
   const url = pairing ? `${base}#pair=${pairing}&device=mac` : base;
   const { startServer } = await import('./server/serve.ts');
   const { APP_ASSETS } = await import('./server/app-assets.ts');
+  const { detectTailscale } = await import('./server/tailscale.ts');
+  const ts = detectTailscale(port);
+  const tailscaleHost = appConfig?.tailscaleHost ?? ts?.host;
   let server: Awaited<ReturnType<typeof startServer>>;
   try {
     server = startServer({
       port,
       devices: store,
+      ...(tailscaleHost ? { tailscaleHost } : {}),
       app: APP_ASSETS,
       version: VERSION,
       runtime: {
@@ -247,6 +273,23 @@ async function app(
     return;
   }
   out(`${green('●')} mrig app is running at ${base}`);
+  if (tailscaleHost) {
+    const serving = ts?.host === tailscaleHost && ts.serving;
+    out(
+      serving
+        ? `  Other devices: https://${tailscaleHost} (through Tailscale; only allowlisted devices)`
+        : dim(
+            `  For other devices: tailscale serve --bg ${port}   then open https://${tailscaleHost}`,
+          ),
+    );
+    if (ts?.funnel) {
+      out(
+        yellow(
+          `  Tailscale Funnel is on for this Mac: mrig refuses those requests. Turn it off: tailscale funnel reset, then tailscale serve --bg ${port}`,
+        ),
+      );
+    }
+  }
   out(
     dim(
       'Install it as an app: Chrome or Edge, the install icon in the address bar; Safari, File → Add to Dock.',

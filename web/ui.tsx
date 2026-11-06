@@ -19,7 +19,14 @@ import { lineDiff } from './diff.ts';
 import { highlight } from './highlight.ts';
 import { fileRef } from './host.ts';
 import { type Block, type Inline, parseMarkdown } from './markdown.ts';
-import type { AppState, ConversationView, Entry, LocalAction, ToolCard } from './model.ts';
+import {
+  type AppState,
+  type ConversationView,
+  type Entry,
+  type LocalAction,
+  MAC_ONLY_COMMANDS,
+  type ToolCard,
+} from './model.ts';
 
 export type Send = (m: ClientMessage) => void;
 export type Act = (a: LocalAction) => void;
@@ -396,7 +403,7 @@ function Transcript({ conv }: { conv: ConversationView }) {
   );
 }
 
-function AskPanel({ conv, send }: { conv: ConversationView; send: Send }) {
+function AskPanel({ conv, send, remote }: { conv: ConversationView; send: Send; remote: boolean }) {
   const ask = conv.asks[0];
   if (!ask) return null;
   const answer = (a: 'yes' | 'no' | 'always') =>
@@ -414,18 +421,24 @@ function AskPanel({ conv, send }: { conv: ConversationView; send: Send }) {
         <button type="button" className="primary" onClick={() => answer('yes')}>
           Allow once <kbd>y</kbd>
         </button>
-        <button
-          type="button"
-          onClick={() => answer('always')}
-          title={`Adds the rule ${ask.alwaysRule}`}
-        >
-          Always allow <kbd>a</kbd>
-        </button>
+        {!remote && (
+          <button
+            type="button"
+            onClick={() => answer('always')}
+            title={`Adds the rule ${ask.alwaysRule}`}
+          >
+            Always allow <kbd>a</kbd>
+          </button>
+        )}
         <button type="button" className="danger" onClick={() => answer('no')}>
           Deny <kbd>n</kbd>
         </button>
       </div>
-      <div className="ask-rule">Always adds the allow rule {ask.alwaysRule}</div>
+      <div className={remote ? 'ask-rule note' : 'ask-rule'}>
+        {remote
+          ? 'Always allow is only on your Mac, so this device can’t widen what mrig may do.'
+          : `Always adds the allow rule ${ask.alwaysRule}`}
+      </div>
     </section>
   );
 }
@@ -857,15 +870,19 @@ function Palette({
   onRun,
   onFill,
   onClose,
+  remote,
 }: {
   onRun: (c: string) => void;
   onFill: (c: string) => void;
   onClose: () => void;
+  remote: boolean;
 }) {
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
-  const items = COMMANDS.filter((c) =>
-    `${c.name} ${c.help}`.toLowerCase().includes(q.toLowerCase().replace(/^\//, '')),
+  const items = COMMANDS.filter(
+    (c) =>
+      !(remote && MAC_ONLY_COMMANDS.includes(c.name)) &&
+      `${c.name} ${c.help}`.toLowerCase().includes(q.toLowerCase().replace(/^\//, '')),
   );
   const choose = (i: number) => {
     const c = items[i];
@@ -927,6 +944,7 @@ const PAIR_ERRORS: Record<string, string> = {
   'no-code': 'There is no open pairing code for that device. Make one on your Mac.',
   unknown: "That device isn't on the allowlist. Add it on your Mac first.",
   'slow-down': 'Too many tries. Wait a minute, then try again.',
+  pin: 'This device is set to work only through Tailscale, signed in as a particular user. Check you are signed in to Tailscale as that user.',
   offline: "Can't reach mrig. Is `mrig app` running on your Mac?",
 };
 
@@ -1039,7 +1057,10 @@ export function Shell({
       const typing = target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
       const ask = conv?.asks[0];
       if (ask && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        const answer = ({ y: 'yes', a: 'always', n: 'no' } as const)[e.key as 'y' | 'a' | 'n'];
+        const keys = state.remote
+          ? ({ y: 'yes', n: 'no' } as const)
+          : ({ y: 'yes', a: 'always', n: 'no' } as const);
+        const answer = (keys as Record<string, 'yes' | 'no' | 'always'>)[e.key];
         if (answer) {
           e.preventDefault();
           send({ type: 'ask.answer', askId: ask.askId, answer });
@@ -1048,7 +1069,7 @@ export function Shell({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [conv, send]);
+  }, [conv, send, state.remote]);
 
   const fill = (text: string) => {
     setPalette(false);
@@ -1080,7 +1101,7 @@ export function Shell({
         {conv ? (
           <>
             <Transcript conv={conv} />
-            <AskPanel conv={conv} send={send} />
+            <AskPanel conv={conv} send={send} remote={state.remote === true} />
             <Composer conv={conv} send={send} {...(token ? { token } : {})} />
           </>
         ) : (
@@ -1090,8 +1111,8 @@ export function Shell({
               Pick a project on the left, or open a folder by its path, to start a conversation.
             </p>
             <p className="hint">
-              <kbd>⌘K</kbd> commands · <kbd>y</kbd> <kbd>a</kbd> <kbd>n</kbd> answer a permission
-              request
+              <kbd>⌘K</kbd> commands · <kbd>y</kbd> {!state.remote && <kbd>a</kbd>} <kbd>n</kbd>{' '}
+              answer a permission request
             </p>
           </div>
         )}
@@ -1099,6 +1120,7 @@ export function Shell({
       </main>
       {palette && conv && (
         <Palette
+          remote={state.remote === true}
           onClose={() => setPalette(false)}
           onFill={fill}
           onRun={(c) => {

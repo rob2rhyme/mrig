@@ -36,6 +36,12 @@ export class Connection {
       this.retryLater();
       return;
     }
+    if (me.status === 403) {
+      const body = (await me.json().catch(() => ({}))) as { reason?: unknown };
+      const reason = typeof body.reason === 'string' ? body.reason : 'mrig refused this device.';
+      this.dispatch({ type: 'local.refused', reason });
+      return;
+    }
     if (me.status === 401) {
       this.dispatch({ type: 'local.connection', connection: 'unauthorized' });
       return;

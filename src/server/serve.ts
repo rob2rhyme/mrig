@@ -9,6 +9,10 @@
  * - **Device login** (`mrig app`): only devices on the allowlist (`devices.ts`), each paired once
  *   with a code; the device key travels in an HttpOnly, SameSite=Strict cookie.
  *
+ * Other devices (U3, device mode only) reach it through Tailscale Serve on the Mac, which
+ * forwards to 127.0.0.1; `requestFrom` in security.ts sorts each request into the Mac's own or
+ * another device's and refuses Funnel. Another device can't answer Always or run `/yolo`.
+ *
  * A browser's `Origin` must be the server's own (or a VS Code webview). The first WebSocket
  * message must be `hello`. Media files come only from `/media/<conversation>` links the hub
  * signed, for files in that conversation's media folders. The app's own files (HTML, scripts,
@@ -25,12 +29,13 @@ import { ClientMessage, type ServerMessage, SUBPROTOCOL } from './protocol.ts';
 import {
   cookieValue,
   deviceCookie,
-  hostAllowed,
   MEDIA_TYPES,
   MediaSigner,
   newSecret,
   originAllowed,
   RateLimiter,
+  type RequestFrom,
+  requestFrom,
   safeEqual,
   tokenFromProtocols,
 } from './security.ts';
@@ -58,6 +63,8 @@ export interface ServeOptions extends Omit<HubOptions, 'signer'> {
   app?: AppAssets;
   /** Where uploaded images go (default ~/.mrig/app/uploads). */
   uploadsDir?: string;
+  /** The Mac's Tailscale name (`mac.tail1234.ts.net`): device mode accepts other devices on it. */
+  tailscaleHost?: string;
 }
 
 export interface RunningServer {
@@ -72,6 +79,7 @@ export interface RunningServer {
 
 interface Client extends HubClient {
   greeted: boolean;
+  remote: boolean;
   /** The device it logged in as (device mode), and that device's key hash at the time. */
   device?: string;
   keyHash?: string;
@@ -109,9 +117,20 @@ export function startServer(opts: ServeOptions): RunningServer {
   const sockets = new Set<ServerWebSocket<WsData>>();
   let nextClient = 1;
 
+  const tailscaleHost = devices ? opts.tailscaleHost : undefined;
+  /** Where a request comes from: this Mac, another device through Tailscale, or refused. */
+  const fromOf = (req: Request, srv: Bun.Server<WsData>) =>
+    requestFrom(req.headers, srv.port ?? 0, srv.requestIP(req)?.address ?? '-', {
+      ...(tailscaleHost ? { tailscaleHost } : {}),
+      remoteAllowed: devices !== undefined,
+    });
+  type Allowed = Exclude<RequestFrom, { kind: 'refused' }>;
   /** The device a request logs in as, in device mode. */
-  const deviceOf = (req: Request, address: string) =>
-    devices?.verify(cookieValue(req.headers.get('cookie'), COOKIE_NAME), address);
+  const deviceOf = (req: Request, from: Allowed) =>
+    devices?.verify(cookieValue(req.headers.get('cookie'), COOKIE_NAME), from.address, {
+      remote: from.kind === 'remote',
+      ...(from.kind === 'remote' && from.login ? { login: from.login } : {}),
+    });
   /** True when the request carries the launch token as a bearer header (uploads). */
   const bearerOk = (req: Request) => {
     const h = req.headers.get('authorization') ?? '';
@@ -121,8 +140,8 @@ export function startServer(opts: ServeOptions): RunningServer {
   const staticRoutes: Record<string, (req: Request, srv: Bun.Server<WsData>) => Response> = {};
   for (const [path, file] of Object.entries(opts.app?.files ?? {})) {
     staticRoutes[path] = (req, srv) => {
-      if (!hostAllowed(req.headers.get('host'), srv.port ?? 0))
-        return reply(403, 'Forbidden host.');
+      const from = fromOf(req, srv);
+      if (from.kind === 'refused') return reply(from.status, from.reason);
       return new Response(Bun.file(file.path), {
         headers: {
           'X-Content-Type-Options': 'nosniff',
@@ -140,18 +159,30 @@ export function startServer(opts: ServeOptions): RunningServer {
     ...(opts.app ? { routes: { '/': opts.app.page, ...staticRoutes } } : {}),
     async fetch(req, srv) {
       const port = srv.port ?? 0;
-      if (!hostAllowed(req.headers.get('host'), port)) return reply(403, 'Forbidden host.');
       const url = new URL(req.url);
-      const address = srv.requestIP(req)?.address ?? '-';
+      const from = fromOf(req, srv);
+      if (from.kind === 'refused') {
+        return url.pathname === '/api/me'
+          ? json(from.status, { mode: 'refused', reason: from.reason })
+          : reply(from.status, from.reason);
+      }
+      const address = from.address;
+      const remote = from.kind === 'remote';
       const origin = req.headers.get('origin');
+      const originOk = (o: string | null) => originAllowed(o, port, tailscaleHost);
 
       if (url.pathname === '/ws') {
-        if (!originAllowed(origin, port)) return reply(403, 'Forbidden origin.');
+        if (!originOk(origin)) return reply(403, 'Forbidden origin.');
         const header = req.headers.get('sec-websocket-protocol');
         const protocols = (header ?? '').split(',').map((p) => p.trim());
-        const client: Client = { id: `w${nextClient++}`, greeted: false, send: () => {} };
+        const client: Client = {
+          id: `w${nextClient++}`,
+          greeted: false,
+          remote,
+          send: () => {},
+        };
         if (devices) {
-          const device = deviceOf(req, address);
+          const device = deviceOf(req, from);
           if (!device) return reply(401, 'This device is not logged in.');
           client.device = device;
           client.keyHash = devices.get(device)?.keyHash;
@@ -169,22 +200,30 @@ export function startServer(opts: ServeOptions): RunningServer {
 
       if (url.pathname === '/api/me' && req.method === 'GET') {
         if (!devices) return json(200, { mode: 'token' });
-        const device = deviceOf(req, address);
-        return device ? json(200, { mode: 'device', device }) : json(401, { mode: 'device' });
+        const device = deviceOf(req, from);
+        return device
+          ? json(200, { mode: 'device', device, remote })
+          : json(401, { mode: 'device', remote });
       }
 
       if (url.pathname === '/api/pair' && req.method === 'POST') {
         if (!devices) return reply(404, 'Not found.');
         // A pairing request must come from the app's own page.
-        if (origin === null || !originAllowed(origin, port)) return reply(403, 'Forbidden origin.');
+        if (origin === null || !originOk(origin)) return reply(403, 'Forbidden origin.');
         if (!pairLimit.hit(address)) return json(429, { reason: 'slow-down' });
         const body = (await req.json().catch(() => null)) as { device?: unknown; code?: unknown };
         if (typeof body?.device !== 'string' || typeof body.code !== 'string') {
           return json(400, { reason: 'bad-request' });
         }
+        // A device pinned to a Tailscale login pairs only through Tailscale, as that login.
+        const pin = devices.get(body.device)?.login;
+        if (pin && !(from.kind === 'remote' && from.login?.toLowerCase() === pin)) {
+          return json(403, { reason: 'pin' });
+        }
         const result = devices.pair(body.device, body.code.slice(0, 32), address);
         if (!result.ok) return json(401, { reason: result.reason });
-        const secure = url.protocol === 'https:';
+        // Through Tailscale the page is HTTPS, so the cookie can be Secure.
+        const secure = remote;
         return json(
           200,
           { device: body.device },
@@ -200,8 +239,8 @@ export function startServer(opts: ServeOptions): RunningServer {
       }
 
       if (url.pathname === '/api/upload' && req.method === 'POST') {
-        if (origin !== null && !originAllowed(origin, port)) return reply(403, 'Forbidden origin.');
-        if (!(devices ? deviceOf(req, address) : bearerOk(req))) return reply(401, 'Log in first.');
+        if (origin !== null && !originOk(origin)) return reply(403, 'Forbidden origin.');
+        if (!(devices ? deviceOf(req, from) : bearerOk(req))) return reply(401, 'Log in first.');
         const type = (req.headers.get('content-type') ?? '').split(';')[0]?.trim() ?? '';
         const ext = Object.entries(IMAGE_TYPES).find(([, t]) => t === type)?.[0];
         if (!ext) return reply(415, 'Only PNG, JPEG, WebP or GIF images.');

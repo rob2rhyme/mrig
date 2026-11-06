@@ -32,8 +32,17 @@ import { ITEM_OUTPUT_CHARS, transcriptItems } from './transcript.ts';
 
 export interface HubClient {
   readonly id: string;
+  /** Another device, through Tailscale (U3): Allow once and Deny only, and no `/yolo`. */
+  readonly remote?: boolean;
   send(message: ServerMessage): void;
 }
+
+/** What another device is told when it tries something only the Mac may do. */
+export const MAC_ONLY = {
+  always:
+    "Always allow works only on the Mac, so a lost phone can't widen what mrig may do. Allow once, or add the rule on the Mac.",
+  yolo: '/yolo works only on the Mac.',
+};
 
 export type RuntimeDefaults = Omit<RuntimeOptions, 'cwd' | 'resume' | 'ask' | 'events'>;
 
@@ -109,7 +118,12 @@ export class Hub {
             `This mrig speaks protocol ${PROTOCOL_VERSION}; the app sent ${msg.protocol}. Update the one that is older.`,
           );
         }
-        client.send({ type: 'hello.ok', protocol: PROTOCOL_VERSION, version: this.opts.version });
+        client.send({
+          type: 'hello.ok',
+          protocol: PROTOCOL_VERSION,
+          version: this.opts.version,
+          ...(client.remote ? { remote: true } : {}),
+        });
         return;
       case 'projects.list':
         client.send({ type: 'projects', projects: listProjects() });
@@ -130,6 +144,7 @@ export class Hub {
         this.answer(client, msg.askId, msg.answer);
         return;
       case 'command.run':
+        if (client.remote && /^\/yolo\b/i.test(msg.text.trim())) throw new Error(MAC_ONLY.yolo);
         await this.command(this.joined(client, msg.conversation), msg.text);
         return;
       case 'model.set': {
@@ -306,6 +321,7 @@ export class Hub {
   }
 
   private answer(client: HubClient, askId: string, answer: Answer): void {
+    if (client.remote && answer === 'always') throw new Error(MAC_ONLY.always);
     for (const conv of this.conversations.values()) {
       const ask = conv.asks.get(askId);
       if (ask && conv.clients.has(client)) {

@@ -47,7 +47,10 @@ export interface ConversationView {
   options: { providers: string[]; modes: string[]; varieties: string[] };
 }
 
-export type Connection = 'connecting' | 'open' | 'reconnecting' | 'unauthorized';
+/** Commands another device can't run (the server refuses them too). */
+export const MAC_ONLY_COMMANDS = ['/yolo'];
+
+export type Connection = 'connecting' | 'open' | 'reconnecting' | 'unauthorized' | 'refused';
 
 export interface AppState {
   connection: Connection;
@@ -63,11 +66,16 @@ export interface AppState {
   focusSession?: string;
   /** An error that belongs to no conversation. */
   error?: string;
+  /** This is another device, through Tailscale (U3): Allow once and Deny only, no /yolo. */
+  remote?: boolean;
+  /** Why the server refused this device (connection 'refused'), in its words. */
+  refused?: string;
   nextId: number;
 }
 
 export type LocalAction =
   | { type: 'local.connection'; connection: Connection }
+  | { type: 'local.refused'; reason: string }
   | { type: 'local.opening' }
   | { type: 'local.select'; conversation: string }
   | { type: 'local.close'; conversation: string }
@@ -168,6 +176,8 @@ export function reduce(state: AppState, msg: ServerMessage | LocalAction): AppSt
   switch (msg.type) {
     case 'local.connection':
       return { ...state, connection: msg.connection };
+    case 'local.refused':
+      return { ...state, connection: 'refused', refused: msg.reason };
     case 'local.opening':
       return { ...state, focusNext: true };
     case 'local.select':
@@ -197,7 +207,7 @@ export function reduce(state: AppState, msg: ServerMessage | LocalAction): AppSt
       return rest;
     }
     case 'hello.ok':
-      return { ...state, connection: 'open' };
+      return { ...state, connection: 'open', remote: msg.remote === true };
     case 'projects':
       return { ...state, projects: msg.projects };
     case 'sessions':

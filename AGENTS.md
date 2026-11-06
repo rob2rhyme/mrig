@@ -56,6 +56,10 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   Tools may add `display()` (a diff, file, command or path for an app) and report saved media
   through `ctx.recordFile`. `src/ui/status.ts` is the status the TUI and the server share.
   Every security rule needs a test that it refuses; never listen beyond 127.0.0.1.
+  Other devices (U3) come only through Tailscale Serve: `requestFrom` in `security.ts` sorts each
+  request (a loopback `Host` and no proxy header is the Mac; Funnel is refused), `tailscale.ts`
+  reads the Mac's Tailscale name, `service.ts` is the macOS LaunchAgent, and the hub refuses
+  Always and `/yolo` from a remote client. Tests: `tests/remote.test.ts`.
   `devices.ts` is the device allowlist for `mrig app` (U2): `~/.mrig/app/devices.json`, edited
   only from the CLI, hashes only, pairing codes and HttpOnly cookie keys. `app-assets.ts`
   builds `web/` into the binary (Bun HTML imports).

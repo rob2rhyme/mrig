@@ -100,7 +100,13 @@ export interface SessionSummary {
 
 /** Messages the server sends. */
 export type ServerMessage =
-  | { type: 'hello.ok'; protocol: number; version: string }
+  | {
+      type: 'hello.ok';
+      protocol: number;
+      version: string;
+      /** This client is another device (U3): no Always, no `/yolo`. */
+      remote?: boolean;
+    }
   | { type: 'projects'; projects: Array<{ cwd: string; updatedAt: string }> }
   | { type: 'sessions'; cwd: string; sessions: SessionSummary[] }
   | {

@@ -157,6 +157,11 @@ RT's rule: **only devices saved in advance on an allowlist can log in.**
 - **"Another device" means anything that isn't the Mac:** a request that arrives through Tailscale Serve, with a `.ts.net` `Host` and Tailscale's identity headers. A request straight to `127.0.0.1` comes from the Mac itself.
 - **The Mac must be on and awake,** with mrig running. `mrig app service install` adds a login item (a macOS LaunchAgent) that keeps `mrig serve` running in the background. `mrig app service remove` takes it out.
 - **To check in U3:** that Tailscale Serve passes WebSocket upgrades through. A third-party setup reports that it does [S], but Tailscale's own docs don't say. U3 tests it first; if it fails, the protocol falls back to server-sent events plus HTTP posts, with no other change to this plan.
+- **Checked in U3 (November 6, 2026),** against Tailscale's source (`ipn/ipnlocal/serve.go` at `3dbb215`) and a stand-in built from its proxy code, driven by Chromium:
+  - WebSocket passes through: Serve is Go's `httputil.ReverseProxy`, and the browser opens the socket over HTTP/1.1 even when the page came over HTTP/2. No fallback is needed.
+  - Serve keeps `Host` as the device sent it (`mac.<tailnet>.ts.net`), sets `X-Forwarded-For`, `X-Forwarded-Host` and `X-Forwarded-Proto`, strips any `Tailscale-*` identity header the device sent, then sets its own. A Funnel request carries `Tailscale-Funnel-Request: ?1` and no identity.
+  - So "a request straight to `127.0.0.1` comes from the Mac" needed one more condition: a device can send `Host: 127.0.0.1:4747` through Serve. A request counts as the Mac's only with a loopback `Host` **and** none of the headers Serve always sets.
+  - Still to see on real hardware: Robin's phone over his tailnet (LIVE_CHECKS step 9).
 
 ### 6. The PWA (`mrig app`)
 

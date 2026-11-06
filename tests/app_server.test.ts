@@ -101,7 +101,7 @@ describe('app server, device mode (U2)', () => {
     );
     const cookie = setCookie.split(';')[0] ?? '';
     const me = await fetch(`${server.url}/api/me`, { headers: { Cookie: cookie } });
-    expect(await me.json()).toEqual({ mode: 'device', device: 'mac' });
+    expect(await me.json()).toEqual({ mode: 'device', device: 'mac', remote: false });
   });
 
   test('pairing refuses: no Origin, a foreign Origin, a wrong code, too many tries', async () => {
