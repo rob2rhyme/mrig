@@ -34,7 +34,7 @@ This is **track 2** work. It starts after Local AI v1.0; see [`docs/ROADMAP.md`]
 - Round-trip property tests run on the **Akkha-representable subset** only.
 - Devanagari characters with no Akkha form are an **explicit lossy set**: श, ष, visarga, chandrabindu and nukta. The tool reports them and never maps them silently.
   - श/ष → स: **confirmed by Robin, November 5, 2026.**
-  - Chandrabindu → anusvara, visarga dropped, nukta dropped (base letter kept): defaults in the tool, **pending Robin's confirmation**.
+  - Chandrabindu → anusvara, visarga dropped, nukta dropped (base letter kept): **confirmed by Robin, November 6, 2026.**
 - Everything else in Nepali Devanagari has an Akkha form (Robin, November 5, 2026), mapped one to one onto the Brahmi block. The Brahmi table stays provisional until the font spike passes.
 
 ## Language memory files (`lang/*.md`)

@@ -101,8 +101,8 @@ export interface LossyRule {
  * reports every one; nothing here is ever mapped silently.
  *
  * - श, ष → स: confirmed by Robin, November 5, 2026.
- * - Chandrabindu → anusvara, visarga dropped, nukta dropped: proposed defaults, pending
- *   Robin's confirmation. Change them here; nothing else depends on the choice.
+ * - Chandrabindu → anusvara, visarga dropped, nukta dropped (base letter kept): confirmed by
+ *   Robin, November 6, 2026. Change them here; nothing else depends on the choice.
  */
 export const LOSSY: Readonly<Record<string, LossyRule>> = {
   श: { to: 'स', name: 'sha', note: 'no Akkha letter; written स' },

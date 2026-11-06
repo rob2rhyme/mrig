@@ -57,7 +57,7 @@ If Akkha needs extra signs, they are extra codepoints: existing Brahmi or Devana
   - Needing extra letters means Devanagari as the hub needs extra characters too.
   - A still-growing repertoire is also exactly what SEWG treats as "not stable" [V for the criterion].
   - Settle this before freezing the translation table.
-- **Nepali-only letters.** Devanagari characters with no Akkha form (श, ष, visarga, chandrabindu, nukta) form an explicit lossy set in the transliteration tool. The default for श/ष is → स, **confirmed by RT on November 5, 2026**. The other three defaults (chandrabindu → anusvara, visarga and nukta dropped) await RT's confirmation.
+- **Nepali-only letters.** Devanagari characters with no Akkha form (श, ष, visarga, chandrabindu, nukta) form an explicit lossy set in the transliteration tool. The default for श/ष is → स, **confirmed by RT on November 5, 2026**. The other three (chandrabindu → anusvara, visarga dropped, nukta dropped with the base letter kept) were **confirmed by RT on November 6, 2026**. Every use is still reported by the tool.
 
 ## Font spike (the gate for decision 2)
 
