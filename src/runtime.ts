@@ -478,7 +478,7 @@ export class Runtime {
    * The tools for the current profile: the built-ins for its tool mode, plus MCP tools (except
    * in bash-only mode), minus anything that reaches other hosts when offline.
    */
-  private currentTools() {
+  currentTools() {
     const extra =
       this.profile.toolMode === 'minimal' ? [] : [...(this.mcp?.tools() ?? []), ...this.mediaTools];
     const tools = offlineTools([...toolsForMode(this.profile.toolMode), ...extra], this.offline);

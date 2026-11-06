@@ -23,6 +23,10 @@ export interface CliArgs {
   outputLast: boolean;
   /** `mrig init` / `--init`: write a starter ~/.mrig/config.json (L7). */
   init: boolean;
+  /** `mrig serve`: the local app server for the app front ends (Track 4, U1). */
+  serve: boolean;
+  /** `--port <n>` (with serve): 0 or absent picks a free port. */
+  port?: number;
   /** `--mode <name>` (T1). */
   mode?: ModeName;
   /** `--variety <tag>` (T8): the tutor mode's variety. */
@@ -38,6 +42,7 @@ Usage:
   mrig -p "prompt" [options]             headless: run once, print, exit
   mrig doctor [-P <name>] [-m <id>]      check model ids against each provider's model list
   mrig init                              write a starter ~/.mrig/config.json
+  mrig serve [--port <n>]                local app server for the app front ends (127.0.0.1 only)
 
 Options:
   -p, --print <prompt>     Run a single prompt non-interactively and exit
@@ -55,6 +60,7 @@ Options:
       --mode <name>        Start in a mode: ${MODE_NAMES.join(', ')} (or /mode in a session)
       --variety <tag>      The tutor's variety: mgp, mrd, kgj, kip, kif, kjl, kzq (with --mode tutor)
       --tui                Terminal UI with a status line (experimental)
+      --port <n>           With serve: the port (default: a free one)
       --doctor             Same as "mrig doctor"
       --init               Same as "mrig init"
   -v, --version            Print version
@@ -75,6 +81,7 @@ export function parseArgs(argv: string[]): CliArgs {
     json: false,
     outputLast: false,
     init: false,
+    serve: false,
     version: false,
     help: false,
   };
@@ -122,6 +129,13 @@ export function parseArgs(argv: string[]): CliArgs {
       case '--cwd':
         args.cwd = take(a, i++);
         break;
+      case '--port': {
+        const n = Number(take(a, i++));
+        if (!Number.isInteger(n) || n < 0 || n > 65535)
+          throw new Error('--port must be a whole number from 0 to 65535');
+        args.port = n;
+        break;
+      }
       case '--list-sessions':
         args.listSessions = true;
         break;
@@ -163,6 +177,10 @@ export function parseArgs(argv: string[]): CliArgs {
           args.doctor = true;
           break;
         }
+        if (a === 'serve' && positional.length === 0 && args.print === undefined) {
+          args.serve = true;
+          break;
+        }
         if (a === 'init' && positional.length === 0 && args.print === undefined) {
           initWord = true;
           break;
@@ -180,5 +198,7 @@ export function parseArgs(argv: string[]): CliArgs {
     throw new Error(`${args.json ? '--json' : '--output-last'} works with -p "prompt"`);
   }
   if (args.json && args.outputLast) throw new Error('Use --json or --output-last, not both');
+  if (args.port !== undefined && !args.serve) throw new Error('--port works with mrig serve');
+  if (args.serve && args.prompt) throw new Error('mrig serve takes no prompt');
   return args;
 }

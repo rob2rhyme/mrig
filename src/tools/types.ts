@@ -14,7 +14,24 @@ export interface ToolContext {
   variety?: string;
   /** Record generated media and its cost (T4+); `usd` undefined when the price is unknown. */
   recordMedia?: (kind: string, count: number, usd: number | undefined) => void;
+  /** Report a file the tool saved (absolute path), so an app can show or play it (U1). */
+  recordFile?: (path: string, kind: MediaKind) => void;
 }
+
+export type MediaKind = 'image' | 'audio' | 'video';
+
+/** Longest text a `ToolDisplay` carries; longer content is cut in the middle. */
+export const DISPLAY_MAX_CHARS = 20_000;
+
+/**
+ * Structure for an app to draw a tool call (U1): a diff for edits, the file for writes, the
+ * command for bash, the path for reads. The REPL and TUI ignore it and use `summarize`.
+ */
+export type ToolDisplay =
+  | { kind: 'diff'; path: string; before: string; after: string }
+  | { kind: 'file'; path: string; content: string }
+  | { kind: 'command'; command: string }
+  | { kind: 'path'; path: string };
 
 export interface MrigTool<I = unknown> {
   name: string;
@@ -31,6 +48,8 @@ export interface MrigTool<I = unknown> {
   parameters?: JSONSchema7;
   /** One line describing the call, for permission prompts and the transcript. */
   summarize(input: I): string;
+  /** Structure for an app to draw the call (U1). Optional; text-only UIs never call it. */
+  display?(input: I): ToolDisplay;
   /** Run the tool. Return text for the model; throw for errors (message is sent to the model). */
   execute(input: I, ctx: ToolContext): Promise<string>;
 }

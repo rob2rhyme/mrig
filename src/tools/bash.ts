@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { resolvePath } from '../util/paths.ts';
 import { detectShell } from '../util/shell.ts';
 import { truncateMiddle } from '../util/text.ts';
-import { defineTool, ToolError } from './types.ts';
+import { DISPLAY_MAX_CHARS, defineTool, ToolError } from './types.ts';
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_TIMEOUT_MS = 600_000;
@@ -78,6 +78,7 @@ export const bashTool = defineTool<z.infer<typeof schema>>({
   inputSchema: schema,
   readOnly: false,
   summarize: (i) => `$ ${i.command.length > 200 ? `${i.command.slice(0, 200)}…` : i.command}`,
+  display: (i) => ({ kind: 'command', command: truncateMiddle(i.command, DISPLAY_MAX_CHARS) }),
   async execute(input, ctx) {
     const cwd = input.cwd ? resolvePath(ctx.cwd, input.cwd) : ctx.cwd;
     const res = await runShell(input.command, {

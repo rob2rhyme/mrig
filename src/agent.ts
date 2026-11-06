@@ -48,6 +48,7 @@ import {
   toAiTools,
   toolRegistry,
 } from './tools/index.ts';
+import type { MediaKind, ToolDisplay } from './tools/types.ts';
 import { firstLines } from './util/text.ts';
 import { findImagePaths, imagePart, resolveImages } from './vision.ts';
 
@@ -55,12 +56,16 @@ export interface ToolCallInfo {
   id: string;
   name: string;
   summary: string;
+  /** Structure for an app to draw the call (U1), when the tool provides it. */
+  display?: ToolDisplay;
 }
 
 export interface ToolCallOutcome {
   status: 'ok' | 'error' | 'denied';
   text: string;
   ms: number;
+  /** Files the call saved (generated images, audio, video), absolute paths (U1). */
+  files?: Array<{ path: string; kind: MediaKind }>;
 }
 
 export interface AgentEvents {
@@ -115,7 +120,7 @@ export interface RunResult {
   text: string;
 }
 
-const DENIED_TEXT =
+export const DENIED_TEXT =
   'The user denied this tool call. Do not retry the same call; explain what you wanted to do and ask how to proceed, or take a different approach.';
 
 /** Try to salvage tool-call JSON that local models often mangle. */
@@ -498,10 +503,12 @@ export class Agent {
         output: { type: 'error-text', value: `Invalid input: ${issues.join('; ')}` },
       };
     }
+    const display = tool.display?.(parsed.data);
     const info: ToolCallInfo = {
       id: call.toolCallId,
       name: tool.name,
       summary: tool.summarize(parsed.data),
+      ...(display ? { display } : {}),
     };
     events.onToolStart?.(info);
     const started = Date.now();
@@ -516,6 +523,8 @@ export class Agent {
       return { ...base, output: { type: 'error-text', value: DENIED_TEXT } };
     }
 
+    const files: NonNullable<ToolCallOutcome['files']> = [];
+    const withFiles = () => (files.length ? { files } : {});
     const ctx: ToolContext = {
       cwd: this.opts.cwd,
       signal,
@@ -523,15 +532,26 @@ export class Agent {
       ...(this.opts.corpus ? { corpus: this.opts.corpus } : {}),
       ...(this.opts.variety ? { variety: this.opts.variety } : {}),
       recordMedia: (kind, count, usd) => this.recordMedia(kind, count, usd),
+      recordFile: (path, kind) => files.push({ path, kind }),
     };
     this.stats.toolsUsed[tool.name] = (this.stats.toolsUsed[tool.name] ?? 0) + 1;
     try {
       const value = await tool.execute(parsed.data, ctx);
-      events.onToolEnd?.(info, { status: 'ok', text: value, ms: Date.now() - started });
+      events.onToolEnd?.(info, {
+        status: 'ok',
+        text: value,
+        ms: Date.now() - started,
+        ...withFiles(),
+      });
       return { ...base, output: { type: 'text', value } };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      events.onToolEnd?.(info, { status: 'error', text: message, ms: Date.now() - started });
+      events.onToolEnd?.(info, {
+        status: 'error',
+        text: message,
+        ms: Date.now() - started,
+        ...withFiles(),
+      });
       return { ...base, output: { type: 'error-text', value: message } };
     }
   }

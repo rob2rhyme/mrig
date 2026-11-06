@@ -42,6 +42,8 @@ export function saveMedia(opts: {
   ext: string;
   now: Date;
   bytes: Uint8Array;
+  /** Called with the absolute path once the file is written (an app shows it, U1). */
+  onSaved?: (path: string) => void;
 }): string {
   const base = opts.requested
     ? isAbsolute(opts.requested)
@@ -51,6 +53,7 @@ export function saveMedia(opts: {
   const path = freePath(base);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, opts.bytes);
+  opts.onSaved?.(path);
   return displayPath(opts.cwd, path);
 }
 

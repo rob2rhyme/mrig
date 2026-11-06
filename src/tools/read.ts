@@ -22,6 +22,7 @@ export const readTool = defineTool<z.infer<typeof schema>>({
   inputSchema: schema,
   readOnly: true,
   summarize: (i) => `read ${i.path}${i.offset ? ` from line ${i.offset}` : ''}`,
+  display: (i) => ({ kind: 'path', path: i.path }),
   async execute(input, ctx) {
     const abs = resolvePath(ctx.cwd, input.path);
     let st: ReturnType<typeof statSync>;

@@ -49,6 +49,13 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
 - `src/routing.ts` — model routing (T7): `classify()` picks `easy` or `hard` by rules only (prefix,
   images, user rules, length, hard words, default). `Runtime.runTurn()` routes each message and
   then runs it; the REPL, TUI and headless all call it. A manual model switch turns routing off.
+- `src/server/` — the app server (Track 4, U1): `mrig serve`. `protocol.ts` (zod-validated
+  messages, shared with every front end), `security.ts` (pure rules: Host, Origin, launch
+  token, media folders, signed media links), `hub.ts` (one `Runtime` per conversation, asks,
+  abort, snapshots; no transport), `serve.ts` (Bun.serve on 127.0.0.1 only), `transcript.ts`.
+  Tools may add `display()` (a diff, file, command or path for an app) and report saved media
+  through `ctx.recordFile`. `src/ui/status.ts` is the status the TUI and the server share.
+  Every security rule needs a test that it refuses; never listen beyond 127.0.0.1.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the

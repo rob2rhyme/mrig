@@ -443,6 +443,39 @@ Put project conventions, commands, and rules there.
 It needs an interactive terminal; without one mrig falls back to the plain REPL. The plain REPL
 stays the default until the TUI has had more real use.
 
+## App server (`mrig serve`)
+
+The app front ends (Track 4: an installable web app, and a VS Code extension) talk to mrig
+through a local server. `mrig serve` starts it and prints one line with its address and a
+launch token, for the app that started it:
+
+```console
+$ mrig serve
+{"protocol":1,"url":"http://127.0.0.1:52811","ws":"ws://127.0.0.1:52811/ws","token":"9f3c…"}
+```
+
+It runs until Ctrl+C, or until the program that started it closes its input. You won't need it
+directly: the web app (`mrig app`) and the VS Code extension start it for you once they exist.
+The terminal (`mrig`, `--tui`, `-p`) is unchanged.
+
+- **Local only.** It listens on `127.0.0.1` and nothing else. No other device can reach the
+  port.
+- **Locked down.** Every connection needs the launch token, which is new each launch and never
+  written to disk. A request must name the server itself in `Host`, which blocks DNS-rebinding
+  tricks. A browser connection must come from the server's own address or a VS Code panel, so
+  no website you visit can reach it.
+- **Permissions as usual.** Edits and commands still ask, and the app shows the question. An
+  unanswered question counts as **deny** after 10 minutes; Stop denies it at once.
+- **Media through signed links.** Generated images, audio and video are served only from the
+  project's media folders (`images/`, `audio/`, `videos/`, or the folders the config names),
+  through links that expire.
+- **Same sessions.** Conversations are the usual session files, so one started in the terminal
+  can be resumed in an app, and the other way round.
+
+Options: `--port <n>` (default: a free one), and `-P`, `-m`, `--offline`, `--mode` as for an
+interactive session. The protocol and the security rules are in
+`docs/decisions/2026-11-06-app-front-ends.md`.
+
 ## Images
 
 Put an image's path in a prompt and models that can see get the image itself:
@@ -729,7 +762,7 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Track 4 U1: the app server (`mrig serve`). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3.
 
 ## License
