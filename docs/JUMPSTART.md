@@ -216,6 +216,26 @@ Added November 5, 2026. Starts after Local AI v1.0. Estimates are inferences, no
 
 Shared rules for T3–T6: files on disk, sessions store paths not bytes; every call asks permission unless a rule allows it; costs use the same pricing table; only local generators are allowed under L5; no telemetry. Read the `.d.ts` files for each media function before using it.
 
+### Track 4 — App front ends (alongside the live checks)
+
+Added November 6, 2026 at Robin's request and revised the same day: a PWA where only allowlisted devices can log in, plus a VS Code extension; no native desktop apps. The design, protocol, security rules and per-item acceptance are in `docs/decisions/2026-11-06-app-front-ends.md`; read it in full before any Track 4 work.
+
+- **Gate.** ✅ Robin approved the note on November 6, 2026, and its revision the same day. Build U1 first.
+- **U1. Local app server (M).** `mrig serve` listening on `127.0.0.1` only; `Host` and `Origin` checks; launch-token auth for clients that start the server (VS Code); zod-validated protocol v1 shared with the front end; structured tool `display`; one `Runtime` per conversation.
+  - **Acceptance:** mock-model tests over a real loopback server for streaming, permissions, abort, reconnect and two conversations; a refusing test for every security rule; the REPL and TUI tests unchanged.
+- **U2. The PWA on the Mac (L).** `mrig app` on a fixed port (4747 by default); the allowlist in `~/.mrig/app/devices.json`, edited only from the Mac's terminal (`mrig app allow add`, `devices`, `revoke`); pairing codes (single-use, 10 minutes, five tries) and hashed device keys in `HttpOnly` cookies; the Mac's browser paired automatically; manifest and an app-shell-only service worker; the note's "What feels like an app" list, minus push notifications and editor features.
+  - **Acceptance:** pairing and login tests; a `ChatViewModel` tested without a browser; Playwright smoke tests; no remote assets (CSP); Robin's fixes after one real session.
+- **U3. Other devices through Tailscale (M).** Tailscale Serve forwards to `127.0.0.1`; the `.ts.net` `Host` and identity headers are accepted, Funnel is refused; other devices answer Allow once or Deny only, and can't use `/yolo` or change config; the phone layout; `mrig app service install`. **Acceptance:** as in the note; WebSocket through Serve is checked first.
+- **U4. VS Code extension (M).** A webview panel, not a chat participant, with its own `mrig serve` and launch token. **Acceptance:** as in the note.
+
+Rules for Track 4:
+- Business logic stays in the core.
+- The terminal stays the default.
+- No telemetry and no remote assets.
+- The server never listens beyond `127.0.0.1`.
+- The allowlist is edited only from the Mac's terminal.
+- The GurbachhanAkkhaRik font is never bundled; Noto Sans Brahmi is the fallback.
+
 ## Start now
 
 Run the checks and confirm green. Then read **Build order and status** at the top of `docs/ROADMAP.md` and implement the first item in the agent's queue that is not marked ✅, end to end: code, tests, README section if user-facing, the roadmap mark, `bun run check`. Skip parts marked ⏳: they wait on Robin and never block the next item. Stop for review after one item.
