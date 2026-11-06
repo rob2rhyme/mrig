@@ -263,8 +263,22 @@ export class Agent {
   }
 
   /** Estimated USD spent this session, or undefined when pricing is unknown. */
+  /** Generated media this session (T4+), by kind: how many, and the known part of their cost. */
+  media: Record<string, { count: number; usd: number; unpriced: number }> = {};
+
+  /** Estimated USD: tokens, plus generated media whose price is known. */
   cost(): number | undefined {
-    return estimateCost(this.usage, pricingFor(this.opts.profile), this.cacheTtl());
+    const tokens = estimateCost(this.usage, pricingFor(this.opts.profile), this.cacheTtl());
+    if (tokens === undefined) return undefined;
+    return tokens + Object.values(this.media).reduce((sum, m) => sum + m.usd, 0);
+  }
+
+  private recordMedia(kind: string, count: number, usd: number | undefined): void {
+    const m = this.media[kind] ?? { count: 0, usd: 0, unpriced: 0 };
+    m.count += count;
+    if (usd === undefined) m.unpriced += count;
+    else m.usd += usd;
+    this.media[kind] = m;
   }
 
   cacheTtl(): CacheTtl {
@@ -275,6 +289,7 @@ export class Agent {
     this.replaceHistory([]);
     this.usage = emptyUsage();
     this.stats = emptyStats();
+    this.media = {};
   }
 
   private recordPerformance(
@@ -502,6 +517,7 @@ export class Agent {
       signal,
       maxOutputChars: this.opts.maxToolOutputChars,
       ...(this.opts.corpus ? { corpus: this.opts.corpus } : {}),
+      recordMedia: (kind, count, usd) => this.recordMedia(kind, count, usd),
     };
     this.stats.toolsUsed[tool.name] = (this.stats.toolsUsed[tool.name] ?? 0) + 1;
     try {

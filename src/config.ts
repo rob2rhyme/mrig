@@ -81,6 +81,20 @@ export interface CompactionConfig {
   compactModel?: string;
 }
 
+/** Image generation (T4): which profile's provider makes images, and how they are priced. */
+export interface ImageConfig {
+  /** A profile name; its kind, base URL and key are used. Default "openai". */
+  profile: string;
+  /** The image model id, e.g. "gpt-image-1". */
+  model: string;
+  /** Default size, "WIDTHxHEIGHT". */
+  size?: `${number}x${number}`;
+  /** USD per image, for the permission prompt and /cost. Unset: the price is unknown. */
+  pricePerImage?: number;
+  /** Where images are saved, relative to the working directory. Default "images". */
+  dir: string;
+}
+
 export interface MrigConfig {
   defaultProvider: string;
   providers: Record<string, ProviderProfile>;
@@ -106,6 +120,8 @@ export interface MrigConfig {
    * the tool looks for a `cldf/` folder from cwd up to the git root.
    */
   corpus?: string;
+  /** Image generation (T4); the `image` tool exists only when this is set. */
+  image?: ImageConfig;
   /** Keys an untrusted project config tried to set and that were dropped (set by loadConfig). */
   projectIgnored?: string[];
 }
@@ -318,6 +334,47 @@ function merge(base: MrigConfig, layer: PartialConfig | undefined): MrigConfig {
     mcpServers: { ...base.mcpServers, ...parseMcpServers(layer.mcpServers) },
     trustedProjects: base.trustedProjects,
     ...parseCorpus(layer.corpus, base.corpus),
+    ...parseImage(layer.image, base.image),
+  };
+}
+
+const SIZE = /^\d+x\d+$/;
+
+function parseImage(value: unknown, base: ImageConfig | undefined): { image?: ImageConfig } {
+  if (value === undefined) return base ? { image: base } : {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(
+      '"image" must be an object, e.g. { "profile": "openai", "model": "gpt-image-1" }.',
+    );
+  }
+  const v = { ...base, ...(value as Record<string, unknown>) };
+  if (typeof v.model !== 'string' || !v.model)
+    throw new Error('"image.model" must be an image model id.');
+  if (v.profile !== undefined && typeof v.profile !== 'string') {
+    throw new Error('"image.profile" must be a profile name.');
+  }
+  if (v.size !== undefined && (typeof v.size !== 'string' || !SIZE.test(v.size))) {
+    throw new Error(
+      `Invalid "image.size": ${JSON.stringify(v.size)}. Use WIDTHxHEIGHT, e.g. "1024x1024".`,
+    );
+  }
+  if (
+    v.pricePerImage !== undefined &&
+    (typeof v.pricePerImage !== 'number' || v.pricePerImage < 0)
+  ) {
+    throw new Error('"image.pricePerImage" must be a number of US dollars.');
+  }
+  if (v.dir !== undefined && (typeof v.dir !== 'string' || !v.dir.trim())) {
+    throw new Error('"image.dir" must be a folder path.');
+  }
+  return {
+    image: {
+      profile: (v.profile as string | undefined) ?? 'openai',
+      model: v.model,
+      ...(v.size ? { size: v.size as ImageConfig['size'] } : {}),
+      ...(v.pricePerImage !== undefined ? { pricePerImage: v.pricePerImage as number } : {}),
+      dir: (v.dir as string | undefined) ?? 'images',
+    },
   };
 }
 
