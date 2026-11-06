@@ -6,21 +6,21 @@ Labels: **[V]** verified · **[S]** secondary · **[I]** inference or recommenda
 
 ## Build order and status
 
-Reviewed on November 5, 2026 for accuracy and order, so that building never stalls.
+Reviewed on November 5, 2026 for accuracy and order, so that building never stalls. The agent's queue was rewritten on November 6, 2026, once everything unblocked was built.
 
-**Status marks.** ✅ means the code is built and in a reviewed pull request or merged. ⏳ means the rest waits on Robin: a hardware run, an API key or a decision. **To pick the next item, take the first item in the agent's queue that has no ✅, and skip ⏳ parts.** Nothing in Robin's queue blocks the agent's queue.
+**Status marks.** ✅ means the code is built and in a reviewed pull request or merged. ⏳ means the rest waits on Robin: a hardware run, an API key or a decision. **To pick the next item, take the first item in the agent's queue that has no ✅, and skip ⏳ parts.** The two queues run in parallel; the agent's remaining items each wait on one of Robin's.
 
-**Agent's queue, in order:**
+**Agent's queue, in order:** All the code that isn't waiting on Robin is built: L0–L7, A2–A4 and T1–T8. Each item below waits on Robin's queue; when every item is waiting, say so and ask rather than starting unlisted work.
 
-1. **L4**, two-tier compaction.
-2. **L5**, the offline guarantee. With L4 this completes the code for Local AI v1.0.
-3. **Default local profile** (S): add `local`, and `local-hard` once the machine has 128 GB, chosen from Robin's first matrix (see L3 notes). If no matrix exists yet, go on to item 4 and come back.
-4. **L6**: MCP, then fetch, then the TUI. L7 only when asked.
-5. **Track 2** (A2 to A4; A2 needs A1), then **Track 3** (T1, T3, T4, T5, T6, T8; T2 only after its decision note), unless Robin reorders the tracks.
+1. **Default local profile** (S): add `local`, and `local-hard` once the machine has 128 GB, chosen from the first eval matrix in [`COMPATIBILITY.md`](COMPATIBILITY.md) (see L3 notes). Waits on Robin's item 1.
+2. **Live-check follow-ups**: as each check in [`LIVE_CHECKS.md`](LIVE_CHECKS.md) comes back, mark its ⏳ part ✅ with the date, or fix what broke. Fill in the results table in [`LOCAL_MODELS.md`](LOCAL_MODELS.md) from the trials. Waits on Robin's item 1.
+3. **After the font spike (A1)**: on a pass, mark A1 ✅ and drop the "provisional" label from `AKKHA_BRAHMI` (`src/lang/tables.ts`, `docs/LANGUAGE.md`, the README). On a failure in one engine, decide with Robin as the encoding decision says; never switch to the PUA fallback automatically. The `hb-shape` golden tests (A3) go in the font repo. Waits on Robin's item 2.
+4. **A5** (the Akkha-Rik app's own repo), only when Robin asks: the `lang` tags can start any time; generating `ak` from `deva` and the web-font rendering wait for A1.
+5. **A6 to A8** wait on the BAMA agreement (A6), then on A7's data. The later ideas (edit formats, subagents, auto-update) only when asked.
 
 **Robin's queue, in parallel:**
 
-1. Work through [`LIVE_CHECKS.md`](LIVE_CHECKS.md), the step-by-step checklist: prompt caching (L0), vision (T3), image, speech and video with real providers (T4–T6), the local speech round trip, and the first local model wave with the eval matrix (L2, L3). The matrix feeds the agent's item 3.
+1. Work through [`LIVE_CHECKS.md`](LIVE_CHECKS.md), the step-by-step checklist: prompt caching (L0), vision (T3), image, speech and video with real providers (T4–T6), the local speech round trip, and the first local model wave with the eval matrix (L2, L3). The matrix feeds the agent's item 1.
 2. Run the A1 font spike in the font repo, so the Akkha-Brahmi table can stop being provisional.
 3. Confirm whether January 14, 2027 applies to Local AI v1.0.
 4. Later: the machine purchase when a buying signal appears.
