@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img">
+  <title>mrig</title>
+  <rect width="512" height="512" rx="112" fill="#1f2a44"/>
+  <path d="M132 360V214c0-30 24-52 56-52s56 22 56 52v146M244 214c0-30 24-52 56-52s56 22 56 52v146"
+        fill="none" stroke="#e6ecff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M132 214v146" fill="none" stroke="#e6ecff" stroke-width="38" stroke-linecap="round"/>
+  <circle cx="404" cy="356" r="24" fill="#6c8ff0"/>
+</svg>

@@ -1,8 +1,12 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
-    "includes": ["src/**", "tests/**", "scripts/**", "*.json"],
+    "includes": ["src/**", "tests/**", "scripts/**", "web/**", "*.json"],
     "ignoreUnknown": true
   },
   "formatter": {
@@ -15,12 +19,46 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "suspicious": { "noExplicitAny": "error", "noConsole": "off" },
-      "style": { "noNonNullAssertion": "error", "useNodejsImportProtocol": "error" },
-      "complexity": { "noForEach": "off" }
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsole": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "useNodejsImportProtocol": "error"
+      },
+      "complexity": {
+        "noForEach": "off"
+      }
     }
   },
   "javascript": {
-    "formatter": { "quoteStyle": "single", "semicolons": "always", "trailingCommas": "all" }
-  }
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["web/ui.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noArrayIndexKey": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["web/styles.css"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDescendingSpecificity": "off"
+          }
+        }
+      }
+    }
+  ]
 }

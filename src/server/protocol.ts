@@ -112,6 +112,8 @@ export type ServerMessage =
       live: string;
       asks: PendingAsk[];
       status: StatusInfo;
+      /** What the header pickers offer: configured profiles, modes, the tutor's varieties. */
+      options: { providers: string[]; modes: string[]; varieties: string[] };
     }
   | { type: 'turn.start'; conversation: string; text: string }
   | { type: 'text.delta'; conversation: string; delta: string }
@@ -136,6 +138,8 @@ export type ServerMessage =
   | ({ type: 'ask'; conversation: string } & PendingAsk)
   | { type: 'ask.closed'; conversation: string; askId: string; answer: 'yes' | 'no' | 'always' }
   | { type: 'notice'; conversation: string; text: string }
+  /** The session's title or id changed (after the first turn, `/resume`, `/clear`). */
+  | { type: 'info'; conversation: string; info: ConversationInfo }
   | { type: 'status'; conversation: string; status: StatusInfo }
   | {
       type: 'turn.end';

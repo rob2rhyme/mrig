@@ -1,5 +1,12 @@
 import { MODE_NAMES, type ModeName, parseMode } from '../modes.ts';
 
+/** `mrig app …` (Track 4, U2). */
+export type AppCommand =
+  | { action: 'run'; open: boolean; pair: boolean }
+  | { action: 'allow'; name: string }
+  | { action: 'devices' }
+  | { action: 'revoke'; name: string };
+
 export interface CliArgs {
   prompt?: string;
   print?: string;
@@ -25,8 +32,10 @@ export interface CliArgs {
   init: boolean;
   /** `mrig serve`: the local app server for the app front ends (Track 4, U1). */
   serve: boolean;
-  /** `--port <n>` (with serve): 0 or absent picks a free port. */
+  /** `--port <n>` (with serve or app): for serve, 0 or absent picks a free port. */
   port?: number;
+  /** `mrig app …`: the web app and its device allowlist (Track 4, U2). */
+  app?: AppCommand;
   /** `--mode <name>` (T1). */
   mode?: ModeName;
   /** `--variety <tag>` (T8): the tutor mode's variety. */
@@ -43,6 +52,9 @@ Usage:
   mrig doctor [-P <name>] [-m <id>]      check model ids against each provider's model list
   mrig init                              write a starter ~/.mrig/config.json
   mrig serve [--port <n>]                local app server for the app front ends (127.0.0.1 only)
+  mrig app [--port <n>] [--no-open]      the mrig web app on this Mac (installable; 127.0.0.1 only)
+  mrig app allow add <name>              allow a device and show its one-time pairing code
+  mrig app devices                       list allowed devices; mrig app revoke <name> removes one
 
 Options:
   -p, --print <prompt>     Run a single prompt non-interactively and exit
@@ -60,7 +72,9 @@ Options:
       --mode <name>        Start in a mode: ${MODE_NAMES.join(', ')} (or /mode in a session)
       --variety <tag>      The tutor's variety: mgp, mrd, kgj, kip, kif, kjl, kzq (with --mode tutor)
       --tui                Terminal UI with a status line (experimental)
-      --port <n>           With serve: the port (default: a free one)
+      --port <n>           With serve or app: the port (serve: a free one; app: 4747 or app.port)
+      --no-open            With app: don't open the browser
+      --pair               With app: pair this Mac's browser again
       --doctor             Same as "mrig doctor"
       --init               Same as "mrig init"
   -v, --version            Print version
@@ -87,6 +101,9 @@ export function parseArgs(argv: string[]): CliArgs {
   };
   const positional: string[] = [];
   let initWord = false;
+  let appWord = false;
+  let noOpen = false;
+  let pairAgain = false;
   const take = (flag: string, i: number): string => {
     const v = argv[i + 1];
     if (v === undefined || v.startsWith('-')) throw new Error(`Missing value for ${flag}`);
@@ -128,6 +145,12 @@ export function parseArgs(argv: string[]): CliArgs {
       }
       case '--cwd':
         args.cwd = take(a, i++);
+        break;
+      case '--no-open':
+        noOpen = true;
+        break;
+      case '--pair':
+        pairAgain = true;
         break;
       case '--port': {
         const n = Number(take(a, i++));
@@ -177,6 +200,10 @@ export function parseArgs(argv: string[]): CliArgs {
           args.doctor = true;
           break;
         }
+        if (a === 'app' && positional.length === 0 && args.print === undefined && !appWord) {
+          appWord = true;
+          break;
+        }
         if (a === 'serve' && positional.length === 0 && args.print === undefined) {
           args.serve = true;
           break;
@@ -193,12 +220,29 @@ export function parseArgs(argv: string[]): CliArgs {
     if (positional.length) positional.unshift('init');
     else args.init = true;
   }
+  // `mrig app` and its subcommands; `mrig app ideas for my site` is a prompt.
+  if (appWord) {
+    const [w1, w2, w3, ...extra] = positional;
+    if (positional.length === 0) args.app = { action: 'run', open: !noOpen, pair: pairAgain };
+    else if (w1 === 'allow' && w2 === 'add' && w3 && extra.length === 0)
+      args.app = { action: 'allow', name: w3 };
+    else if (w1 === 'devices' && positional.length === 1) args.app = { action: 'devices' };
+    else if (w1 === 'revoke' && w2 && positional.length === 2)
+      args.app = { action: 'revoke', name: w2 };
+    else positional.unshift('app');
+    if (args.app) positional.length = 0;
+  }
+  if ((noOpen || pairAgain) && args.app?.action !== 'run') {
+    throw new Error(`${noOpen ? '--no-open' : '--pair'} works with mrig app`);
+  }
   if (positional.length) args.prompt = positional.join(' ');
   if ((args.json || args.outputLast) && args.print === undefined) {
     throw new Error(`${args.json ? '--json' : '--output-last'} works with -p "prompt"`);
   }
   if (args.json && args.outputLast) throw new Error('Use --json or --output-last, not both');
-  if (args.port !== undefined && !args.serve) throw new Error('--port works with mrig serve');
+  if (args.port !== undefined && !args.serve && args.app?.action !== 'run') {
+    throw new Error('--port works with mrig serve or mrig app');
+  }
   if (args.serve && args.prompt) throw new Error('mrig serve takes no prompt');
   return args;
 }
