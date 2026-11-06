@@ -69,6 +69,18 @@ here. Copy this section into that repo's `AGENTS.md`, which mrig loads when it r
 test strings from the `translit` tool rather than typing Brahmi by hand. Check each tool's
 `--help` before using a flag not shown here.
 
+The A1 spike kit is in mrig's `tools/akkha-spike/`; its `README.md` has the steps. Copy the
+folder into the font repo to run it.
+
+- `python3 brahmi_spike.py Akkha.ttf mapping.csv AkkhaBrahmiTest.ttf` writes a test copy of the
+  font. It maps each glyph in `mapping.csv` (columns `old,glyph,deva`) to its Brahmi code point,
+  registers the existing lookups under `brah`, and renames the family "… Brahmi Test". It never
+  writes over the input.
+- `words.txt` holds the 22 test words; `akkha-spike-test.html` shows them for Safari and Chrome.
+- `python3 test_spike.py` is the kit's self-test, on a stand-in font.
+- The kit's Brahmi table and words come from `src/lang/tables.ts`, and
+  `tests/akkha_spike.test.ts` fails if they drift. Change the table there first.
+
 - **fontTools** (`pip install fonttools`): `fonttools ttx -l Font.ttf` lists the tables;
   `fonttools ttx -t cmap -t GSUB -o - Font.ttf` dumps the cmap and GSUB as XML to stdout.
 - **fontmake** (`pip install fontmake`): builds binaries from the sources, for example

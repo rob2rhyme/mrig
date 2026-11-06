@@ -162,7 +162,7 @@ Needs: Ollama on the Mac. Costs: nothing but time.
 
 ## Not here
 
-- **The A1 font spike** runs in the GurbachhanAkkhaRik font repo, not mrig. The steps are in [the encoding decision](decisions/2026-09-23-akkha-encoding.md) under "Font spike".
+- **The A1 font spike** runs in the GurbachhanAkkhaRik font repo, not mrig. The kit (the re-encoding script, the test words and the browser page) and its steps are in [`tools/akkha-spike/`](../tools/akkha-spike/README.md); the plan is in [the encoding decision](decisions/2026-09-23-akkha-encoding.md) under "Font spike".
 
 ## Seeing progress
 

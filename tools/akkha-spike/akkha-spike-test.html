@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Akkha Brahmi spike</title>
+<style>
+  @font-face { font-family: 'SpikeFile'; src: url('AkkhaBrahmiTest.ttf'); }
+  :root { --fg: #1a1a1a; --bg: #ffffff; --muted: #666; --line: #ddd; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #eee; --bg: #161616; --muted: #aaa; --line: #333; } }
+  body { font-family: system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0 auto; max-width: 900px; padding: 24px 16px; }
+  p, label { color: var(--muted); }
+  input { font: inherit; padding: 4px 8px; width: 22em; max-width: 100%; }
+  table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; }
+  tr.group th { padding-top: 24px; font-size: 14px; color: var(--muted); }
+  td.akkha { font-size: 48px; line-height: 1.6; width: 40%; }
+</style>
+</head>
+<body>
+<h1>Akkha Brahmi spike</h1>
+<p>Compare each Akkha form with the reference images in the chart PDF. Check the subjoined letters, where vowel signs sit, and the e/ai marks. Note any row that looks wrong, and in which browser.</p>
+<label>Font family as installed (from Font Book): <input id="family" value="Akkha Brahmi Test"></label>
+<p id="shown"></p>
+<table>
+<tr class="group"><th colspan="3">Subjoined य, व, ह</th></tr>
+<tr><td class="akkha">𑀓𑁆𑀬</td><td>क्य</td><td>kya</td></tr>
+<tr><td class="akkha">𑀤𑁆𑀯</td><td>द्व</td><td>dva</td></tr>
+<tr><td class="akkha">𑀦𑁆𑀳</td><td>न्ह</td><td>nha</td></tr>
+<tr><td class="akkha">𑀫𑁆𑀬</td><td>म्य</td><td>mya</td></tr>
+<tr><td class="akkha">𑀕𑁆𑀯</td><td>ग्व</td><td>gva</td></tr>
+<tr class="group"><th colspan="3">Vowels above the cluster</th></tr>
+<tr><td class="akkha">𑀓𑁆𑀬𑀺</td><td>क्यि</td><td>kyi</td></tr>
+<tr><td class="akkha">𑀓𑁆𑀬𑀻</td><td>क्यी</td><td>kyī</td></tr>
+<tr><td class="akkha">𑀤𑁆𑀯𑀺</td><td>द्वि</td><td>dvi</td></tr>
+<tr><td class="akkha">𑀦𑁆𑀳𑁂</td><td>न्हे</td><td>nhe</td></tr>
+<tr class="group"><th colspan="3">u / ū under the subjoined letter</th></tr>
+<tr><td class="akkha">𑀓𑁆𑀬𑀼</td><td>क्यु</td><td>kyu</td></tr>
+<tr><td class="akkha">𑀓𑁆𑀬𑀽</td><td>क्यू</td><td>kyū</td></tr>
+<tr><td class="akkha">𑀤𑁆𑀯𑀼</td><td>द्वु</td><td>dvu</td></tr>
+<tr><td class="akkha">𑀦𑁆𑀳𑀼</td><td>न्हु</td><td>nhu</td></tr>
+<tr class="group"><th colspan="3">e / ai marks</th></tr>
+<tr><td class="akkha">𑀓𑁂</td><td>के</td><td>ke</td></tr>
+<tr><td class="akkha">𑀓𑁃</td><td>कै</td><td>kai</td></tr>
+<tr><td class="akkha">𑀓𑁆𑀬𑁂</td><td>क्ये</td><td>kye</td></tr>
+<tr><td class="akkha">𑀤𑁆𑀯𑁃</td><td>द्वै</td><td>dvai</td></tr>
+<tr class="group"><th colspan="3">Whole words</th></tr>
+<tr><td class="akkha">𑀆𑀫𑀸</td><td>आमा</td><td>āmā</td></tr>
+<tr><td class="akkha">𑀦𑀫𑀲𑁆𑀢𑁂</td><td>नमस्ते</td><td>namaste</td></tr>
+<tr><td class="akkha">𑀧𑀸𑀦𑀻</td><td>पानी</td><td>pānī</td></tr>
+<tr><td class="akkha">𑀖𑀭</td><td>घर</td><td>ghara</td></tr>
+<tr><td class="akkha">𑀫𑀕𑀭</td><td>मगर</td><td>magara</td></tr>
+</table>
+<script>
+  const input = document.getElementById('family');
+  const apply = () => {
+    const fam = input.value.trim();
+    for (const td of document.querySelectorAll('td.akkha')) td.style.fontFamily = `'${fam}', 'SpikeFile', serif`;
+    document.getElementById('shown').textContent = `Showing Akkha in "${fam}" (or the AkkhaBrahmiTest.ttf next to this page).`;
+  };
+  input.addEventListener('input', apply);
+  apply();
+</script>
+</body>
+</html>
