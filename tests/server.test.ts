@@ -660,6 +660,9 @@ describe('app server security rules, one by one', () => {
     expect(() => parseArgs(['--port', '4747'])).toThrow('--port works with mrig serve');
     expect(() => parseArgs(['serve', '--port', '70000'])).toThrow('0 to 65535');
     expect(() => parseArgs(['serve', 'hello'])).toThrow('takes no prompt');
+    expect(parseArgs(['serve', '--with-app'])).toMatchObject({ serve: true, withApp: true });
+    expect(parseArgs(['serve']).withApp).toBeFalsy();
+    expect(() => parseArgs(['--with-app'])).toThrow('--with-app works with mrig serve');
     expect(parseArgs(['serve the soup'])).toMatchObject({ serve: false, prompt: 'serve the soup' });
   });
 });

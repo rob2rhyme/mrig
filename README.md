@@ -507,7 +507,7 @@ $ mrig serve
 ```
 
 It runs until Ctrl+C, or until the program that started it closes its input. You won't need it
-directly: the VS Code extension will start it for you (U4); the web app is `mrig app`, above.
+directly: the VS Code extension starts it for you (below); the web app is `mrig app`, above.
 The terminal (`mrig`, `--tui`, `-p`) is unchanged.
 
 - **Local only.** It listens on `127.0.0.1` and nothing else. No other device can reach the
@@ -524,9 +524,35 @@ The terminal (`mrig`, `--tui`, `-p`) is unchanged.
 - **Same sessions.** Conversations are the usual session files, so one started in the terminal
   can be resumed in an app, and the other way round.
 
-Options: `--port <n>` (default: a free one), and `-P`, `-m`, `--offline`, `--mode` as for an
-interactive session. The protocol and the security rules are in
-`docs/decisions/2026-11-06-app-front-ends.md`.
+Options: `--port <n>` (default: a free one), `--with-app` (also serve the web app, for the
+VS Code panel), and `-P`, `-m`, `--offline`, `--mode` as for an interactive session. The
+protocol and the security rules are in `docs/decisions/2026-11-06-app-front-ends.md`.
+
+## VS Code extension
+
+mrig in a VS Code panel: the same web app, plus editor features.
+
+- **Ask mrig about this:** select code, right-click → **Ask mrig about this** (Cmd+Alt+M). The
+  file and lines go into the message box.
+- **Edits in the diff editor:** an edit or write that asks permission opens in VS Code's diff
+  editor, with **Allow** and **Deny** in its title bar.
+- **File links:** `src/agent.ts:42` in a reply opens that line.
+- **Status bar:** the model and the cost, and a bell when mrig is waiting for you.
+
+Each window starts its own `mrig serve --with-app` in the workspace folder, on `127.0.0.1` with
+a new launch token, and stops it when the window closes. The extension finds `mrig` on your
+PATH or in `~/.local/bin`, `/opt/homebrew/bin` or `/usr/local/bin`; set **mrig.path** in
+Settings if yours is elsewhere.
+
+**Install.** CI builds the extension on every push: open the latest run in the Actions tab,
+download the **mrig-vscode** artifact, unzip it, then:
+
+```bash
+code --install-extension mrig-vscode.vsix
+```
+
+Or build it yourself with `bun run package:vscode`, which writes `dist/mrig-vscode.vsix`. The
+extension's own README is `vscode/README.md`.
 
 ## Images
 
@@ -814,7 +840,7 @@ models.
 v0.1 — Phase 0 + 1: loop, six tools (now nine, with fetch, translit and corpus), providers, permissions, sessions, memory, REPL, headless
 mode, cross-platform builds, tests. L0 prompt caching for Claude profiles. L1 hygiene: `mrig doctor`,
 in-place session meta, leaner CI. L2 local-model hardening: Ollama context warning, bash-only
-`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Track 4 U1: the app server (`mrig serve`); U2: the web app (`mrig app`, an installable PWA with a device allowlist). Next (see `docs/ROADMAP.md`):
+`toolMode`, empty-argument retry. L3 eval harness: `bun run eval`. L4 two-tier compaction. L5 offline mode and zones. L6: MCP client, fetch tool, `--tui`. L7: `/verbose`, `--json`, `--output-last`, `mrig init`. Track 2 A2: Akkha transliteration (`translit`, provisional until A1); A3: language memory (`lang/*.md`, `/lang`); A4: corpus search (`corpus`). Track 3 T1: modes (`/mode`, `--mode`: default, teach, learn); T3: image paths in prompts reach vision models (`vision` on a profile); T4: image generation (`image`); T5: speech (`speak`, `transcribe`, with a local option); T6: video through the AI Gateway with a per-job cost cap; T2: learner memory (`/learned`, `/forget`); T8: the Akkha tutor (`/mode tutor <variety>`); T7: model routing by rules (`routing`, `/route`). Track 4 U1: the app server (`mrig serve`); U2: the web app (`mrig app`, an installable PWA with a device allowlist); U4: the VS Code extension (`vscode/`). Next (see `docs/ROADMAP.md`):
 model trials and the first real matrix, then Track 2 or Track 3.
 
 ## License

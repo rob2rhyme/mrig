@@ -6,6 +6,7 @@ import { describe, expect, test } from 'bun:test';
 import type { ServerMessage } from '../src/server/protocol.ts';
 import { lineDiff } from '../web/diff.ts';
 import { highlight } from '../web/highlight.ts';
+import { detectHost, fileRef, parseFromHost } from '../web/host.ts';
 import { type Inline, parseInline, parseMarkdown } from '../web/markdown.ts';
 import { type AppState, INITIAL_STATE, reduce, waitingAsks } from '../web/model.ts';
 
@@ -231,5 +232,81 @@ describe('highlighter and diff', () => {
     ]);
     const big = Array.from({ length: 1500 }, (_, i) => `l${i}`).join('\n');
     expect(lineDiff(big, `${big}\nmore`).filter((l) => l.op !== ' ').length).toBeGreaterThan(0);
+  });
+});
+
+describe('the host bridge (U4)', () => {
+  const VS = 'vscode-webview://1a2b3c';
+
+  test('host mode needs host=vscode and a VS Code webview as the parent', () => {
+    expect(detectHost('', [VS])).toBeUndefined();
+    expect(detectHost('#host=other', [VS])).toBeUndefined();
+    expect(detectHost('#host=vscode', [])).toBeUndefined();
+    expect(detectHost('#host=vscode', ['https://evil.example'])).toBeUndefined();
+    expect(detectHost('#host=vscode', ['vscode-webview://x/../evil'])).toBeUndefined();
+    expect(detectHost('#host=vscode&cwd=%2Fp', ['https://evil.example', VS])).toEqual({
+      kind: 'vscode',
+      parentOrigin: VS,
+      cwd: '/p',
+    });
+  });
+
+  test('a given parent is honoured only with the launch token', () => {
+    // Without the token, `parent` in the fragment can't name some other page as the host.
+    expect(detectHost('#host=vscode&parent=https%3A%2F%2Fevil.example', [])).toBeUndefined();
+    expect(detectHost('#host=vscode&parent=https%3A%2F%2Fevil.example', [VS])?.parentOrigin).toBe(
+      VS,
+    );
+    expect(detectHost('#host=vscode&token=t&parent=http%3A%2F%2F127.0.0.1%3A9', [])).toEqual({
+      kind: 'vscode',
+      parentOrigin: 'http://127.0.0.1:9',
+    });
+  });
+
+  test('only well-formed host messages get through', () => {
+    expect(parseFromHost({ type: 'insert', text: 'hi' })).toEqual({ type: 'insert', text: 'hi' });
+    expect(parseFromHost({ type: 'answer', askId: 'a1', answer: 'yes' })).toEqual({
+      type: 'answer',
+      askId: 'a1',
+      answer: 'yes',
+    });
+    for (const bad of [
+      null,
+      'insert',
+      { type: 'insert' },
+      { type: 'insert', text: 5 },
+      { type: 'insert', text: 'x'.repeat(20_001) },
+      { type: 'answer', askId: 'a1', answer: 'always' },
+      { type: 'answer', askId: 'a'.repeat(101), answer: 'yes' },
+      { type: 'answer', answer: 'yes' },
+      { type: 'send', text: 'rm -rf /' },
+    ]) {
+      expect(parseFromHost(bad)).toBeUndefined();
+    }
+    // Extra fields are dropped, not passed on.
+    expect(parseFromHost({ type: 'insert', text: 'hi', send: true })).toEqual({
+      type: 'insert',
+      text: 'hi',
+    });
+  });
+
+  test('file references in replies', () => {
+    expect(fileRef('src/agent.ts')).toEqual({ path: 'src/agent.ts' });
+    expect(fileRef('src/agent.ts:42')).toEqual({ path: 'src/agent.ts', line: 42 });
+    expect(fileRef('web/ui.tsx:10-20')).toEqual({ path: 'web/ui.tsx', line: 10 });
+    expect(fileRef('./a.json')).toEqual({ path: './a.json' });
+    expect(fileRef('../up/b.md:3')).toEqual({ path: '../up/b.md', line: 3 });
+    for (const not of [
+      'agent',
+      'npm install',
+      'https://x.ts',
+      'a b.ts',
+      'src/',
+      '`x`',
+      'x.ts:',
+      'const a = 1',
+    ]) {
+      expect(fileRef(not)).toBeUndefined();
+    }
   });
 });

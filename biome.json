@@ -6,7 +6,15 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**", "tests/**", "scripts/**", "web/**", "*.json"],
+    "includes": [
+      "src/**",
+      "tests/**",
+      "scripts/**",
+      "web/**",
+      "vscode/src/**",
+      "vscode/package.json",
+      "*.json"
+    ],
     "ignoreUnknown": true
   },
   "formatter": {

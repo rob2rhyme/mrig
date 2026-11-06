@@ -108,9 +108,12 @@ async function runDoctor(args: ReturnType<typeof parseArgs>, cwd: string): Promi
  */
 async function serve(args: ReturnType<typeof parseArgs>): Promise<void> {
   const { startServer } = await import('./server/serve.ts');
+  // `--with-app`: the VS Code panel (U4) shows the web app from this server, with the token.
+  const app = args.withApp ? (await import('./server/app-assets.ts')).APP_ASSETS : undefined;
   const server = startServer({
     port: args.port ?? 0,
     version: VERSION,
+    ...(app ? { app } : {}),
     runtime: {
       provider: args.provider,
       model: args.model,

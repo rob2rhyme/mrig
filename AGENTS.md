@@ -65,6 +65,11 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   links), `highlight.ts`, `diff.ts`. `ui.tsx` and `app.tsx` only draw it. `sw.js` caches the
   app's own files only. `e2e/app.e2e.ts` drives it in Chromium (`bun run test:e2e`; CI runs it
   on Linux). Re-render icons with `bun scripts/build-icons.ts` after changing `web/icons/icon.svg`.
+- `vscode/` — the VS Code extension (Track 4, U4): a webview panel framing the app from its own
+  `mrig serve --with-app` (one per window, stopped on close). `vscode/src/logic.ts` is pure and
+  tested in `tests/vscode.test.ts`; `tests/vscode_extension.test.ts` runs `extension.ts` against
+  a stand-in `vscode` module. `web/host.ts` is the app's side: host mode only from the fragment,
+  messages from the parent's window and origin only. `bun run package:vscode` writes the `.vsix`.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the
