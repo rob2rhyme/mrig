@@ -1,12 +1,12 @@
 # Roadmap: local AI first, Akkha second, modes and media third, app front ends fourth
 
-Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.** **Track 4, app front ends (an installable web app with an allowlist login, and a VS Code extension), was added on November 6, 2026 at Robin's request; it runs in parallel with the live checks.**
+Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.** **Track 4, app front ends (an installable web app with an allowlist login, and a VS Code extension), was added on November 6, 2026 at Robin's request; it runs in parallel with the live checks.** **Track 5, memory and settings, was added on November 7, 2026 at Robin's request; it waits on his answers to its decision note.**
 
 Labels: **[V]** verified · **[S]** secondary · **[I]** inference or recommendation. Effort: S = under a day, M = a few days, L = a week+ of evenings.
 
 ## Build order and status
 
-Reviewed on November 5, 2026 for accuracy and order, so that building never stalls. The agent's queue was rewritten on November 6, 2026, once everything unblocked was built.
+Reviewed on November 5, 2026 for accuracy and order, so that building never stalls. The agent's queue was rewritten on November 6, 2026, once everything unblocked was built, and Track 5 added on November 7, 2026.
 
 **Status marks.** ✅ means the code is built and in a reviewed pull request or merged. ⏳ means the rest waits on Robin: a hardware run, an API key or a decision. **To pick the next item, take the first item in the agent's queue that has no ✅, and skip ⏳ parts.** The two queues run in parallel; the agent's remaining items each wait on one of Robin's.
 
@@ -18,6 +18,7 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 4. **A5** (the Akkha-Rik app's own repo): the `lang` tags are done; generating `ak` from `deva` and the web-font rendering wait for A1. Waits on Robin's item 2.
 5. **A6 to A8** wait on the BAMA agreement (A6), then on A7's data. The later ideas (edit formats, subagents, auto-update) only when asked.
 6. **Track 4, app front ends** (U1 → U2 → U3 → U4): [the decision note](decisions/2026-11-06-app-front-ends.md) was approved by Robin on November 6, 2026 and revised the same day (a PWA with an allowlist login, other devices through Tailscale, and VS Code; no native desktop apps). Build in order, starting with U1; it does not wait on the live checks. U1 to U4 are built; what remains is Robin's hands-on checks.
+7. **Track 5, memory and settings** (M1 → M2 → S1 → S2 → S3 → M3): [the decision note](decisions/2026-11-07-memory-and-settings.md) is proposed. Waits on Robin's item 6; build nothing before it is approved.
 
 **Robin's queue, in parallel:**
 
@@ -26,6 +27,7 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 3. Confirm whether January 14, 2027 applies to Local AI v1.0.
 4. Later: the machine purchase when a buying signal appears.
 5. Track 4 hands-on checks as each front end lands: install the PWA on the Mac and use it for a real session (U2), pair a phone over Tailscale (U3, which needs Tailscale on both), install the `.vsix` in VS Code (U4).
+6. Answer the six open questions in [the memory and settings note](decisions/2026-11-07-memory-and-settings.md), so Track 5 can start.
 
 **Local AI v1.0 is done** when the L0 to L5 code is merged (it is) and the L0 and model-wave checks in `LIVE_CHECKS.md` pass. L0's passed on November 6, 2026; the model wave (L2, L3) is what remains.
 
@@ -156,7 +158,22 @@ The plan is [the decision note](decisions/2026-11-06-app-front-ends.md): one loc
 | U2 | **The PWA on the Mac**: `mrig app`; the allowlist, pairing and device login (`mrig app allow add`, `devices`, `revoke`); manifest and service worker; sidebar, streaming markdown, tool cards with diffs, permission panel, Stop, model and mode pickers, status bar, images in and media out, command palette, light and dark. ✅ Built 2026-11-06 (`feat/U2-pwa`): `mrig app`, `src/server/devices.ts`, `web/` (React, built into the binary), pairing and cookie login, uploads, a service worker and manifest; 31 unit tests and 4 browser tests (Chromium, in CI), each security rule mutation-checked. ⏳ Robin installs it and uses it for a real session; his fixes complete U2 | L | Pairing and login tests; `ChatViewModel` tested without a browser; Playwright smoke tests; nothing loads from the internet; Robin installs it on the Mac, uses it for a real session, and the fixes he lists are in |
 | U3 | **Other devices through Tailscale**: Tailscale `Host` and identity headers, Funnel refused, Allow once and Deny only from other devices (no Always, no `/yolo`), phone layout, a background service (`mrig app service install`), the README setup guide. ✅ Built 2026-11-06 (`feat/U3-tailscale`): WebSocket through Serve checked first, against Tailscale's source and a stand-in built from its own proxy code (Chromium; the page over HTTP/2, the socket over HTTP/1.1); `requestFrom` (a request is the Mac's only with a loopback `Host` and no proxy header, since Serve copies `Host` from the device), Funnel refused, the Tailscale name read from `tailscale status`, the login pin, Allow once and Deny only and no `/yolo` from other devices, `mrig app service`; 23 tests, each rule mutation-checked. ⏳ Robin pairs his phone | M | WebSocket through Tailscale Serve checked first; tests for each remote rule; Robin pairs a phone, installs the PWA and runs a turn with a permission request |
 | U4 | **VS Code extension**: the same front end in a webview panel, with its own `mrig serve` and launch token; selection and active-file context, clickable `file:line`, edits in VS Code's diff editor, a status bar item; a `.vsix` from CI. ✅ Built 2026-11-06 (`feat/U4-vscode`): `vscode/` (the extension, its own `mrig serve --with-app` per window), `web/host.ts` (the frame bridge: messages from the parent's window and origin only, checked field by field), file links and the diff editor with Allow and Deny in its title bar, a status bar item; the `.vsix` built in CI; 10 unit tests, 2 runs of the extension against a stand-in `vscode` module with a real server, and 3 browser tests of the bridge, each rule mutation-checked. ⏳ Robin installs the `.vsix` and tries it | M | The `.vsix` installs on Robin's Mac; a selection reaches the message box; Allow in the diff editor applies an edit; a `file:line` link opens the line |
-| U5 | Later, only when asked: push notifications to a closed PWA, passkeys, settings editor, MCP panel, learner and tutor view, push-to-talk, several projects in one window | — | — |
+| U5 | Later, only when asked: push notifications to a closed PWA, passkeys, settings editor (now planned in Track 5, S3), MCP panel, learner and tutor view, push-to-talk, several projects in one window | — | — |
+
+## Track 5 — Memory and settings
+
+Robin's request (November 7, 2026): carry context between conversations, and plan every settings feature mrig should have. The plan is [the decision note](decisions/2026-11-07-memory-and-settings.md). Everything stays local and readable, and you can see and delete what mrig remembers. API keys stay in the shell environment. Sizes are estimates [I].
+
+**Order:** M1 → M2 → S1 → S2 → S3 → M3, after Robin answers the note's open questions.
+
+| # | Item | Effort | Done when |
+|---|---|---|---|
+| M1 | **Notes**: `/remember <text>` (and `--global`) saves a dated note for this project; notes load into the prompt like `AGENTS.md`; `/notes` lists, `/notes forget <n>` deletes, `/notes edit` opens the file | S | Notes load once per session within the memory budget; zones keep their own; list, forget and edit tested |
+| M2 | **Recall**: a read-only `recall` tool and `/recall <words>` search this project's earlier conversations (plain text, dated hits, capped); off with `memory.recall: false` | S–M | Only this project's sessions; zones never mixed; the current session excluded; the caps hold |
+| S1 | **Settings core**: `src/settings.ts` describes every key; each change validated by `loadConfig`, written atomically with a backup, and logged without values | M | A test fails when a config key has no description; invalid values and untrusted project writes are refused; nothing secret is logged |
+| S2 | **`mrig config`** (list, get, set, unset, edit, path, check; `--project`) and `/settings` | S | Each subcommand tested, including a bad edit restored from the backup |
+| S3 | **Settings screen** in the web app and the VS Code panel: models, routing, permissions, project (instruction files, project config), memory, context, media, MCP, offline, app and devices, sessions, keys (set or not, never values), appearance, about | L | Changes only from the Mac (the server refuses other devices); security-relevant changes confirmed; no key value ever sent; desktop and phone browser tests |
+| M3 | **Automatic project summaries** at the end of a conversation, off unless turned on; the newest load into the next session; `/notes` shows and deletes them | M | Off by default; the conversation's own model writes them (a local one in a zone); the cost shows in `/cost`; delete tested |
 
 ## Hardware plan and backups
 

@@ -236,6 +236,24 @@ Rules for Track 4:
 - The allowlist is edited only from the Mac's terminal.
 - The GurbachhanAkkhaRik font is never bundled; Noto Sans Brahmi is the fallback.
 
+### Track 5 — Memory and settings (after Robin's answers)
+
+Added November 7, 2026 at Robin's request: memory across conversations, and a settings editor. The plan, the open questions and the per-item tests are in `docs/decisions/2026-11-07-memory-and-settings.md`; read it in full before any Track 5 work.
+
+- **Gate.** ⏳ Robin answers the note's six open questions and approves it. Build nothing before that.
+- **M1. Notes (S).** `/remember`, `/notes`; notes load into the prompt like `AGENTS.md`. **Acceptance:** as in the note.
+- **M2. Recall (S–M).** The read-only `recall` tool and `/recall`, this project's sessions only. **Acceptance:** as in the note.
+- **S1. Settings core (M).** Every key described in one place; changes validated by `loadConfig`, atomic, backed up, logged without values. **Acceptance:** as in the note.
+- **S2. `mrig config` (S).** List, get, set, unset, edit, path, check; `/settings`. **Acceptance:** as in the note.
+- **S3. Settings screen (L).** In the web app and the VS Code panel; changes from the Mac only; security-relevant changes confirmed; keys never shown. **Acceptance:** as in the note.
+- **M3. Automatic summaries (M).** Off unless turned on. **Acceptance:** as in the note.
+
+Rules for Track 5:
+- Everything stays local, in readable files you can edit and delete.
+- Nothing is remembered without you asking, except M3 once you turn it on.
+- API keys are never written by mrig.
+- The project trust rule (`PROJECT_KEYS`) applies to every settings surface.
+
 ## Start now
 
 Run the checks and confirm green. Then read **Build order and status** at the top of `docs/ROADMAP.md` and implement the first item in the agent's queue that is not marked ✅, end to end: code, tests, README section if user-facing, the roadmap mark, `bun run check`. Skip parts marked ⏳: they wait on Robin and never block the next item. Stop for review after one item.
