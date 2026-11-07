@@ -10,7 +10,7 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 
 **Status marks.** ✅ means the code is built and in a reviewed pull request or merged. ⏳ means the rest waits on Robin: a hardware run, an API key or a decision. **To pick the next item, take the first item in the agent's queue that has no ✅, and skip ⏳ parts.** The two queues run in parallel; the agent's remaining items each wait on one of Robin's.
 
-**Agent's queue, in order:** All the code that isn't waiting on Robin is built: L0–L7, A2–A4, T1–T8 and U1–U4. Items 1 to 5 wait on Robin's queue; item 6 (Track 4) is built and waits on his hands-on checks; item 7 (Track 5) is approved and ready to build. When every item is waiting, say so and ask rather than starting unlisted work.
+**Agent's queue, in order:** All the code that isn't waiting on Robin is built: L0–L7, A2–A4, T1–T8 and U1–U4. Items 1 to 5 wait on Robin's queue; item 6 (Track 4) is built and waits on his hands-on checks; item 7 (Track 5) is approved; M1 is built, M2 is next. When every item is waiting, say so and ask rather than starting unlisted work.
 
 1. **Default local profile** (S): add `local`, and `local-hard` once the machine has 128 GB, chosen from the first eval matrix in [`COMPATIBILITY.md`](COMPATIBILITY.md) (see L3 notes). Waits on Robin's item 1.
 2. **Live-check follow-ups**: as each check in [`LIVE_CHECKS.md`](LIVE_CHECKS.md) comes back, mark its ⏳ part ✅ with the date, or fix what broke. Fill in the results table in [`LOCAL_MODELS.md`](LOCAL_MODELS.md) from the trials. Waits on Robin's item 1.
@@ -167,7 +167,7 @@ Robin's request (November 7, 2026): carry context between conversations, and pla
 
 | # | Item | Effort | Done when |
 |---|---|---|---|
-| M1 | **Notes**: `/remember <text>` (and `--global`) saves a dated note for this project; notes load into the prompt like `AGENTS.md`; `/notes` lists, `/notes forget <n>` deletes, `/notes edit` opens the file | S | Notes load once per session within the memory budget; zones keep their own; list, forget and edit tested |
+| M1 | **Notes**: `/remember <text>` (and `--global`) saves a dated note for this project; notes load into the prompt like `AGENTS.md`; `/notes` lists, `/notes forget <n>` deletes, `/notes edit` opens the file. ✅ Built 2026-11-07 (`feat/M1-notes`): `src/notes.ts`, `/remember`, `/notes` (list, forget, edit, reload) in the shared commands, so the REPL, TUI and app all have them; notes share the 24,000-character memory budget with `AGENTS.md`, newest first; 13 tests, each rule mutation-checked | S | Notes load once per session within the memory budget; zones keep their own; list, forget and edit tested |
 | M2 | **Recall**: a read-only `recall` tool and `/recall <words>` search this project's earlier conversations (plain text, dated hits, capped); off with `memory.recall: false` | S–M | Only this project's sessions; zones never mixed; the current session excluded; the caps hold |
 | S1 | **Settings core**: `src/settings.ts` describes every key; each change validated by `loadConfig`, written atomically with a backup, and logged without values | M | A test fails when a config key has no description; invalid values and untrusted project writes are refused; nothing secret is logged |
 | S2 | **`mrig config`** (list, get, set, unset, edit, path, check; `--project`) and `/settings` | S | Each subcommand tested, including a bad edit restored from the backup |

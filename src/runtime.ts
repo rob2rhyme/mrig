@@ -24,6 +24,7 @@ import type { Variety } from './lang/tables.ts';
 import { learnerPath, learnerSummary, loadLearner, today } from './learner.ts';
 import { formatMcpStatus, type McpConnect, McpManager, type McpServerStatus } from './mcp.ts';
 import { assertModeVariety, isModeName, MODES, type ModeName } from './modes.ts';
+import { type NotesPaths, notesBlock, notesPaths } from './notes.ts';
 import { type AskFn, PermissionManager } from './permissions.ts';
 import { buildSystemPrompt } from './prompt.ts';
 import {
@@ -112,6 +113,11 @@ export class Runtime {
    * system prompt, and with it the cached prefix, does not change from turn to turn.
    */
   lang: LangMemory;
+  /**
+   * `/remember` notes (M1), read once here and on reloadNotes(), for the same reason: a stable
+   * system prompt keeps the cached prefix.
+   */
+  notes = '';
   /** `/verbose` (L7): the UIs show the model's reasoning as it streams. Off by default. */
   verbose = false;
   /** Connected MCP servers, once startMcp() ran. */
@@ -178,6 +184,7 @@ export class Runtime {
       this.session.setMode(mode, variety);
     }
     this.lang = loadLangMemory(opts.cwd);
+    this.notes = notesBlock(this.notesPaths);
     this.agent = new Agent({
       model: this.model,
       modelLabel: this.modelLabel(),
@@ -210,7 +217,19 @@ export class Runtime {
       mode: this.mode,
       ...(this.variety ? { variety: this.variety } : {}),
       learner: this.learnerBlock(),
+      notes: this.notes,
     });
+  }
+
+  /** Where this folder's notes live: the zone's own file inside an offline zone (M1). */
+  get notesPaths(): NotesPaths {
+    return notesPaths(this.cwd, this.offline?.zone);
+  }
+
+  /** After `/remember` or `/notes forget`: read the notes again. The next request re-caches. */
+  reloadNotes(): void {
+    this.notes = notesBlock(this.notesPaths);
+    this.agent.opts.systemPrompt = this.systemPrompt();
   }
 
   /** Where learner memory lives here: the offline zone's own file, else ~/.mrig/learner.json. */

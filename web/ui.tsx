@@ -861,6 +861,8 @@ export const COMMANDS: Array<{ name: string; help: string; arg?: string }> = [
   { name: '/verbose', help: 'Show the model’s reasoning' },
   { name: '/lang', help: 'Language memory' },
   { name: '/learned', help: 'What you have learned' },
+  { name: '/remember', help: 'Save a note for this project', arg: '<text>' },
+  { name: '/notes', help: 'Your notes; forget <n> removes one' },
   { name: '/mcp', help: 'MCP servers' },
   { name: '/sessions', help: 'Saved sessions' },
   { name: '/yolo', help: 'Skip permission prompts (careful)' },

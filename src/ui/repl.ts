@@ -2,11 +2,13 @@
  * Interactive terminal loop: streaming output, tool-call lines, permission prompts,
  * slash commands, Ctrl+C to abort a run (twice to exit).
  */
+import { spawnSync } from 'node:child_process';
 import { createInterface, type Interface } from 'node:readline/promises';
 import type { AgentEvents, ToolCallInfo, ToolCallOutcome } from '../agent.ts';
 import type { Answer, AskRequest } from '../permissions.ts';
 import { formatModelError } from '../providers.ts';
 import { Runtime, type RuntimeOptions } from '../runtime.ts';
+import { editorCommand } from '../util/editor.ts';
 import { bold, cyan, dim, magenta, red, yellow } from './ansi.ts';
 import { bannerLines, runCommand, startupChecks } from './commands.ts';
 
@@ -212,10 +214,28 @@ export class Repl {
     }
   }
 
+  /** Hand the terminal to the user's editor until it exits (`/notes edit`). */
+  private openEditor(path: string): void {
+    const [cmd = 'vi', ...args] = editorCommand(path);
+    const stdin = process.stdin;
+    const raw = stdin.isTTY ? stdin.isRaw : false;
+    this.rl.pause();
+    if (stdin.isTTY) stdin.setRawMode(false);
+    try {
+      const run = spawnSync(cmd, args, { stdio: 'inherit' });
+      if (run.error)
+        this.write(`${red('error:')} couldn't start ${cmd}: ${run.error.message}. Set $EDITOR.\n`);
+    } finally {
+      if (stdin.isTTY) stdin.setRawMode(raw);
+      this.rl.resume();
+    }
+  }
+
   /** Returns true when the REPL should exit. */
   private async command(text: string): Promise<boolean> {
     return runCommand(this.runtime, text, {
       write: (s) => this.write(s),
+      edit: async (path) => this.openEditor(path),
       busy: async (run) => {
         this.running = new AbortController();
         this.showThinking();

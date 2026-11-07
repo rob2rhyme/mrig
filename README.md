@@ -427,6 +427,31 @@ mrig reads `AGENTS.md` (or `MRIG.md`) from the current directory up to the git r
 `~/.mrig/AGENTS.md`, into the system prompt — the same idea as Claude Code's `CLAUDE.md`.
 Put project conventions, commands, and rules there.
 
+### Notes (`/remember`)
+
+To keep a fact or preference for later conversations without editing a file:
+
+```
+❯ /remember the API server is in src/server; run bun test before committing
+✓ Remembered for this project (note 1). mrig uses it from your next message, and in new conversations.
+```
+
+- **This project, or every project:** `/remember <text>` saves a note for this project (the git
+  root, or the folder). `/remember --global <text>` saves one for every project.
+- **Loaded every time:** notes go into the prompt at the start of each conversation, after the
+  `AGENTS.md` files, and share their budget. The newest notes win if there are many.
+- **`/notes`** lists them, numbered: `1`, `2`… for this project, `g1`, `g2`… for every project.
+  - `/notes forget 2` or `/notes forget g1` removes one.
+  - `/notes edit` opens the file in your editor (`$VISUAL` or `$EDITOR`); add `--global` for
+    the global one. In the TUI and the app it prints the path instead.
+  - `/notes reload` picks up changes you made yourself.
+- **Where:** in mrig's own folder, never in your repo. A project's notes are in
+  `~/.mrig/projects/<folder>-<id>/notes.md`; the global ones are in `~/.mrig/notes.md`. Both are
+  plain Markdown, one `- date: text` line per note; edit them freely.
+- **Offline zones:** inside a zone, notes stay in the zone (`<zone>/.mrig/notes/`, never
+  committed), and `--global` is refused.
+- **Only you save notes.** The model can suggest one, but there is no tool that writes them.
+
 ## Terminal UI (experimental)
 
 `mrig --tui` starts a terminal UI instead of the plain line-by-line REPL:
@@ -788,7 +813,7 @@ quiz picks up where the last one stopped. The design is in
 ## Slash commands
 
 `/model <id>` · `/provider <name>` · `/providers` · `/cost` · `/context` · `/compact` · `/mcp` · `/clear` ·
-`/yolo` · `/mode <name>` · `/route` · `/learned` · `/forget <topic>` · `/verbose` · `/lang` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
+`/yolo` · `/mode <name>` · `/route` · `/learned` · `/forget <topic>` · `/remember <text>` · `/notes` · `/verbose` · `/lang` · `/sessions` · `/resume <id>` · `/tools` · `/memory` · `/help` · `/exit`.
 Ctrl+C aborts a running turn; press it twice at the prompt to quit.
 
 `/verbose` (or `/verbose on`, `/verbose off`) shows the model's reasoning, dim, before each answer.
