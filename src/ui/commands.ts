@@ -2,6 +2,7 @@
  * Slash commands, shared by the readline REPL and the TUI so both behave the same. They write
  * plain text (with ANSI colour) through `io`; neither UI holds command logic of its own.
  */
+import { existsSync } from 'node:fs';
 import { langReport } from '../lang/memory.ts';
 import {
   deleteLearnerFile,
@@ -12,6 +13,7 @@ import {
   today,
 } from '../learner.ts';
 import { isModeName, MODE_NAMES, MODES } from '../modes.ts';
+import { addNote, forgetNote, type Note, readNotes } from '../notes.ts';
 import { findMemoryFiles } from '../prompt.ts';
 import { CACHE_WRITE_MULTIPLIER, explainCacheMiss, formatModelError } from '../providers.ts';
 import type { Runtime } from '../runtime.ts';
@@ -24,6 +26,11 @@ export interface CommandIO {
   write(text: string): void;
   /** Run a long, abortable operation (`/compact`) while the UI shows it is busy. */
   busy<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T>;
+  /**
+   * Open a file in the user's editor and wait for it to close (`/notes edit`). Only the plain
+   * terminal can hand the screen over; elsewhere the command prints the file's path instead.
+   */
+  edit?(path: string): Promise<void>;
 }
 
 /** How /cost names each kind of generated media, and the config key that prices it. */
@@ -80,6 +87,8 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
           `${bold('/lang')}              language memory loaded from lang/*.md · ${bold('/lang reload')} to reread`,
           `${bold('/learned')}           what you have practised · ${bold('due')} · ${bold('where')} · or words to search`,
           `${bold('/forget <topic>')}    remove from learner memory · ${bold('--variety <tag>')} · ${bold('all')}`,
+          `${bold('/remember <text>')}   save a note for this project · ${bold('--global')} for every project`,
+          `${bold('/notes')}             your notes · ${bold('forget <n>')} · ${bold('edit')} · ${bold('reload')}`,
           `${bold('/exit')}              quit`,
         ].join('\n')}\n\n`,
       );
@@ -314,6 +323,96 @@ export async function runCommand(rt: Runtime, text: string, io: CommandIO): Prom
         );
       io.write('\n');
       return false;
+    case 'remember': {
+      const global = rest[0] === '--global';
+      const text = (global ? rest.slice(1) : rest).join(' ');
+      if (!text.trim()) return info('usage: /remember <text> · /remember --global <text>');
+      const paths = rt.notesPaths;
+      const zone = rt.offline?.zone;
+      if (global && zone) {
+        return info(
+          red(
+            "Inside an offline zone, notes stay in the zone, so --global isn't allowed here. /remember <text> saves it for this zone.",
+          ),
+        );
+      }
+      try {
+        const note = addNote(global ? paths.global : paths.project, text, {
+          title: global ? 'mrig notes for every project' : `mrig notes for ${paths.root}`,
+          zone: !global && zone !== undefined,
+        });
+        rt.reloadNotes();
+        return info(
+          `${green('✓')} Remembered${global ? ' for every project' : zone ? ' for this offline zone' : ' for this project'} (note ${global ? 'g' : ''}${note.n}). mrig uses it from your next message, and in new conversations.`,
+        );
+      } catch (err) {
+        return info(red((err as Error).message));
+      }
+    }
+    case 'notes': {
+      const paths = rt.notesPaths;
+      const zone = rt.offline?.zone;
+      const [sub = '', ...more] = rest;
+      if (sub === '' || sub === 'list') {
+        const show = (title: string, file: string, prefix: string, notes: Note[]) => [
+          `${bold(title)} ${dim(file)}`,
+          ...(notes.length
+            ? notes.map((n) => `  ${prefix}${n.n}. ${n.date ? dim(`${n.date}  `) : ''}${n.text}`)
+            : [dim('  none yet')]),
+        ];
+        return info(
+          [
+            ...show(
+              zone ? `For this offline zone (${paths.root})` : `For this project (${paths.root})`,
+              paths.project,
+              '',
+              readNotes(paths.project),
+            ),
+            '',
+            ...show('For every project', paths.global, 'g', readNotes(paths.global)),
+            '',
+            dim(
+              '/remember <text> adds one · /notes forget <n> (or g<n>) removes one · /notes edit opens the file',
+            ),
+          ].join('\n'),
+        );
+      }
+      if (sub === 'forget') {
+        const m = /^(g?)(\d+)$/i.exec(more.join(''));
+        if (!m)
+          return info('usage: /notes forget <n> · /notes forget g<n> for a note for every project');
+        const global = m[1] !== '';
+        try {
+          const note = forgetNote(global ? paths.global : paths.project, Number(m[2]), {
+            zone: !global && zone !== undefined,
+          });
+          rt.reloadNotes();
+          return info(`${green('✓')} Forgot: ${note.text}`);
+        } catch (err) {
+          return info(red((err as Error).message));
+        }
+      }
+      if (sub === 'edit') {
+        const global = more[0] === '--global';
+        if (global && zone)
+          return info(red("Inside an offline zone, only the zone's notes can be edited here."));
+        const file = global ? paths.global : paths.project;
+        if (!io.edit) {
+          return info(`Open this file in your editor, then run /notes reload:\n${file}`);
+        }
+        if (!readNotes(file).length && !existsSync(file)) {
+          return info(`No notes there yet. /remember <text> creates the file:\n${file}`);
+        }
+        await io.edit(file);
+        rt.reloadNotes();
+        return info(`${green('✓')} Notes reloaded: ${readNotes(file).length} in ${file}`);
+      }
+      if (sub === 'reload') {
+        rt.reloadNotes();
+        return info(`${green('✓')} Notes reloaded.`);
+      }
+      return info('usage: /notes · /notes forget <n> · /notes edit [--global] · /notes reload');
+    }
     case 'memory': {
       const files = findMemoryFiles(rt.cwd);
       return info(

@@ -11,7 +11,8 @@ import { type ModeName, modePrompt } from './modes.ts';
 import { detectShell } from './util/shell.ts';
 
 const MEMORY_FILES = ['AGENTS.md', 'MRIG.md'];
-const MAX_MEMORY_CHARS = 24_000;
+/** The memory budget: AGENTS.md files and `/remember` notes (M1) together. */
+export const MAX_MEMORY_CHARS = 24_000;
 
 /** Find memory files from cwd up to the filesystem/git root, nearest last (so it wins). */
 export function findMemoryFiles(cwd: string): string[] {
@@ -30,7 +31,7 @@ export function findMemoryFiles(cwd: string): string[] {
   return found.reverse();
 }
 
-export function loadMemory(cwd: string): string {
+export function loadMemory(cwd: string, maxChars = MAX_MEMORY_CHARS): string {
   const parts: string[] = [];
   const global = join(mrigHome(), 'AGENTS.md');
   if (existsSync(global)) parts.push(`# ~/.mrig/AGENTS.md\n${readFileSync(global, 'utf8').trim()}`);
@@ -38,9 +39,7 @@ export function loadMemory(cwd: string): string {
     parts.push(`# ${file}\n${readFileSync(file, 'utf8').trim()}`);
   }
   const text = parts.join('\n\n');
-  return text.length > MAX_MEMORY_CHARS
-    ? `${text.slice(0, MAX_MEMORY_CHARS)}\n… [memory truncated]`
-    : text;
+  return text.length > maxChars ? `${text.slice(0, maxChars)}\n… [memory truncated]` : text;
 }
 
 function gitBranch(cwd: string): string | undefined {
@@ -77,13 +76,16 @@ export interface PromptOptions {
   variety?: Variety;
   /** The learner memory summary (T2), in learn and teach mode only. */
   learner?: string;
+  /** The `/remember` notes block (M1), read once per session by the Runtime. */
+  notes?: string;
 }
 
 export function buildSystemPrompt(opts: PromptOptions): string {
   const shell = detectShell();
   const branch = gitBranch(opts.cwd);
   const date = (opts.now ?? new Date()).toISOString().slice(0, 10);
-  const memory = loadMemory(opts.cwd);
+  // Notes and AGENTS.md share one budget; the notes block is already capped well below it.
+  const memory = loadMemory(opts.cwd, MAX_MEMORY_CHARS - (opts.notes?.length ?? 0));
 
   const lines = [
     "You are mrig, a personal general-purpose agent running in the user's terminal on their own machine. You write and modify software, run commands, work with files, and answer any question directly.",
@@ -116,6 +118,7 @@ export function buildSystemPrompt(opts: PromptOptions): string {
   if (memory) {
     lines.push('', '## Project memory (from AGENTS.md files — follow these instructions)', memory);
   }
+  if (opts.notes) lines.push('', opts.notes);
   if (opts.lang) lines.push('', opts.lang);
   if (opts.learner) lines.push('', opts.learner);
   return lines.join('\n');

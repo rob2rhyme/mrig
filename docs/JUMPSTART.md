@@ -241,7 +241,7 @@ Rules for Track 4:
 Added November 7, 2026 at Robin's request: memory across conversations, and a settings editor. The plan, the open questions and the per-item tests are in `docs/decisions/2026-11-07-memory-and-settings.md`; read it in full before any Track 5 work.
 
 - **Gate.** ✅ Robin approved the note on November 7, 2026, with the recommended answer to each question. Build M1 first.
-- **M1. Notes (S).** `/remember`, `/notes`; notes load into the prompt like `AGENTS.md`. **Acceptance:** as in the note.
+- **M1. Notes (S).** ✅ Built 2026-11-07. `/remember`, `/notes`; notes load into the prompt like `AGENTS.md`. **Acceptance:** as in the note.
 - **M2. Recall (S–M).** The read-only `recall` tool and `/recall`, this project's sessions only. **Acceptance:** as in the note.
 - **S1. Settings core (M).** Every key described in one place; changes validated by `loadConfig`, atomic, backed up, logged without values. **Acceptance:** as in the note.
 - **S2. `mrig config` (S).** List, get, set, unset, edit, path, check; `/settings`. **Acceptance:** as in the note.

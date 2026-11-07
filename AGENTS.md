@@ -74,6 +74,10 @@ plain streaming REPL. Bun + TypeScript. Single-binary builds for macOS, Windows,
   tested in `tests/vscode.test.ts`; `tests/vscode_extension.test.ts` runs `extension.ts` against
   a stand-in `vscode` module. `web/host.ts` is the app's side: host mode only from the fragment,
   messages from the parent's window and origin only. `bun run package:vscode` writes the `.vsix`.
+- `src/notes.ts` — notes (Track 5, M1): `/remember` and `/notes` write plain Markdown in
+  `~/.mrig/projects/<id>/notes.md` (the zone's own `.mrig/notes/` in an offline zone) and
+  `~/.mrig/notes.md`; the Runtime reads them once into the prompt (`reloadNotes()` after a
+  change), sharing `MAX_MEMORY_CHARS` with AGENTS.md. No tool writes notes.
 - `src/mcp.ts` — MCP client: servers from the global config only, tools named
   `mcp__<server>__<tool>`, never read-only. `src/zone.ts` — offline mode rules (L5).
 - `scripts/eval.ts` + `scripts/eval/` — the model eval harness (`bun run eval`). Not part of the
