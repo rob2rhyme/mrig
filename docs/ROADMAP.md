@@ -1,6 +1,6 @@
 # Roadmap: local AI first, Akkha second, modes and media third, app front ends fourth
 
-Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.** **Track 4, app front ends (an installable web app with an allowlist login, and a VS Code extension), was added on November 6, 2026 at Robin's request; it runs in parallel with the live checks.** **Track 5, memory and settings, was added on November 7, 2026 at Robin's request; it waits on his answers to its decision note.**
+Date: November 3, 2026 (reconciled with the repo's JUMPSTART the same day). Robin's decision: **local AI (mrig) is track 1. Akkha integration is track 2, built as part of it.** This supersedes every earlier backlog table (the handoff's revision-4 and "re-ordered" tables). **Track 3, modes and media, was added on November 5, 2026 at Robin's request.** **Track 4, app front ends (an installable web app with an allowlist login, and a VS Code extension), was added on November 6, 2026 at Robin's request; it runs in parallel with the live checks.** **Track 5, memory and settings, was added on November 7, 2026 at Robin's request and approved the same day.**
 
 Labels: **[V]** verified · **[S]** secondary · **[I]** inference or recommendation. Effort: S = under a day, M = a few days, L = a week+ of evenings.
 
@@ -10,7 +10,7 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 
 **Status marks.** ✅ means the code is built and in a reviewed pull request or merged. ⏳ means the rest waits on Robin: a hardware run, an API key or a decision. **To pick the next item, take the first item in the agent's queue that has no ✅, and skip ⏳ parts.** The two queues run in parallel; the agent's remaining items each wait on one of Robin's.
 
-**Agent's queue, in order:** All the code that isn't waiting on Robin is built: L0–L7, A2–A4 and T1–T8. Items 1 to 5 wait on Robin's queue; item 6 (Track 4) is approved and ready to build. When every item is waiting, say so and ask rather than starting unlisted work.
+**Agent's queue, in order:** All the code that isn't waiting on Robin is built: L0–L7, A2–A4, T1–T8 and U1–U4. Items 1 to 5 wait on Robin's queue; item 6 (Track 4) is built and waits on his hands-on checks; item 7 (Track 5) is approved and ready to build. When every item is waiting, say so and ask rather than starting unlisted work.
 
 1. **Default local profile** (S): add `local`, and `local-hard` once the machine has 128 GB, chosen from the first eval matrix in [`COMPATIBILITY.md`](COMPATIBILITY.md) (see L3 notes). Waits on Robin's item 1.
 2. **Live-check follow-ups**: as each check in [`LIVE_CHECKS.md`](LIVE_CHECKS.md) comes back, mark its ⏳ part ✅ with the date, or fix what broke. Fill in the results table in [`LOCAL_MODELS.md`](LOCAL_MODELS.md) from the trials. Waits on Robin's item 1.
@@ -18,7 +18,7 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 4. **A5** (the Akkha-Rik app's own repo): the `lang` tags are done; generating `ak` from `deva` and the web-font rendering wait for A1. Waits on Robin's item 2.
 5. **A6 to A8** wait on the BAMA agreement (A6), then on A7's data. The later ideas (edit formats, subagents, auto-update) only when asked.
 6. **Track 4, app front ends** (U1 → U2 → U3 → U4): [the decision note](decisions/2026-11-06-app-front-ends.md) was approved by Robin on November 6, 2026 and revised the same day (a PWA with an allowlist login, other devices through Tailscale, and VS Code; no native desktop apps). Build in order, starting with U1; it does not wait on the live checks. U1 to U4 are built; what remains is Robin's hands-on checks.
-7. **Track 5, memory and settings** (M1 → M2 → S1 → S2 → S3 → M3): [the decision note](decisions/2026-11-07-memory-and-settings.md) is proposed. Waits on Robin's item 6; build nothing before it is approved.
+7. **Track 5, memory and settings** (M1 → M2 → S1 → S2 → S3 → M3): [the decision note](decisions/2026-11-07-memory-and-settings.md) was approved by Robin on November 7, 2026, with the recommended answer to each question. Ready to build, starting with M1; it does not wait on the live checks.
 
 **Robin's queue, in parallel:**
 
@@ -27,7 +27,6 @@ Reviewed on November 5, 2026 for accuracy and order, so that building never stal
 3. Confirm whether January 14, 2027 applies to Local AI v1.0.
 4. Later: the machine purchase when a buying signal appears.
 5. Track 4 hands-on checks as each front end lands: install the PWA on the Mac and use it for a real session (U2), pair a phone over Tailscale (U3, which needs Tailscale on both), install the `.vsix` in VS Code (U4).
-6. Answer the six open questions in [the memory and settings note](decisions/2026-11-07-memory-and-settings.md), so Track 5 can start.
 
 **Local AI v1.0 is done** when the L0 to L5 code is merged (it is) and the L0 and model-wave checks in `LIVE_CHECKS.md` pass. L0's passed on November 6, 2026; the model wave (L2, L3) is what remains.
 
@@ -164,7 +163,7 @@ The plan is [the decision note](decisions/2026-11-06-app-front-ends.md): one loc
 
 Robin's request (November 7, 2026): carry context between conversations, and plan every settings feature mrig should have. The plan is [the decision note](decisions/2026-11-07-memory-and-settings.md). Everything stays local and readable, and you can see and delete what mrig remembers. API keys stay in the shell environment. Sizes are estimates [I].
 
-**Order:** M1 → M2 → S1 → S2 → S3 → M3, after Robin answers the note's open questions.
+**Order:** M1 → M2 → S1 → S2 → S3 → M3. Approved by Robin on November 7, 2026: notes in mrig's own folder, recall for this project only, summaries off unless turned on, Settings read-only on other devices, revoke from the Mac's app, keys in the shell only.
 
 | # | Item | Effort | Done when |
 |---|---|---|---|

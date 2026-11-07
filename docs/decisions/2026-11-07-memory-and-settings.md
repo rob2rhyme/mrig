@@ -1,6 +1,6 @@
 # Memory and settings (Track 5) decision
 
-Date: November 7, 2026. Status: **proposed, waiting for RT's answers** (see **Open questions**). Nothing here is built until RT approves it.
+Date: November 7, 2026. Status: **decided by RT, November 7, 2026**, with the recommended answer to each open question (see **Answers** below).
 
 Labels: **[V]** verified against the code · **[S]** secondary source · **[I]** inference or recommendation.
 
@@ -133,6 +133,8 @@ Sections, each mapped to keys that exist today [V] or that this note adds:
 
 ## Open questions for RT
 
+Answered below; kept as asked.
+
 1. **Where project notes live (M1).** In mrig's own folder, `~/.mrig/projects/…`, private and never in the repo (recommended)? Or in the repo's `MRIG.md`, where you can commit and share them?
 2. **How far recall reaches (M2).** This project's conversations only (recommended), or every project's?
 3. **Automatic summaries (M3).** Off unless you turn them on (recommended)? On by default? Or not built at all?
@@ -140,7 +142,16 @@ Sections, each mapped to keys that exist today [V] or that this note adds:
 5. **Revoking devices from the app (S3).** Allow the Mac's own app to revoke (recommended), with adding still terminal-only? Or keep both in the terminal?
 6. **API keys (S3).** Keep them in the shell environment only, and warn about plain-text `apiKey` (recommended)? Or add macOS Keychain support as a later item?
 
-## The build (Track 5), once approved
+## Answers (RT, November 7, 2026)
+
+1. **Project notes** live in mrig's own folder, `~/.mrig/projects/<project-id>/notes.md` (the zone's own `.mrig/` in an offline zone), never in the repo.
+2. **Recall** reaches this project's conversations only.
+3. **Automatic summaries** are off unless turned on (globally, or per project).
+4. **Other devices** see Settings read-only; changes come from the Mac only, apart from each device's own Appearance.
+5. **The Mac's app may revoke a device**; adding one stays in the Mac's terminal.
+6. **API keys** stay in the shell environment only; Settings shows whether each is set, never its value, and mrig warns about a plain-text `apiKey`. No Keychain item.
+
+## The build (Track 5)
 
 Order: **M1 → M2 → S1 → S2 → S3 → M3**. The notes and recall are small and useful on their own; the settings core comes before its surfaces; summaries come last, once notes exist to sit beside them.
 

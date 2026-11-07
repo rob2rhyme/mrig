@@ -236,11 +236,11 @@ Rules for Track 4:
 - The allowlist is edited only from the Mac's terminal.
 - The GurbachhanAkkhaRik font is never bundled; Noto Sans Brahmi is the fallback.
 
-### Track 5 — Memory and settings (after Robin's answers)
+### Track 5 — Memory and settings
 
 Added November 7, 2026 at Robin's request: memory across conversations, and a settings editor. The plan, the open questions and the per-item tests are in `docs/decisions/2026-11-07-memory-and-settings.md`; read it in full before any Track 5 work.
 
-- **Gate.** ⏳ Robin answers the note's six open questions and approves it. Build nothing before that.
+- **Gate.** ✅ Robin approved the note on November 7, 2026, with the recommended answer to each question. Build M1 first.
 - **M1. Notes (S).** `/remember`, `/notes`; notes load into the prompt like `AGENTS.md`. **Acceptance:** as in the note.
 - **M2. Recall (S–M).** The read-only `recall` tool and `/recall`, this project's sessions only. **Acceptance:** as in the note.
 - **S1. Settings core (M).** Every key described in one place; changes validated by `loadConfig`, atomic, backed up, logged without values. **Acceptance:** as in the note.
